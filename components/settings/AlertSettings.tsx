@@ -35,7 +35,7 @@ function Toggle({
       className={clsx(
         "relative inline-flex h-5 w-9 rounded-full transition-colors duration-200 shrink-0",
         disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
-        checked ? "bg-blue-600" : "bg-gray-700"
+        checked ? "bg-th-accent" : "bg-th-border"
       )}
     >
       <span
@@ -50,7 +50,7 @@ function Toggle({
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-xs font-semibold text-gray-500 font-mono uppercase tracking-wider mb-3">
+    <p className="text-xs font-semibold text-th-secondary font-mono uppercase tracking-wider mb-3">
       {children}
     </p>
   );
@@ -72,7 +72,7 @@ export default function AlertSettings() {
       {/* ── Min net spread ── */}
       <section>
         <SectionTitle>Minimum Net Spread</SectionTitle>
-        <p className="text-xs text-gray-600 font-mono mb-4">
+        <p className="text-xs text-th-dim font-mono mb-4">
           Hide opportunities below this net spread threshold (after all fees).
         </p>
         <div className="flex items-center gap-4">
@@ -83,13 +83,13 @@ export default function AlertSettings() {
             step={0.05}
             value={minNetSpread}
             onChange={(e) => setMinNetSpread(parseFloat(e.target.value))}
-            className="flex-1 accent-blue-500 cursor-pointer"
+            className="flex-1 accent-th-accent cursor-pointer"
           />
-          <span className="text-sm font-mono font-bold text-blue-400 w-14 text-right tabular-nums">
+          <span className="text-sm font-mono font-bold text-th-accent w-14 text-right tabular-nums">
             {minNetSpread.toFixed(2)}%
           </span>
         </div>
-        <div className="flex justify-between text-[10px] text-gray-700 font-mono mt-1">
+        <div className="flex justify-between text-[10px] text-th-dim font-mono mt-1">
           <span>0.05%</span>
           <span>5.0%</span>
         </div>
@@ -106,8 +106,8 @@ export default function AlertSettings() {
               className={clsx(
                 "px-3 py-1.5 rounded text-xs font-mono font-semibold border transition-all",
                 alertFrequency === f.id
-                  ? "bg-blue-900/50 border-blue-600 text-blue-300"
-                  : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-600 hover:text-gray-300"
+                  ? "bg-th-accent/15 border-th-accent text-th-accent"
+                  : "bg-th-surface border-th-border text-th-secondary hover:border-th-secondary hover:text-th-primary"
               )}
             >
               {f.label}
@@ -122,8 +122,8 @@ export default function AlertSettings() {
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2">
             <div>
-              <p className="text-sm text-gray-300 font-mono">Web Push</p>
-              <p className="text-xs text-gray-600 font-mono mt-0.5">
+              <p className="text-sm text-th-primary font-mono">Web Push</p>
+              <p className="text-xs text-th-dim font-mono mt-0.5">
                 Receive browser notifications
               </p>
             </div>
@@ -134,8 +134,8 @@ export default function AlertSettings() {
           </div>
           <div className="flex items-center justify-between py-2">
             <div>
-              <p className="text-sm text-gray-300 font-mono">Telegram</p>
-              <p className="text-xs text-gray-600 font-mono mt-0.5">
+              <p className="text-sm text-th-primary font-mono">Telegram</p>
+              <p className="text-xs text-th-dim font-mono mt-0.5">
                 Forward signals to your Telegram
               </p>
             </div>
@@ -149,7 +149,7 @@ export default function AlertSettings() {
               href="https://t.me/ArbitrageTerminalBot"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-blue-400 font-mono hover:underline pl-0.5"
+              className="flex items-center gap-1.5 text-xs text-th-accent font-mono hover:underline pl-0.5"
             >
               <ExternalLinkIcon className="h-3 w-3 shrink-0" />
               Open @ArbitrageTerminalBot and send /start to connect
@@ -171,14 +171,14 @@ export default function AlertSettings() {
             <div
               key={key}
               className={clsx(
-                "flex items-center justify-between px-4 py-3 rounded-lg bg-gray-900 border border-gray-800",
+                "flex items-center justify-between px-4 py-3 rounded-lg bg-th-surface border border-th-border",
                 locked && "opacity-60"
               )}
             >
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-300 font-mono">{label}</span>
+                <span className="text-sm text-th-primary font-mono">{label}</span>
                 {locked && plan && <Badge variant="warning">{plan} Plan</Badge>}
-                {locked && <LockIcon className="h-3 w-3 text-yellow-500" />}
+                {locked && <LockIcon className="h-3 w-3 text-th-yellow" />}
               </div>
               <Toggle
                 checked={locked ? false : checked}
@@ -197,7 +197,7 @@ export default function AlertSettings() {
         <div className="flex items-center justify-between mb-3">
           <div>
             <SectionTitle>Quiet Hours</SectionTitle>
-            <p className="text-xs text-gray-600 font-mono -mt-2">
+            <p className="text-xs text-th-dim font-mono -mt-2">
               Suppress all alerts during this time window.
             </p>
           </div>
@@ -208,19 +208,19 @@ export default function AlertSettings() {
         </div>
         {quietHours.enabled && (
           <div className="flex items-center gap-3 mt-3 pl-1">
-            <span className="text-xs text-gray-500 font-mono">From</span>
+            <span className="text-xs text-th-secondary font-mono">From</span>
             <input
               type="time"
               value={quietHours.start}
               onChange={(e) => setQuietHours({ start: e.target.value })}
-              className="bg-gray-900 border border-gray-700 focus:border-blue-600 rounded px-2.5 py-1.5 text-xs text-gray-200 font-mono outline-none transition-colors"
+              className="bg-th-surface border border-th-border focus:border-th-accent rounded px-2.5 py-1.5 text-xs text-th-primary font-mono outline-none transition-colors"
             />
-            <span className="text-xs text-gray-500 font-mono">to</span>
+            <span className="text-xs text-th-secondary font-mono">to</span>
             <input
               type="time"
               value={quietHours.end}
               onChange={(e) => setQuietHours({ end: e.target.value })}
-              className="bg-gray-900 border border-gray-700 focus:border-blue-600 rounded px-2.5 py-1.5 text-xs text-gray-200 font-mono outline-none transition-colors"
+              className="bg-th-surface border border-th-border focus:border-th-accent rounded px-2.5 py-1.5 text-xs text-th-primary font-mono outline-none transition-colors"
             />
           </div>
         )}

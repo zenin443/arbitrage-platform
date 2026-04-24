@@ -24,15 +24,15 @@ function exchangeLabel(id: string): string {
 type ConfidenceTier = ArbitrageOpportunity["confidence"];
 
 const ROW_ACCENT: Record<ConfidenceTier, string> = {
-  high: "border-l-2 border-green-500 bg-green-950/20 hover:bg-green-950/30",
-  medium: "border-l-2 border-yellow-500 bg-yellow-950/15 hover:bg-yellow-950/25",
-  low: "border-l-2 border-gray-700 hover:bg-gray-800/40",
+  high:   "border-l-2 border-l-[#3FB950] border-b border-[#21262D] hover:bg-[#1C2128]",
+  medium: "border-l-2 border-l-[#D29922] border-b border-[#21262D] hover:bg-[#1C2128]",
+  low:    "border-l-2 border-l-[#21262D] border-b border-[#21262D] hover:bg-[#1C2128]",
 };
 
 const CONFIDENCE_BADGE: Record<ConfidenceTier, string> = {
-  high: "text-green-400",
-  medium: "text-yellow-400",
-  low: "text-gray-500",
+  high:   "bg-[#3FB950]/10 text-[#3FB950] border border-[#3FB950]/20 text-xs px-2 py-0.5 rounded-full",
+  medium: "bg-[#D29922]/10 text-[#D29922] border border-[#D29922]/20 text-xs px-2 py-0.5 rounded-full",
+  low:    "text-[#8B949E] text-xs px-2 py-0.5",
 };
 
 export default function OpportunityTable() {
@@ -53,21 +53,21 @@ export default function OpportunityTable() {
   }
 
   return (
-    <div className="rounded-lg border border-gray-800 overflow-hidden">
+    <div className="bg-[#161B22] border border-[#21262D] rounded-lg overflow-hidden">
       {/* Table header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-900 border-b border-gray-800">
-        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161B22] border-b border-[#21262D]">
+        <span className="text-xs font-mono text-[#388BFD] uppercase tracking-wider">
           Arbitrage Opportunities
         </span>
         <div className="flex items-center gap-2">
           {isConnecting ? (
-            <span className="text-xs font-mono text-gray-600">Connecting…</span>
+            <span className="text-xs font-mono text-[#484F58]">Connecting…</span>
           ) : isError ? (
-            <span className="text-xs font-mono text-red-500">Feed error</span>
+            <span className="text-xs font-mono text-[#F85149]">Feed error</span>
           ) : (
             <>
-              <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-xs font-mono text-gray-600">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
+              <span className="bg-[#388BFD]/10 text-[#388BFD] border border-[#388BFD]/20 text-xs px-2 py-0.5 rounded-full font-mono">
                 {opportunities.length} signal
                 {opportunities.length !== 1 ? "s" : ""}
               </span>
@@ -79,7 +79,7 @@ export default function OpportunityTable() {
       <div className="overflow-x-auto">
         <table className="w-full text-xs font-mono">
           <thead>
-            <tr className="bg-gray-900/60 text-gray-500 uppercase tracking-wider text-[10px]">
+            <tr className="bg-[#1C2128] text-[#484F58] uppercase tracking-widest text-[10px] font-mono">
               <th className="px-4 py-2.5 text-left font-medium">Symbol</th>
               <th className="px-4 py-2.5 text-left font-medium">Buy</th>
               <th className="px-4 py-2.5 text-left font-medium">Sell</th>
@@ -92,21 +92,21 @@ export default function OpportunityTable() {
               <th className="px-4 py-2.5 text-right font-medium">Detected</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/50">
+            <tbody>
             {opportunities.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-12">
-                  <div className="flex flex-col items-center gap-3 text-gray-600">
+                  <div className="flex flex-col items-center gap-3 text-[#484F58]">
                     <div className="relative flex h-4 w-4">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gray-700 opacity-60" />
-                      <span className="relative inline-flex rounded-full h-4 w-4 bg-gray-800 border border-gray-700" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1C2128] opacity-60" />
+                      <span className="relative inline-flex rounded-full h-4 w-4 bg-[#161B22] border border-[#21262D]" />
                     </div>
-                    <span className="text-xs tracking-widest uppercase">
+                    <span className="text-xs tracking-widest uppercase text-[#8B949E]">
                       {isConnecting
                         ? "Connecting to price feed…"
                         : "No opportunities detected"}
                     </span>
-                    <span className="text-[10px] text-gray-700">
+                    <span className="text-[10px] text-[#484F58]">
                       {!isConnecting && "Scanning all exchange pairs in real-time"}
                     </span>
                   </div>
@@ -126,39 +126,36 @@ export default function OpportunityTable() {
                       isNew && "animate-fade-in"
                     )}
                   >
-                    <td className="px-4 py-2.5 text-gray-200 font-semibold">
+                    <td className="px-4 py-2.5 text-[#E6EDF3] font-mono font-semibold">
                       {opp.symbol}
                     </td>
-                    <td className="px-4 py-2.5 text-cyan-400">
+                    <td className="px-4 py-2.5 text-[#3FB950] font-mono text-xs">
                       {exchangeLabel(opp.buyExchange)}
                     </td>
-                    <td className="px-4 py-2.5 text-purple-400">
+                    <td className="px-4 py-2.5 text-[#F85149] font-mono text-xs">
                       {exchangeLabel(opp.sellExchange)}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-gray-400 tabular-nums">
+                    <td className="px-4 py-2.5 text-right text-[#8B949E] font-mono text-sm tabular-nums">
                       {formatSpread(opp.grossSpread)}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-green-400 tabular-nums font-semibold">
+                    <td className={clsx("px-4 py-2.5 text-right tabular-nums font-mono font-bold", opp.netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]")}>
                       {formatSpread(opp.netSpread)}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-green-300 tabular-nums">
+                    <td className="px-4 py-2.5 text-right text-[#388BFD] font-mono font-semibold tabular-nums">
                       {formatProfit(opp.estimatedProfit)}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
                       <LiquidityBar score={opp.liquidityScore} />
                     </td>
-                    <td className="px-4 py-2.5 text-right text-gray-500 tabular-nums text-[10px]">
+                    <td className="px-4 py-2.5 text-right text-[#8B949E] tabular-nums text-[10px]">
                       {opp.bestNetwork || "—"}
                     </td>
-                    <td
-                      className={clsx(
-                        "px-4 py-2.5 text-right tabular-nums font-semibold uppercase text-[10px]",
-                        CONFIDENCE_BADGE[tier]
-                      )}
-                    >
-                      {tier}
+                    <td className="px-4 py-2.5 text-right">
+                      <span className={clsx("inline-flex items-center font-mono uppercase", CONFIDENCE_BADGE[tier])}>
+                        {tier}
+                      </span>
                     </td>
-                    <td className="px-4 py-2.5 text-right text-gray-600 tabular-nums">
+                    <td className="px-4 py-2.5 text-right text-[#484F58] tabular-nums">
                       {formatTimestamp(opp.detectedAt)}
                     </td>
                   </tr>
@@ -175,12 +172,12 @@ export default function OpportunityTable() {
 function LiquidityBar({ score }: { score: number }) {
   const pct = Math.round(Math.max(0, Math.min(100, score)));
   const color =
-    pct >= 70 ? "bg-green-500" : pct >= 40 ? "bg-yellow-500" : "bg-gray-600";
+    pct >= 70 ? "bg-[#3FB950]" : pct >= 40 ? "bg-[#D29922]" : "bg-[#484F58]";
 
   return (
     <span className="inline-flex items-center gap-1.5 justify-end">
-      <span className="text-gray-400 tabular-nums">{pct}</span>
-      <span className="w-10 h-1 rounded-full bg-gray-800 overflow-hidden">
+      <span className="text-[#8B949E] tabular-nums">{pct}</span>
+      <span className="w-10 h-1 rounded-full bg-[#1C2128] overflow-hidden">
         <span
           className={clsx("h-full rounded-full block", color)}
           style={{ width: `${pct}%` }}

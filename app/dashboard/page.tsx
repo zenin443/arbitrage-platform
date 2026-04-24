@@ -65,26 +65,32 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-gray-950 text-gray-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
       {/* Top navigation bar */}
-      <header className="flex items-center justify-between px-6 py-3 bg-gray-950 border-b border-gray-800 shrink-0">
+      <header className="flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
         <div className="flex items-center gap-3">
-          <ZapIcon className="h-4 w-4 text-yellow-400" />
-          <span className="text-sm font-bold tracking-widest uppercase font-mono text-gray-100">
+          <ZapIcon className="h-4 w-4 text-[#388BFD]" />
+          <span className="text-sm font-bold tracking-widest uppercase font-mono text-[#388BFD]">
             Arbitrage Terminal
           </span>
-          <span className="text-gray-800 select-none mx-1">|</span>
-          <span className="text-xs text-gray-600 font-mono">v0.1.0</span>
+          <span className="text-[#484F58] select-none mx-1">|</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.1.0</span>
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           <div className="flex items-center gap-1.5">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-500 font-semibold">LIVE</span>
+            <span className="animate-pulse bg-[#3FB950] rounded-full w-2 h-2" />
+            <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
-          <span className="text-gray-700">{now}</span>
+          <span className="text-[#484F58]">{now}</span>
+          <Link
+            href="/funding-rates"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors"
+          >
+            <span className="text-[11px] font-mono">Funding Rates</span>
+          </Link>
           <Link
             href="/settings"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-gray-900 border border-gray-800 text-gray-500 hover:text-gray-300 hover:border-gray-700 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors"
             title="Settings"
           >
             <SettingsIcon className="h-3.5 w-3.5" />
@@ -94,14 +100,14 @@ export default function DashboardPage() {
       </header>
 
       {/* Market toggle bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-800 bg-gray-950">
-        <span className="text-xs text-gray-500 font-mono mr-2">MARKET</span>
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-[#21262D] bg-[#0D1117]">
+        <span className="text-xs text-[#484F58] font-mono mr-2">MARKET</span>
         <button
           onClick={() => setMarket("USDT")}
           className={`px-3 py-1 text-xs font-mono rounded border transition-colors ${
             market === "USDT"
-              ? "border-blue-500 text-blue-400 bg-blue-500/10"
-              : "border-gray-700 text-gray-500 hover:border-gray-500"
+              ? "bg-[#388BFD]/20 text-[#388BFD] border-[#388BFD]"
+              : "text-[#484F58] border-[#21262D]"
           }`}
         >
           USDT
@@ -110,8 +116,8 @@ export default function DashboardPage() {
           onClick={() => setMarket("USDC")}
           className={`px-3 py-1 text-xs font-mono rounded border transition-colors ${
             market === "USDC"
-              ? "border-blue-500 text-blue-400 bg-blue-500/10"
-              : "border-gray-700 text-gray-500 hover:border-gray-500"
+              ? "bg-[#388BFD]/20 text-[#388BFD] border-[#388BFD]"
+              : "text-[#484F58] border-[#21262D]"
           }`}
         >
           USDC
@@ -146,11 +152,11 @@ export default function DashboardPage() {
           {/* Opportunity table */}
           <section>
             <div className="flex items-center gap-2 mb-3">
-              <BarChart2Icon className="h-3.5 w-3.5 text-gray-600" />
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-mono">
+              <BarChart2Icon className="h-3.5 w-3.5 text-[#484F58]" />
+              <h2 className="text-xs font-semibold text-[#388BFD] uppercase tracking-wider font-mono">
                 Live Signals
               </h2>
-              <span className="text-gray-800 text-xs font-mono">
+              <span className="text-[#484F58] text-xs font-mono">
                 · polled every 2s · net spread after all fees
               </span>
             </div>
@@ -158,7 +164,7 @@ export default function DashboardPage() {
           </section>
 
           {/* Footer note */}
-          <p className="text-[10px] text-gray-800 font-mono text-right pb-2">
+          <p className="text-[10px] text-[#484F58] font-mono text-right pb-2">
             All spreads shown are net of taker fees + withdrawal fees · Notional
             trade size $1,000 USDT
           </p>

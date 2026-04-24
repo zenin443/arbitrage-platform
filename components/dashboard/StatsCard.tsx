@@ -22,35 +22,35 @@ export default function StatsCard({
   className,
 }: StatsCardProps) {
   const trendColor = {
-    up: "text-green-400",
-    down: "text-red-400",
-    neutral: "text-gray-100",
+    up: "text-[#3FB950]",
+    down: "text-[#F85149]",
+    neutral: "text-[#E6EDF3]",
   }[trend];
 
   return (
     <div
       className={clsx(
-        "relative rounded-lg border border-gray-800 bg-gray-900 p-4",
+        "relative bg-[#161B22] border border-[#21262D] rounded-lg p-4 hover:border-[#388BFD]/50 transition",
         className
       )}
     >
       {pulse && (
         <span className="absolute top-3 right-3 flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-60" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3FB950] opacity-60" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#3FB950]" />
         </span>
       )}
 
       <div className="flex items-start justify-between mb-2">
-        <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+        <span className="text-xs text-[#484F58] font-mono tracking-widest uppercase">
           {title}
         </span>
-        {icon && <span className="text-gray-600 ml-4">{icon}</span>}
+        {icon && <span className="text-[#484F58] ml-4">{icon}</span>}
       </div>
 
       <div
         className={clsx(
-          "text-2xl font-bold font-mono tabular-nums",
+          "text-3xl font-mono font-bold tabular-nums",
           trendColor
         )}
       >
@@ -58,7 +58,7 @@ export default function StatsCard({
       </div>
 
       {subtitle && (
-        <div className="mt-1 text-xs text-gray-600 font-mono">{subtitle}</div>
+        <div className="mt-1 text-xs text-[#8B949E] font-mono">{subtitle}</div>
       )}
     </div>
   );

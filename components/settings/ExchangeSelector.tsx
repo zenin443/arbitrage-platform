@@ -41,17 +41,17 @@ export default function ExchangeSelector() {
   return (
     <div>
       <div className="mb-5">
-        <h2 className="text-sm font-semibold text-gray-200 font-mono">
+        <h2 className="text-sm font-semibold text-th-primary font-mono">
           Connected Exchanges
         </h2>
-        <p className="text-xs text-gray-600 mt-1 font-mono">
+        <p className="text-xs text-th-dim mt-1 font-mono">
           Select the exchanges to scan. Opportunities are only detected between
           selected exchanges. Minimum 2 required.
         </p>
       </div>
 
       {showWarning && (
-        <div className="flex items-center gap-2 mb-5 px-3 py-2.5 bg-yellow-900/20 border border-yellow-800/50 rounded-lg text-xs text-yellow-400 font-mono">
+        <div className="flex items-center gap-2 mb-5 px-3 py-2.5 bg-th-yellow/10 border border-th-yellow/30 rounded-lg text-xs text-th-yellow font-mono">
           <AlertTriangleIcon className="h-3.5 w-3.5 shrink-0" />
           At least 2 exchanges must remain selected to detect cross-exchange
           arbitrage.
@@ -71,10 +71,10 @@ export default function ExchangeSelector() {
               className={clsx(
                 "flex flex-col items-start gap-3 p-3.5 rounded-lg border transition-all text-left",
                 isComingSoon
-                  ? "opacity-50 cursor-not-allowed border-gray-800 bg-gray-900"
+                  ? "opacity-50 cursor-not-allowed border-th-border bg-th-surface"
                   : isSelected
-                  ? "border-green-600 bg-green-950/30 shadow-[0_0_12px_rgba(34,197,94,0.08)]"
-                  : "border-gray-800 bg-gray-900 hover:border-gray-700 hover:bg-gray-900/80"
+                  ? "border-th-green bg-th-green/10 shadow-[0_0_12px_rgba(63,185,80,0.08)]"
+                  : "border-th-border bg-th-surface hover:border-th-border/80 hover:bg-th-hover"
               )}
             >
               {/* Icon row */}
@@ -88,7 +88,7 @@ export default function ExchangeSelector() {
                   {ex.initial}
                 </div>
                 {isSelected && !isComingSoon && (
-                  <div className="h-5 w-5 rounded-full bg-green-600 flex items-center justify-center">
+                  <div className="h-5 w-5 rounded-full bg-th-green flex items-center justify-center">
                     <CheckIcon className="h-3 w-3 text-white" />
                   </div>
                 )}
@@ -96,10 +96,10 @@ export default function ExchangeSelector() {
 
               {/* Name + fee */}
               <div>
-                <p className="text-sm font-semibold text-gray-200 font-mono">
+                <p className="text-sm font-semibold text-th-primary font-mono">
                   {ex.name}
                 </p>
-                <p className="text-xs text-gray-600 font-mono mt-0.5">
+                <p className="text-xs text-th-dim font-mono mt-0.5">
                   Taker fee: {ex.fee.toFixed(2)}%
                 </p>
               </div>
@@ -117,7 +117,7 @@ export default function ExchangeSelector() {
         })}
       </div>
 
-      <p className="mt-5 text-xs text-gray-700 font-mono">
+      <p className="mt-5 text-xs text-th-dim font-mono">
         {selectedExchanges.length} of {EXCHANGES.filter((e) => e.status === "active").length}{" "}
         active exchanges selected
       </p>

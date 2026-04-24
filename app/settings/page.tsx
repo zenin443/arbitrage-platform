@@ -50,7 +50,7 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       {/* Tab navigation */}
-      <nav className="flex gap-0.5 border-b border-gray-800 mb-8">
+      <nav className="flex gap-0.5 border-b border-th-border mb-8">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -58,8 +58,8 @@ export default function SettingsPage() {
             className={clsx(
               "flex items-center gap-2 px-5 py-2.5 text-xs font-mono font-semibold tracking-wider uppercase transition-colors border-b-2 -mb-px",
               activeTab === tab.id
-                ? "border-blue-500 text-blue-400 bg-blue-950/20"
-                : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-900/50"
+                ? "border-th-accent text-th-accent bg-th-accent/10"
+                : "border-transparent text-th-secondary hover:text-th-primary hover:bg-th-surface/50"
             )}
           >
             {tab.icon}

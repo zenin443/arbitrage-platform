@@ -44,17 +44,17 @@ export default function CoinSelector() {
   return (
     <div>
       <div className="mb-5">
-        <h2 className="text-sm font-semibold text-gray-200 font-mono">
+        <h2 className="text-sm font-semibold text-th-primary font-mono">
           Tracked Coins
         </h2>
-        <p className="text-xs text-gray-600 mt-1 font-mono">
+        <p className="text-xs text-th-dim mt-1 font-mono">
           Select which coins to monitor. Only pairs involving selected coins
           will appear in your signal feed.
         </p>
       </div>
 
       {/* Category tabs */}
-      <div className="flex gap-0.5 border-b border-gray-800 mb-5">
+      <div className="flex gap-0.5 border-b border-th-border mb-5">
         {(Object.keys(COINS) as Category[]).map((cat) => {
           const cfg = CATEGORY_CONFIG[cat];
           const locked = cfg.requiresPro && !IS_PRO;
@@ -65,12 +65,12 @@ export default function CoinSelector() {
               className={clsx(
                 "flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold tracking-wider uppercase transition-colors border-b-2 -mb-px",
                 activeCategory === cat
-                  ? "border-blue-500 text-blue-400"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
+                  ? "border-th-accent text-th-accent"
+                  : "border-transparent text-th-secondary hover:text-th-primary"
               )}
             >
               {cfg.label}
-              {locked && <LockIcon className="h-3 w-3 text-yellow-500" />}
+              {locked && <LockIcon className="h-3 w-3 text-th-yellow" />}
             </button>
           );
         })}
@@ -78,7 +78,7 @@ export default function CoinSelector() {
 
       {/* Pro lock banner */}
       {isLocked && (
-        <div className="flex items-center gap-2 mb-5 px-3 py-2.5 bg-yellow-900/20 border border-yellow-800/50 rounded-lg text-xs text-yellow-400 font-mono">
+        <div className="flex items-center gap-2 mb-5 px-3 py-2.5 bg-th-yellow/10 border border-th-yellow/30 rounded-lg text-xs text-th-yellow font-mono">
           <LockIcon className="h-3.5 w-3.5 shrink-0" />
           <span>
             Meme / DEX coins require a{" "}
@@ -93,18 +93,18 @@ export default function CoinSelector() {
         <button
           onClick={handleSelectAll}
           disabled={isLocked}
-          className="px-3 py-1 text-xs font-mono bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1 text-xs font-mono bg-th-hover hover:bg-th-border text-th-primary rounded border border-th-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Select All
         </button>
         <button
           onClick={handleDeselectAll}
           disabled={isLocked}
-          className="px-3 py-1 text-xs font-mono bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-3 py-1 text-xs font-mono bg-th-hover hover:bg-th-border text-th-primary rounded border border-th-border disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           Deselect All
         </button>
-        <span className="ml-auto text-xs text-gray-600 font-mono">
+        <span className="ml-auto text-xs text-th-dim font-mono">
           {selectedInCategory.length} / {coins.length} selected
         </span>
       </div>
@@ -121,10 +121,10 @@ export default function CoinSelector() {
               className={clsx(
                 "px-3.5 py-1.5 rounded-full text-xs font-mono font-semibold border transition-all",
                 isLocked
-                  ? "opacity-40 cursor-not-allowed bg-gray-900 border-gray-700 text-gray-500"
+                  ? "opacity-40 cursor-not-allowed bg-th-surface border-th-border text-th-secondary"
                   : isSelected
-                  ? "bg-blue-900/50 border-blue-500 text-blue-300 shadow-[0_0_8px_rgba(59,130,246,0.2)]"
-                  : "bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-300"
+                  ? "bg-th-accent/15 border-th-accent text-th-accent shadow-[0_0_8px_rgba(56,139,253,0.15)]"
+                  : "bg-th-surface border-th-border text-th-secondary hover:border-th-secondary hover:text-th-primary"
               )}
             >
               {coin}
@@ -134,7 +134,7 @@ export default function CoinSelector() {
       </div>
 
       {/* Global count */}
-      <p className="mt-6 text-xs text-gray-700 font-mono">
+      <p className="mt-6 text-xs text-th-dim font-mono">
         {selectedCoins.length} coin{selectedCoins.length !== 1 ? "s" : ""} selected
         across all categories
       </p>

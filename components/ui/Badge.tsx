@@ -10,11 +10,11 @@ interface BadgeProps {
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
-  default: "bg-gray-800 text-gray-300",
-  success: "bg-green-900/50 text-green-400 border border-green-800",
-  warning: "bg-yellow-900/50 text-yellow-400 border border-yellow-800",
-  danger: "bg-red-900/50 text-red-400 border border-red-800",
-  info: "bg-blue-900/50 text-blue-400 border border-blue-800",
+  default: "bg-th-hover text-th-primary",
+  success: "bg-th-green/15 text-th-green border border-th-green/30",
+  warning: "bg-th-yellow/15 text-th-yellow border border-th-yellow/30",
+  danger:  "bg-th-red/15 text-th-red border border-th-red/30",
+  info:    "bg-th-accent/15 text-th-accent border border-th-accent/30",
 };
 
 export default function Badge({ children, variant = "default", className }: BadgeProps) {

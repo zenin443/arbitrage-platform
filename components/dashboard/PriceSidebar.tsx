@@ -166,7 +166,7 @@ export default function PriceSidebar({ market }: Props) {
       {/* Sidebar */}
       <aside
         className={clsx(
-          "relative flex-shrink-0 h-screen bg-gray-900/50 border-r border-gray-800 flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
+          "relative flex-shrink-0 h-screen bg-[#161B22] border-r border-[#21262D] flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
           "hidden md:flex", // hidden on mobile, flex on md+
           isOpen ? "w-[220px]" : "w-10"
         )}
@@ -175,7 +175,7 @@ export default function PriceSidebar({ market }: Props) {
         {/* Toggle button */}
         <button
           onClick={() => setIsOpen((v) => !v)}
-          className="flex items-center justify-center h-9 w-full border-b border-gray-800 text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors flex-shrink-0"
+          className="flex items-center justify-center h-9 w-full border-b border-[#21262D] text-[#388BFD] hover:text-[#388BFD] hover:bg-[#1C2128] transition-colors flex-shrink-0"
           title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-expanded={isOpen}
         >
@@ -187,7 +187,7 @@ export default function PriceSidebar({ market }: Props) {
         </button>
 
         {/* Coin list */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gray-700 [&::-webkit-scrollbar-track]:bg-transparent">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#21262D] [&::-webkit-scrollbar-track]:bg-transparent">
           {filtered.map((data) => {
             const isExpanded = expandedSymbol === data.symbol;
             const hasData = data.exchanges.length > 0;
@@ -196,8 +196,8 @@ export default function PriceSidebar({ market }: Props) {
               <div
                 key={data.symbol}
                 className={clsx(
-                  "border-b border-gray-800/60 transition-colors",
-                  isExpanded && "border-l-2 border-l-blue-500 bg-blue-950/10"
+                  "border-b border-[#21262D]/60 transition-colors",
+                  isExpanded && "border-l-2 border-l-[#388BFD] bg-[#388BFD]/5"
                 )}
               >
                 {/* Coin row */}
@@ -206,44 +206,44 @@ export default function PriceSidebar({ market }: Props) {
                   disabled={!hasData}
                   className={clsx(
                     "w-full flex items-center px-2 py-1.5 text-left transition-colors",
-                    hasData
-                      ? "hover:bg-gray-800/40 cursor-pointer"
+                      hasData
+                        ? "hover:bg-[#1C2128] cursor-pointer"
                       : "cursor-default opacity-40"
                   )}
                 >
                   {isOpen ? (
                     <>
-                      <span className="text-white font-mono text-[11px] font-semibold tracking-wide flex-1 truncate">
+                      <span className="text-[#E6EDF3] font-mono font-semibold text-sm flex-1 truncate">
                         {displaySymbol(data.symbol)}
                       </span>
                       <span
                         className={clsx(
-                          "font-mono text-[11px] tabular-nums ml-1",
+                          "font-mono text-sm tabular-nums ml-1",
                           data.direction === "up"
-                            ? "text-green-400"
+                            ? "text-[#3FB950]"
                             : data.direction === "down"
-                            ? "text-red-400"
-                            : "text-gray-300"
+                            ? "text-[#F85149]"
+                            : "text-[#E6EDF3]"
                         )}
                       >
                         {hasData ? formatPrice(data.cheapestPrice) : "—"}
                       </span>
-                      <span className="text-[9px] font-mono text-gray-600 px-1 py-0.5 bg-gray-800 rounded ml-1">
+                      <span className="text-[#484F58] text-[10px] font-mono bg-[#1C2128] px-1 rounded ml-1">
                         {market}
                       </span>
                       {data.direction === "up" && (
-                        <span className="text-green-500 text-[9px] ml-0.5">
+                        <span className="text-[#3FB950] text-[9px] ml-0.5">
                           ▲
                         </span>
                       )}
                       {data.direction === "down" && (
-                        <span className="text-red-500 text-[9px] ml-0.5">
+                        <span className="text-[#F85149] text-[9px] ml-0.5">
                           ▼
                         </span>
                       )}
                     </>
                   ) : (
-                    <span className="text-gray-500 font-mono text-[9px] font-semibold tracking-wide w-full text-center leading-none">
+                      <span className="text-[#8B949E] font-mono text-[9px] font-semibold tracking-wide w-full text-center leading-none">
                       {displaySymbol(data.symbol).slice(0, 3)}
                     </span>
                   )}
@@ -251,10 +251,10 @@ export default function PriceSidebar({ market }: Props) {
 
                 {/* Expanded exchange breakdown */}
                 {isOpen && isExpanded && hasData && (
-                  <div className="pb-1.5 px-2 space-y-0.5">
+                  <div className="pb-1.5 px-2 space-y-0.5 bg-[#0D1117]">
                     {/* Spread badge */}
                     <div className="flex justify-end mb-1">
-                      <span className="text-[9px] font-mono text-gray-500 bg-gray-800 rounded px-1.5 py-0.5">
+                      <span className="text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/20 text-[10px] font-mono px-1.5 rounded py-0.5">
                         {data.spread.toFixed(3)}% gross spread
                       </span>
                     </div>
@@ -278,45 +278,36 @@ export default function PriceSidebar({ market }: Props) {
                               key={ex.id}
                               className={clsx(
                                 "flex items-center justify-between rounded px-1.5 py-0.5",
-                                isCheapest && "bg-green-950/40",
-                                isMostExpensive && "bg-red-950/30"
+                                isCheapest && "bg-[#3FB950]/15",
+                                isMostExpensive && "bg-[#F85149]/10"
                               )}
                             >
                               <span
                                 className={clsx(
-                                  "font-mono text-[10px] truncate",
+                                  "font-mono text-xs truncate",
                                   isCheapest
-                                    ? "text-green-400"
+                                    ? "text-[#3FB950]"
                                     : isMostExpensive
-                                    ? "text-red-400"
-                                    : "text-gray-400"
+                                    ? "text-[#F85149]"
+                                    : "text-[#8B949E]"
                                 )}
                               >
                                 {ex.label}
                               </span>
-                              <span className="font-mono text-[10px] text-gray-600 mx-1">
+                              <span className="font-mono text-[10px] text-[#484F58] mx-1">
                                 {data.symbol}
                               </span>
                               <div className="flex items-center gap-0.5">
-                                <span
-                                  className={clsx(
-                                    "font-mono text-[10px] tabular-nums",
-                                    isCheapest
-                                      ? "text-green-300"
-                                      : isMostExpensive
-                                      ? "text-red-300"
-                                      : "text-gray-300"
-                                  )}
-                                >
+                                <span className="font-mono text-xs tabular-nums text-[#E6EDF3]">
                                   {formatPrice(ex.mid)}
                                 </span>
                                 {ex.direction === "up" && (
-                                  <span className="text-green-500 text-[8px]">
+                                  <span className="text-[#3FB950] text-[8px]">
                                     ▲
                                   </span>
                                 )}
                                 {ex.direction === "down" && (
-                                  <span className="text-red-500 text-[8px]">
+                                  <span className="text-[#F85149] text-[8px]">
                                     ▼
                                   </span>
                                 )}
@@ -335,7 +326,7 @@ export default function PriceSidebar({ market }: Props) {
         {/* Collapsed label */}
         {!isOpen && (
           <div className="flex-shrink-0 py-2 flex items-center justify-center">
-            <span className="text-gray-700 text-[9px] font-mono uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">
+            <span className="text-[#484F58] text-[9px] font-mono uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">
               Prices
             </span>
           </div>
@@ -345,7 +336,7 @@ export default function PriceSidebar({ market }: Props) {
       {/* Mobile toggle button — visible only on small screens */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="md:hidden fixed bottom-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-full bg-gray-800 border border-gray-700 text-gray-400 hover:text-gray-200 shadow-lg"
+        className="md:hidden fixed bottom-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-full bg-[#1C2128] border border-[#21262D] text-[#388BFD] hover:text-[#388BFD] shadow-lg"
         aria-label="Toggle price sidebar"
       >
         {isOpen ? (
@@ -358,14 +349,14 @@ export default function PriceSidebar({ market }: Props) {
       {/* Mobile drawer overlay */}
       {isOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex">
-          <aside className="w-[220px] h-full bg-gray-900 border-r border-gray-800 flex flex-col overflow-y-auto">
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-800">
-              <span className="text-xs font-mono text-gray-400 uppercase tracking-wider">
+          <aside className="w-[220px] h-full bg-[#161B22] border-r border-[#21262D] flex flex-col overflow-y-auto">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262D]">
+              <span className="text-xs font-mono text-[#8B949E] uppercase tracking-wider">
                 Live Prices
               </span>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-600 hover:text-gray-300"
+                className="text-[#388BFD] hover:text-[#388BFD]"
               >
                 <ChevronLeftIcon className="h-3.5 w-3.5" />
               </button>
@@ -377,8 +368,8 @@ export default function PriceSidebar({ market }: Props) {
                 <div
                   key={data.symbol}
                   className={clsx(
-                    "border-b border-gray-800/60",
-                    isExpanded && "border-l-2 border-l-blue-500 bg-blue-950/10"
+                  "border-b border-[#21262D]/60",
+                  isExpanded && "border-l-2 border-l-[#388BFD] bg-[#388BFD]/5"
                   )}
                 >
                   <button
@@ -386,32 +377,32 @@ export default function PriceSidebar({ market }: Props) {
                     disabled={!hasData}
                     className={clsx(
                       "w-full flex items-center px-3 py-2 text-left",
-                      hasData ? "hover:bg-gray-800/40" : "opacity-40"
+                      hasData ? "hover:bg-[#1C2128]" : "opacity-40"
                     )}
                   >
-                    <span className="text-white font-mono text-xs font-semibold flex-1">
+                    <span className="text-[#E6EDF3] font-mono text-sm font-semibold flex-1">
                       {displaySymbol(data.symbol)}
                     </span>
                     <span
-                      className={clsx(
-                        "font-mono text-xs tabular-nums",
-                        data.direction === "up"
-                          ? "text-green-400"
-                          : data.direction === "down"
-                          ? "text-red-400"
-                          : "text-gray-300"
-                      )}
+                        className={clsx(
+                          "font-mono text-sm tabular-nums",
+                          data.direction === "up"
+                            ? "text-[#3FB950]"
+                            : data.direction === "down"
+                            ? "text-[#F85149]"
+                            : "text-[#E6EDF3]"
+                        )}
                     >
                       {hasData ? formatPrice(data.cheapestPrice) : "—"}
                     </span>
-                    <span className="text-[9px] font-mono text-gray-600 px-1 py-0.5 bg-gray-800 rounded ml-1">
+                    <span className="text-[#484F58] text-[10px] font-mono bg-[#1C2128] px-1 rounded ml-1">
                       {market}
                     </span>
                   </button>
                   {isExpanded && hasData && (
                     <div className="pb-2 px-3 space-y-1">
                       <div className="flex justify-end">
-                        <span className="text-[9px] font-mono text-gray-500 bg-gray-800 rounded px-1.5 py-0.5">
+                        <span className="text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/20 text-[10px] font-mono px-1.5 rounded py-0.5">
                           {data.spread.toFixed(3)}% gross spread
                         </span>
                       </div>
@@ -431,35 +422,26 @@ export default function PriceSidebar({ market }: Props) {
                                 key={ex.id}
                                 className={clsx(
                                   "flex items-center justify-between rounded px-2 py-1",
-                                  isCheapest && "bg-green-950/40",
-                                  isMostExpensive && "bg-red-950/30"
+                                  isCheapest && "bg-[#3FB950]/15",
+                                  isMostExpensive && "bg-[#F85149]/10"
                                 )}
                               >
                                 <span
                                   className={clsx(
                                     "font-mono text-xs",
                                     isCheapest
-                                      ? "text-green-400"
+                                      ? "text-[#3FB950]"
                                       : isMostExpensive
-                                      ? "text-red-400"
-                                      : "text-gray-400"
+                                      ? "text-[#F85149]"
+                                      : "text-[#8B949E]"
                                   )}
                                 >
                                   {ex.label}
                                 </span>
-                                <span className="font-mono text-xs text-gray-600 mx-1">
+                                <span className="font-mono text-xs text-[#484F58] mx-1">
                                   {data.symbol}
                                 </span>
-                                <span
-                                  className={clsx(
-                                    "font-mono text-xs tabular-nums",
-                                    isCheapest
-                                      ? "text-green-300"
-                                      : isMostExpensive
-                                      ? "text-red-300"
-                                      : "text-gray-300"
-                                  )}
-                                >
+                                <span className="font-mono text-xs tabular-nums text-[#E6EDF3]">
                                   {formatPrice(ex.mid)}
                                 </span>
                               </div>

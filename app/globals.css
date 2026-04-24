@@ -3,14 +3,31 @@
 @tailwind utilities;
 
 :root {
-  --background: #030712;
-  --foreground: #f9fafb;
+  --bg-primary: #0D1117;
+  --bg-surface: #161B22;
+  --bg-surface-hover: #1C2128;
+  --border: #21262D;
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B949E;
+  --text-dim: #484F58;
+  --accent: #388BFD;
+  --green: #3FB950;
+  --red: #F85149;
+  --yellow: #D29922;
+  --purple: #BC8CFF;
+  /* Legacy aliases */
+  --background: #0D1117;
+  --foreground: #E6EDF3;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: #E6EDF3;
+  background-color: #0D1117;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
 
 @layer utilities {

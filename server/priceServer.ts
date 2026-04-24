@@ -11,6 +11,14 @@ import { calculateAllSpreads } from './engine/spreadCalculator'
 import { rankOpportunities } from './engine/opportunityScorer'
 import { wsServer } from './feed/wsServer'
 import { ArbitrageOpportunity } from './engine/spreadCalculator'
+import { BinanceFuturesAdapter } from './adapters/futures/binanceFutures'
+import { BybitFuturesAdapter } from './adapters/futures/bybitFutures'
+import { OkxFuturesAdapter } from './adapters/futures/okxFutures'
+import { FuturesTick } from './adapters/futures/baseFutures'
+import { futuresTickStore } from './engine/futuresTickStore'
+import { calculateSpotFuturesOpportunities } from './engine/spotFuturesCalculator'
+import { fundingRateTracker } from './engine/fundingRateTracker'
+import { SpotFuturesOpportunity } from './adapters/futures/baseFutures'
 
 const WS_PORT = 3002
 const HTTP_PORT = 3001
@@ -28,11 +36,16 @@ export const TRACKED_SYMBOLS = [
 // ── State ─────────────────────────────────────────────────────────────────────
 
 let latestOpportunities: ArbitrageOpportunity[] = []
+let latestSpotFuturesOpportunities: SpotFuturesOpportunity[] = []
 
-// ── Tick handler ──────────────────────────────────────────────────────────────
+// ── Tick handlers ──────────────────────────────────────────────────────────────
 
 function onTick(tick: PriceTick): void {
   tickStore.upsert(tick)
+}
+
+function onFuturesTick(tick: FuturesTick): void {
+  futuresTickStore.upsert(tick)
 }
 
 // ── Recalculation loop ────────────────────────────────────────────────────────
@@ -40,9 +53,11 @@ function onTick(tick: PriceTick): void {
 setInterval(() => {
   const spreads = calculateAllSpreads(tickStore)
   latestOpportunities = rankOpportunities(spreads)
+  latestSpotFuturesOpportunities = calculateSpotFuturesOpportunities()
 
   wsServer.broadcast('opportunities', latestOpportunities)
   wsServer.broadcast('ticks', tickStore.getAll())
+  wsServer.broadcast('spot-futures', latestSpotFuturesOpportunities)
 }, RECALC_INTERVAL_MS)
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
@@ -68,6 +83,8 @@ const httpServer = http.createServer((req, res) => {
       status: 'ok',
       ticks: tickStore.getAll().length,
       opportunities: latestOpportunities.length,
+      futuresTicks: futuresTickStore.getAll().length,
+      spotFuturesOpportunities: latestSpotFuturesOpportunities.length,
       clients: wsServer.connectedCount,
     })
     return
@@ -87,6 +104,21 @@ const httpServer = http.createServer((req, res) => {
     return
   }
 
+  if (url.pathname === '/futures') {
+    json(res, 200, futuresTickStore.getAll())
+    return
+  }
+
+  if (url.pathname === '/spot-futures') {
+    json(res, 200, latestSpotFuturesOpportunities)
+    return
+  }
+
+  if (url.pathname === '/funding-rates') {
+    json(res, 200, fundingRateTracker.getAll())
+    return
+  }
+
   if (url.pathname === '/stats') {
     json(res, 200, tickStore.getStats())
     return
@@ -99,8 +131,6 @@ const httpServer = http.createServer((req, res) => {
 
 async function start(): Promise<void> {
   // 1. Ensure the WS server singleton (started on import) has successfully bound to its port.
-  //    If the port is already in use the constructor emits 'error' — we surface that here so
-  //    the process exits with a clear message instead of running silently broken.
   await new Promise<void>((resolve, reject) => {
     const wss = (wsServer as unknown as { wss: WebSocketServer }).wss
     if (wss.address() !== null) {
@@ -119,12 +149,15 @@ async function start(): Promise<void> {
       console.log(`[PriceServer]   GET /health`)
       console.log(`[PriceServer]   GET /prices`)
       console.log(`[PriceServer]   GET /opportunities`)
+      console.log(`[PriceServer]   GET /futures`)
+      console.log(`[PriceServer]   GET /spot-futures`)
+      console.log(`[PriceServer]   GET /funding-rates`)
       console.log(`[PriceServer]   GET /stats`)
       resolve()
     })
   })
 
-  // 3. Tier 1 adapters
+  // 3. Tier 1 spot adapters
   const tier1 = [
     new BinanceAdapter(),
     new BybitAdapter(),
@@ -138,7 +171,7 @@ async function start(): Promise<void> {
     )
   }
 
-  // 4. Tier 2 adapters (CCXT)
+  // 4. Tier 2 spot adapters (CCXT)
   const tier2 = createAllTier2Adapters()
   for (const adapter of tier2) {
     adapter.connect(onTick).catch(err =>
@@ -146,14 +179,32 @@ async function start(): Promise<void> {
     )
   }
 
+  // 5. Futures adapters
+  const futuresAdapters = [
+    new BinanceFuturesAdapter(),
+    new BybitFuturesAdapter(),
+    new OkxFuturesAdapter(),
+  ]
+
+  for (const adapter of futuresAdapters) {
+    adapter.connect(onFuturesTick).catch(err =>
+      console.error(`[PriceServer] ${adapter.exchangeId}-futures connect error: ${String(err)}`)
+    )
+  }
+
+  // 6. Funding rate tracker
+  fundingRateTracker.registerAdapters(futuresAdapters)
+  fundingRateTracker.start()
+
   const totalExchanges = tier1.length + tier2.length
-  console.log(`[PriceServer] Startup complete — connecting to ${totalExchanges} exchanges`)
+  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot + ${futuresAdapters.length} futures exchanges`)
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
 function shutdown(): void {
   console.log('[PriceServer] Shutting down…')
+  fundingRateTracker.stop()
   tickStore.destroy()
   wsServer.destroy()
   httpServer.close(() => process.exit(0))
