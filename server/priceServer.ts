@@ -19,6 +19,12 @@ import { futuresTickStore } from './engine/futuresTickStore'
 import { calculateSpotFuturesOpportunities } from './engine/spotFuturesCalculator'
 import { fundingRateTracker } from './engine/fundingRateTracker'
 import { SpotFuturesOpportunity } from './adapters/futures/baseFutures'
+import { JupiterAdapter } from './adapters/dex/jupiter'
+import { UniswapAdapter } from './adapters/dex/uniswap'
+import { HyperliquidAdapter } from './adapters/dex/hyperliquid'
+import { dexTickStore } from './engine/dexTickStore'
+import { calculateCexDexOpportunities } from './engine/cexDexCalculator'
+import { DexPrice, CexDexOpportunity } from './adapters/dex/base'
 
 const WS_PORT = 3002
 const HTTP_PORT = 3001
@@ -37,6 +43,7 @@ export const TRACKED_SYMBOLS = [
 
 let latestOpportunities: ArbitrageOpportunity[] = []
 let latestSpotFuturesOpportunities: SpotFuturesOpportunity[] = []
+let latestCexDexOpportunities: CexDexOpportunity[] = []
 
 // ── Tick handlers ──────────────────────────────────────────────────────────────
 
@@ -48,16 +55,22 @@ function onFuturesTick(tick: FuturesTick): void {
   futuresTickStore.upsert(tick)
 }
 
+function onDexPrice(price: DexPrice): void {
+  dexTickStore.upsert(price)
+}
+
 // ── Recalculation loop ────────────────────────────────────────────────────────
 
 setInterval(() => {
   const spreads = calculateAllSpreads(tickStore)
   latestOpportunities = rankOpportunities(spreads)
   latestSpotFuturesOpportunities = calculateSpotFuturesOpportunities()
+  latestCexDexOpportunities = calculateCexDexOpportunities()
 
   wsServer.broadcast('opportunities', latestOpportunities)
   wsServer.broadcast('ticks', tickStore.getAll())
   wsServer.broadcast('spot-futures', latestSpotFuturesOpportunities)
+  wsServer.broadcast('cex-dex', latestCexDexOpportunities)
 }, RECALC_INTERVAL_MS)
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
@@ -85,6 +98,8 @@ const httpServer = http.createServer((req, res) => {
       opportunities: latestOpportunities.length,
       futuresTicks: futuresTickStore.getAll().length,
       spotFuturesOpportunities: latestSpotFuturesOpportunities.length,
+      dexPrices: dexTickStore.getAll().length,
+      cexDexOpportunities: latestCexDexOpportunities.length,
       clients: wsServer.connectedCount,
     })
     return
@@ -116,6 +131,16 @@ const httpServer = http.createServer((req, res) => {
 
   if (url.pathname === '/funding-rates') {
     json(res, 200, fundingRateTracker.getAll())
+    return
+  }
+
+  if (url.pathname === '/dex-prices') {
+    json(res, 200, dexTickStore.getAll())
+    return
+  }
+
+  if (url.pathname === '/cex-dex') {
+    json(res, 200, latestCexDexOpportunities)
     return
   }
 
@@ -153,6 +178,8 @@ async function start(): Promise<void> {
       console.log(`[PriceServer]   GET /spot-futures`)
       console.log(`[PriceServer]   GET /funding-rates`)
       console.log(`[PriceServer]   GET /stats`)
+      console.log(`[PriceServer]   GET /dex-prices`)
+      console.log(`[PriceServer]   GET /cex-dex`)
       resolve()
     })
   })
@@ -196,8 +223,29 @@ async function start(): Promise<void> {
   fundingRateTracker.registerAdapters(futuresAdapters)
   fundingRateTracker.start()
 
+  // 7. DEX adapters
+  console.log('[DEX] Starting 3 DEX adapters (non-blocking)')
+  const dexAdapters = [
+    new JupiterAdapter(),
+    new UniswapAdapter(),
+    new HyperliquidAdapter(),
+  ]
+
+  for (const adapter of dexAdapters) {
+    console.log(`[DEX] Launching ${adapter.dexId}...`)
+    const connectWithTimeout = Promise.race([
+      adapter.connect((price) => { dexTickStore.upsert(price) }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Connection timeout after 10s')), 10000)
+      ),
+    ])
+    connectWithTimeout
+      .then(() => console.log(`[DEX] ${adapter.dexId} connected`))
+      .catch((err: Error) => console.error(`[DEX] ${adapter.dexId} failed:`, err.message))
+  }
+
   const totalExchanges = tier1.length + tier2.length
-  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot + ${futuresAdapters.length} futures exchanges`)
+  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot + ${futuresAdapters.length} futures + ${dexAdapters.length} DEX exchanges`)
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
