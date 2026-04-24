@@ -1,0 +1,60 @@
+# Arbitrage Platform — Cursor Rules
+
+## Project Identity
+This is a crypto arbitrage intelligence platform. Every engineering decision must optimize
+for correctness of financial calculations, real-time data integrity, and security.
+
+## TypeScript
+- Always use strict TypeScript. Enable `strict: true` in tsconfig. No `any` types.
+- Define explicit return types on all functions that cross module boundaries.
+- Use discriminated unions for state machines (e.g. loading / success / error).
+- Prefer `type` for object shapes; use `interface` only when declaration merging is needed.
+
+## Financial Calculations
+- All price values must be stored and computed as `number` with 8 decimal places of precision.
+- Opportunity spread displayed to users must ALWAYS be net profit after ALL fees:
+  trading fees (taker) on both legs + withdrawal/transfer fee.
+- Never display gross spread to the user without a clear label distinguishing it from net.
+- Fee constants live in `/lib/utils/feeData.ts`. Never hardcode fees inline.
+- Use `parseFloat(value.toFixed(8))` when storing monetary values to cap float drift.
+
+## Security
+- NEVER import or reference exchange API keys in any file under `/app` or `/components`.
+- API keys and secrets live exclusively in server-side environment variables.
+- All routes under `/app/api` must validate and sanitize query parameters before use.
+- Do not log price data or opportunity data with personally identifiable info attached.
+
+## Component Model
+- Use React Server Components (RSC) by default. Add `"use client"` only when the component:
+  - Subscribes to Zustand store
+  - Uses browser APIs (WebSocket, localStorage)
+  - Contains interactive event handlers
+- WebSocket connections must be established server-side only (in API routes or server actions).
+- Never open a WebSocket from a client component.
+
+## State Management
+- Zustand (`/store/useArbitrageStore.ts`) is the single source of truth for client UI state.
+- React Query (`@tanstack/react-query`) is used for all server data fetching and caching.
+- Do not duplicate server state in Zustand; sync from React Query into Zustand only when
+  the data drives real-time UI that doesn't need cache invalidation.
+
+## Data Flow
+- Price ticks flow: Exchange WS → `/lib/engine/priceEngine.ts` → Redis cache → `/api/prices`
+- Opportunity detection: `spreadCalculator.ts` → `opportunityScorer.ts` → Redis → `/api/opportunities`
+- Client polls `/api/prices` and `/api/opportunities` via React Query at configurable intervals.
+
+## Code Style
+- Use `clsx` + `tailwind-merge` for conditional Tailwind class construction. Never concatenate class strings manually.
+- Prefer named exports over default exports in library/utility files.
+- Use default exports only for page and layout components (Next.js convention).
+- Keep files under 200 lines. Split into sub-modules when they grow larger.
+- No `console.log` in production paths. Use structured logging via a `/lib/logger.ts` module.
+
+## File Organization
+- `/lib/engine/`     — pure business logic, no framework imports
+- `/lib/exchanges/`  — exchange metadata and WS adapter stubs
+- `/lib/utils/`      — shared helpers (formatters, fee data)
+- `/components/ui/`  — primitive UI components (Badge, Spinner, etc.)
+- `/components/dashboard/` — feature-level dashboard widgets
+- `/store/`          — Zustand stores
+- `/types/`          — shared TypeScript types, no implementation code

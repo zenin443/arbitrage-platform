@@ -1,0 +1,46 @@
+{
+  "name": "arbitrage-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:engine": "npx ts-node -r tsconfig-paths/register --project tsconfig.scripts.json scripts/testEngine.ts",
+    "server": "npx ts-node --project tsconfig.scripts.json server/priceServer.ts",
+    "dev:full": "concurrently \"npm run server\" \"npm run dev\""
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/supabase-js": "^2.104.1",
+    "@tanstack/react-query": "^5.100.1",
+    "ccxt": "^4.5.50",
+    "clsx": "^2.1.1",
+    "ioredis": "^5.10.1",
+    "lucide-react": "^1.9.0",
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^3.8.1",
+    "tailwind-merge": "^3.5.0",
+    "ws": "^8.20.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/ioredis": "^4.28.10",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@types/ws": "^8.18.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5"
+  }
+}
