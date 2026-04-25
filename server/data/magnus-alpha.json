@@ -1,0 +1,3235 @@
+{
+  "id": "magnus-alpha",
+  "name": "Magnus Alpha · $19K",
+  "startingCapital": 19000,
+  "portfolio": {
+    "okx": {
+      "USDT": 1234.36824723,
+      "RENDER": 0.03556718,
+      "PEPE": 31794.99603993,
+      "ATOM": 0.05325064,
+      "INJ": 0.04028152,
+      "ORDI": 0.02118412,
+      "WIF": 0.59514138,
+      "SHIB": 12448.05736861,
+      "TIA": 1.24928683,
+      "WLD": 0.32784795,
+      "OP": 253.65936395,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 0.05695489,
+      "ARB": 23.00084293,
+      "SEI": 1.85901215,
+      "APE": 2060.96053974
+    },
+    "gateio": {
+      "USDT": 1240.7503127,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "INJ": 18.46773225481777,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679,
+      "MANA": 1050.81122164,
+      "ORDI": 37.68940245,
+      "APE": 243.63714406,
+      "SAND": 629.25698545
+    },
+    "binance": {
+      "USDT": 1187.93851134,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 47.48181836,
+      "INJ": 18.46773225481777,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 271.24695736,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679,
+      "APE": 1476.23850722
+    },
+    "bitget": {
+      "USDT": 1127.4783561,
+      "RENDER": 17.710477961523985,
+      "PEPE": 26961487.40632256,
+      "ATOM": 23.76753449857632,
+      "APE": 1263.30751077,
+      "INJ": 18.46773225481777,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 336.19920986,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 464.94923002,
+      "MANA": 1577.5818651
+    },
+    "kucoin": {
+      "USDT": 1066.62625626,
+      "RENDER": 17.710477961523985,
+      "ATOM": 23.76753449857632,
+      "INJ": 18.46773225481777,
+      "ORDI": 86.35906356,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679,
+      "SEI": 812.78666998,
+      "PEPE": 16459351.36097719,
+      "APE": 182.70504338
+    },
+    "bingx": {
+      "USDT": 1341.16391096,
+      "RENDER": 17.710477961523985,
+      "PEPE": 16486079.46745416,
+      "ATOM": 23.76753449857632,
+      "INJ": 36.89518299,
+      "ORDI": 13.32584874,
+      "WIF": 532.05639798,
+      "SHIB": 15398246.96497689,
+      "TIA": 155.98158471,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679,
+      "APE": 219.97346802
+    },
+    "htx": {
+      "USDT": 1324.17078722,
+      "RENDER": 17.33884049,
+      "PEPE": 20134663.46745417,
+      "ATOM": 23.76753449857632,
+      "APE": 2431.29845009,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "WLD": 243.6846943,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "mexc": {
+      "USDT": 1484.62517913,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 170.71284216,
+      "WLD": 122.00627112233569,
+      "OP": 505.20992082,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 45.13955955,
+      "ARB": 243.9750364742679
+    },
+    "kraken": {
+      "USDT": 1460.9689619,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679,
+      "APE": 418.01212978
+    }
+  },
+  "totalPortfolioValueUsd": 19137.78196721,
+  "totalPnl": 137.78196721,
+  "totalPnlPercent": 0.7251682484736842,
+  "tradingPnl": 0.03276236,
+  "totalTrades": 72,
+  "voidedSignals": 416,
+  "voidedReasons": {
+    "Exchange not in portfolio (coinbase)": 6,
+    "DEX not supported": 193,
+    "Trade too small ($0.14)": 16,
+    "Trade too small ($0.09)": 11,
+    "Trade too small ($0.00)": 22,
+    "Trade too small ($1.54)": 3,
+    "Trade too small ($0.12)": 81,
+    "Trade too small ($3.48)": 2,
+    "Trade too small ($0.11)": 25,
+    "Trade too small ($0.06)": 8,
+    "Trade too small ($0.10)": 28,
+    "Trade too small ($0.04)": 8,
+    "Trade too small ($1.51)": 1,
+    "Trade too small ($2.28)": 5,
+    "Trade too small ($1.58)": 1,
+    "Trade too small ($0.08)": 2,
+    "Trade too small ($0.45)": 3,
+    "Trade too small ($2.52)": 1
+  },
+  "winningTrades": 39,
+  "losingTrades": 33,
+  "winRate": 54.166666666666664,
+  "bestTrade": {
+    "id": "trade-1777079099999-ttzq",
+    "botId": "magnus-alpha",
+    "timestamp": 1777079099999,
+    "symbol": "APE/USDT",
+    "baseAsset": "APE",
+    "quoteAsset": "USDT",
+    "type": "cex_cex",
+    "buyExchange": "binance",
+    "sellExchange": "bingx",
+    "buyPrice": 0.2032,
+    "sellPrice": 0.207,
+    "spreadPercent": 1.8701,
+    "quantity": 242.40277198,
+    "tradeSizeUsd": 49.256243266336,
+    "grossProfit": 0.9211305299999992,
+    "buyFee": 0.04925624,
+    "sellFee": 0.05017737,
+    "totalFees": 0.09943361,
+    "netProfit": 0.8216969199999993,
+    "depthLimited": false,
+    "inventoryLimited": true
+  },
+  "worstTrade": {
+    "id": "trade-1777078280060-voka",
+    "botId": "magnus-alpha",
+    "timestamp": 1777078280060,
+    "symbol": "TIA/USDT",
+    "baseAsset": "TIA",
+    "quoteAsset": "USDT",
+    "type": "spot_futures",
+    "buyExchange": "htx",
+    "sellExchange": "okx",
+    "buyPrice": 0.3615,
+    "sellPrice": 0.3581,
+    "spreadPercent": 0.9405,
+    "quantity": 131.57929788426844,
+    "tradeSizeUsd": 47.56591618516304,
+    "grossProfit": -0.44736962000000347,
+    "buyFee": 0.04756592,
+    "sellFee": 0.04711855,
+    "totalFees": 0.09468446999999999,
+    "netProfit": -0.5420540900000035,
+    "depthLimited": false,
+    "inventoryLimited": false
+  },
+  "totalFeesPaid": 7.46724919,
+  "totalRebalanceFees": 1.6366477,
+  "rebalanceCount": 39,
+  "maxDrawdown": 251.62120277440408,
+  "peakValue": 19158.56059528275,
+  "inventoryCoins": [
+    "RENDER",
+    "PEPE",
+    "ATOM",
+    "APE",
+    "INJ",
+    "ORDI",
+    "WIF",
+    "SHIB",
+    "TIA",
+    "WLD",
+    "OP",
+    "BONK",
+    "UNI",
+    "NEAR",
+    "ARB"
+  ],
+  "activeExchanges": [
+    "okx",
+    "gateio",
+    "binance",
+    "bitget",
+    "kucoin",
+    "bingx",
+    "htx",
+    "mexc",
+    "kraken"
+  ],
+  "recentTrades": [
+    {
+      "id": "trade-1777079100000-35yi",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "binance",
+      "buyPrice": 4.77,
+      "sellPrice": 4.774,
+      "spreadPercent": 0.0839,
+      "quantity": 7.49215656,
+      "tradeSizeUsd": 35.737586791199995,
+      "grossProfit": 0.029968629999999052,
+      "buyFee": 0.03573759,
+      "sellFee": 0.03576756,
+      "totalFees": 0.07150514999999999,
+      "netProfit": -0.04153652000000094,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079100000-njo3",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "OP/USDT",
+      "baseAsset": "OP",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "gateio",
+      "buyPrice": 0.1259,
+      "sellPrice": 0.12607,
+      "spreadPercent": 0.135,
+      "quantity": 252.95642825523302,
+      "tradeSizeUsd": 31.84721431733384,
+      "grossProfit": 0.043002590000000396,
+      "buyFee": 0.03184721,
+      "sellFee": 0.03189022,
+      "totalFees": 0.06373743,
+      "netProfit": -0.020734839999999602,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079099999-ttzq",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079099999,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "bingx",
+      "buyPrice": 0.2032,
+      "sellPrice": 0.207,
+      "spreadPercent": 1.8701,
+      "quantity": 242.40277198,
+      "tradeSizeUsd": 49.256243266336,
+      "grossProfit": 0.9211305299999992,
+      "buyFee": 0.04925624,
+      "sellFee": 0.05017737,
+      "totalFees": 0.09943361,
+      "netProfit": 0.8216969199999993,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079079954-753s",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079079954,
+      "symbol": "SAND/USDT",
+      "baseAsset": "SAND",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "okx",
+      "buyPrice": 0.07896,
+      "sellPrice": 0.07902,
+      "spreadPercent": 0.076,
+      "quantity": 629.25698545,
+      "tradeSizeUsd": 49.686131571132,
+      "grossProfit": 0.03775541999999632,
+      "buyFee": 0.04968613,
+      "sellFee": 0.04972389,
+      "totalFees": 0.09941002,
+      "netProfit": -0.06165460000000368,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079069933-lci1",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079069933,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "bitget",
+      "buyPrice": 0.2033,
+      "sellPrice": 0.2041,
+      "spreadPercent": 0.3935,
+      "quantity": 573.05,
+      "tradeSizeUsd": 116.501065,
+      "grossProfit": 0.45843999999999596,
+      "buyFee": 0.11650107,
+      "sellFee": 0.1169595,
+      "totalFees": 0.23346056999999998,
+      "netProfit": 0.22497942999999598,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777079047893-tarm",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079047893,
+      "symbol": "NEAR/USDT",
+      "baseAsset": "NEAR",
+      "quoteAsset": "USDT",
+      "type": "spot_futures",
+      "buyExchange": "mexc",
+      "sellExchange": "okx",
+      "buyPrice": 1.40855,
+      "sellPrice": 1.405,
+      "spreadPercent": 0.252,
+      "quantity": 22.54130233039383,
+      "tradeSizeUsd": 31.75055139747623,
+      "grossProfit": -0.0800216299999974,
+      "buyFee": 0.03175055,
+      "sellFee": 0.03167053,
+      "totalFees": 0.06342108,
+      "netProfit": -0.14344270999999742,
+      "depthLimited": false,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777079039865-2tnd",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079039865,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "bitget",
+      "buyPrice": 4.768,
+      "sellPrice": 4.778,
+      "spreadPercent": 0.2097,
+      "quantity": 6.96387643,
+      "tradeSizeUsd": 33.20376281824,
+      "grossProfit": 0.06963875999999658,
+      "buyFee": 0.03320376,
+      "sellFee": 0.0332734,
+      "totalFees": 0.06647716000000001,
+      "netProfit": 0.0031615999999965727,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079039865-v2cp",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079039865,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "bingx",
+      "buyPrice": 0.2047,
+      "sellPrice": 0.2061,
+      "spreadPercent": 0.6839,
+      "quantity": 267.49693558,
+      "tradeSizeUsd": 54.756622713226,
+      "grossProfit": 0.3744957099999979,
+      "buyFee": 0.05475662,
+      "sellFee": 0.05513112,
+      "totalFees": 0.10988774,
+      "netProfit": 0.2646079699999979,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079009783-9ral",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079009783,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "mexc",
+      "buyPrice": 0.20745,
+      "sellPrice": 0.2081,
+      "spreadPercent": 0.3133,
+      "quantity": 806.51277219,
+      "tradeSizeUsd": 167.31107459081548,
+      "grossProfit": 0.5242332999999917,
+      "buyFee": 0.16731107,
+      "sellFee": 0.16783531,
+      "totalFees": 0.33514637999999997,
+      "netProfit": 0.18908691999999172,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777079007774-2w9d",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079007774,
+      "symbol": "TIA/USDT",
+      "baseAsset": "TIA",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "htx",
+      "buyPrice": 0.3607,
+      "sellPrice": 0.3616,
+      "spreadPercent": 0.2495,
+      "quantity": 138.41837265,
+      "tradeSizeUsd": 49.927507014855,
+      "grossProfit": 0.12457653999999962,
+      "buyFee": 0.04992751,
+      "sellFee": 0.05005208,
+      "totalFees": 0.09997959000000001,
+      "netProfit": 0.024596949999999618,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078991720-513q",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078991720,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "binance",
+      "buyPrice": 4.776,
+      "sellPrice": 4.78,
+      "spreadPercent": 0.0838,
+      "quantity": 9.918341708542714,
+      "tradeSizeUsd": 47.37,
+      "grossProfit": 0.039673370000002706,
+      "buyFee": 0.04737,
+      "sellFee": 0.04740967,
+      "totalFees": 0.09477967000000001,
+      "netProfit": -0.055106299999997305,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078981685-5i8z",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078981685,
+      "symbol": "PEPE/USDT",
+      "baseAsset": "PEPE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bingx",
+      "sellExchange": "bitget",
+      "buyPrice": 0.00000388,
+      "sellPrice": 0.00000389,
+      "spreadPercent": 0.2577,
+      "quantity": 2090708,
+      "tradeSizeUsd": 8.11194704,
+      "grossProfit": 0.020907079999998857,
+      "buyFee": 0.00811195,
+      "sellFee": 0.00813285,
+      "totalFees": 0.0162448,
+      "netProfit": 0.004662279999998856,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078975666-lxov",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078975666,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "mexc",
+      "buyPrice": 0.20738,
+      "sellPrice": 0.2078,
+      "spreadPercent": 0.2025,
+      "quantity": 215.61109899999997,
+      "tradeSizeUsd": 44.71342971062,
+      "grossProfit": 0.09055665999999718,
+      "buyFee": 0.04471343,
+      "sellFee": 0.04480399,
+      "totalFees": 0.08951742,
+      "netProfit": 0.0010392399999971796,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078961627-1egm",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078961627,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "binance",
+      "buyPrice": 4.763,
+      "sellPrice": 4.767,
+      "spreadPercent": 0.084,
+      "quantity": 9.80571032,
+      "tradeSizeUsd": 46.70459825416,
+      "grossProfit": 0.039222850000001586,
+      "buyFee": 0.0467046,
+      "sellFee": 0.04674382,
+      "totalFees": 0.09344842,
+      "netProfit": -0.05422556999999842,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078957618-4wew",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078957618,
+      "symbol": "TIA/USDT",
+      "baseAsset": "TIA",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bitget",
+      "sellExchange": "htx",
+      "buyPrice": 0.3608,
+      "sellPrice": 0.3616,
+      "spreadPercent": 0.2217,
+      "quantity": 165.44409795,
+      "tradeSizeUsd": 59.69223054036001,
+      "grossProfit": 0.13235528000000585,
+      "buyFee": 0.05969223,
+      "sellFee": 0.05982459,
+      "totalFees": 0.11951682,
+      "netProfit": 0.012838460000005852,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078951624-qs3h",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078951624,
+      "symbol": "PEPE/USDT",
+      "baseAsset": "PEPE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bingx",
+      "sellExchange": "kucoin",
+      "buyPrice": 0.00000388,
+      "sellPrice": 0.00000389,
+      "spreadPercent": 0.2577,
+      "quantity": 2090708,
+      "tradeSizeUsd": 8.11194704,
+      "grossProfit": 0.020907079999998857,
+      "buyFee": 0.00811195,
+      "sellFee": 0.00813285,
+      "totalFees": 0.0162448,
+      "netProfit": 0.004662279999998856,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078939590-ddjf",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078939590,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "kucoin",
+      "buyPrice": 0.20262,
+      "sellPrice": 0.2047,
+      "spreadPercent": 1.0266,
+      "quantity": 243.63714406,
+      "tradeSizeUsd": 49.3657581294372,
+      "grossProfit": 0.5067652599999946,
+      "buyFee": 0.04936576,
+      "sellFee": 0.04987252,
+      "totalFees": 0.09923828,
+      "netProfit": 0.40752697999999454,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078921558-n1en",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078921558,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "binance",
+      "buyPrice": 4.773,
+      "sellPrice": 4.777,
+      "spreadPercent": 0.0838,
+      "quantity": 9.767441860465116,
+      "tradeSizeUsd": 46.62,
+      "grossProfit": 0.03906977000000467,
+      "buyFee": 0.04662,
+      "sellFee": 0.04665907,
+      "totalFees": 0.09327906999999999,
+      "netProfit": -0.054209299999995325,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078921557-m5zf",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078921557,
+      "symbol": "PEPE/USDT",
+      "baseAsset": "PEPE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bitget",
+      "sellExchange": "kucoin",
+      "buyPrice": 0.00000388,
+      "sellPrice": 0.00000389,
+      "spreadPercent": 0.2577,
+      "quantity": 16747531.9388684,
+      "tradeSizeUsd": 64.9804239228094,
+      "grossProfit": 0.1674753199999941,
+      "buyFee": 0.06498042,
+      "sellFee": 0.0651479,
+      "totalFees": 0.13012832,
+      "netProfit": 0.03734699999999411,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078909519-nmp7",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078909519,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "okx",
+      "buyPrice": 0.1992,
+      "sellPrice": 0.19948,
+      "spreadPercent": 0.1406,
+      "quantity": 237.90160642570282,
+      "tradeSizeUsd": 47.39,
+      "grossProfit": 0.06661245000000093,
+      "buyFee": 0.04739,
+      "sellFee": 0.04745661,
+      "totalFees": 0.09484661,
+      "netProfit": -0.028234159999999064,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078891470-t5mc",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078891470,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bingx",
+      "sellExchange": "bitget",
+      "buyPrice": 4.759,
+      "sellPrice": 4.769,
+      "spreadPercent": 0.2101,
+      "quantity": 3.5176000000000003,
+      "tradeSizeUsd": 16.740258400000002,
+      "grossProfit": 0.03517600000000343,
+      "buyFee": 0.01674026,
+      "sellFee": 0.01677543,
+      "totalFees": 0.03351569,
+      "netProfit": 0.001660310000003426,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078879426-7utn",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078879426,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "htx",
+      "sellExchange": "binance",
+      "buyPrice": 0.1984,
+      "sellPrice": 0.1992,
+      "spreadPercent": 0.4032,
+      "quantity": 95.77829007056432,
+      "tradeSizeUsd": 19.002412749999962,
+      "grossProfit": 0.07662262999999925,
+      "buyFee": 0.01900241,
+      "sellFee": 0.01907904,
+      "totalFees": 0.03808145,
+      "netProfit": 0.038541179999999245,
+      "depthLimited": false,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078849367-m555",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078849367,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kraken",
+      "sellExchange": "bitget",
+      "buyPrice": 0.1955,
+      "sellPrice": 0.1981,
+      "spreadPercent": 1.3299,
+      "quantity": 65,
+      "tradeSizeUsd": 12.7075,
+      "grossProfit": 0.16900000000000048,
+      "buyFee": 0.0127075,
+      "sellFee": 0.0128765,
+      "totalFees": 0.025584000000000003,
+      "netProfit": 0.1434160000000005,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078847368-fxvd",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078847368,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "gateio",
+      "buyPrice": 4.764,
+      "sellPrice": 4.771,
+      "spreadPercent": 0.1469,
+      "quantity": 9.764903442485307,
+      "tradeSizeUsd": 46.52000000000001,
+      "grossProfit": 0.06835431999999741,
+      "buyFee": 0.04652,
+      "sellFee": 0.04658835,
+      "totalFees": 0.09310835,
+      "netProfit": -0.02475403000000259,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078819308-zb8r",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078819308,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kraken",
+      "sellExchange": "binance",
+      "buyPrice": 0.1886,
+      "sellPrice": 0.1914,
+      "spreadPercent": 1.4846,
+      "quantity": 237,
+      "tradeSizeUsd": 44.6982,
+      "grossProfit": 0.6636000000000024,
+      "buyFee": 0.0446982,
+      "sellFee": 0.0453618,
+      "totalFees": 0.09006,
+      "netProfit": 0.5735400000000024,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078805256-smul",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078805256,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "gateio",
+      "buyPrice": 4.763,
+      "sellPrice": 4.768,
+      "spreadPercent": 0.105,
+      "quantity": 10.47754643,
+      "tradeSizeUsd": 49.90455364609,
+      "grossProfit": 0.05238773000000663,
+      "buyFee": 0.04990455,
+      "sellFee": 0.04995694,
+      "totalFees": 0.09986149,
+      "netProfit": -0.04747375999999337,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078789211-ghen",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078789211,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "htx",
+      "sellExchange": "bitget",
+      "buyPrice": 0.1857,
+      "sellPrice": 0.1861,
+      "spreadPercent": 0.2154,
+      "quantity": 154.33084006462076,
+      "tradeSizeUsd": 28.659237000000076,
+      "grossProfit": 0.06173233999999894,
+      "buyFee": 0.02865924,
+      "sellFee": 0.02872097,
+      "totalFees": 0.05738021,
+      "netProfit": 0.004352129999998941,
+      "depthLimited": false,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078779188-4qze",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078779188,
+      "symbol": "SHIB/USDT",
+      "baseAsset": "SHIB",
+      "quoteAsset": "USDT",
+      "type": "spot_futures",
+      "buyExchange": "bingx",
+      "sellExchange": "okx",
+      "buyPrice": 0.00000619,
+      "sellPrice": 0.00000618,
+      "spreadPercent": 0.2421,
+      "quantity": 7692899.453804138,
+      "tradeSizeUsd": 47.61904761904761,
+      "grossProfit": -0.07692900000000691,
+      "buyFee": 0.04761905,
+      "sellFee": 0.04754212,
+      "totalFees": 0.09516117,
+      "netProfit": -0.17209017000000693,
+      "depthLimited": false,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078775187-fg2t",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078775187,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "bitget",
+      "buyPrice": 4.781,
+      "sellPrice": 4.797,
+      "spreadPercent": 0.3347,
+      "quantity": 5.52105161,
+      "tradeSizeUsd": 26.396147747409998,
+      "grossProfit": 0.08833681999999854,
+      "buyFee": 0.02639615,
+      "sellFee": 0.02648448,
+      "totalFees": 0.05288063,
+      "netProfit": 0.03545618999999854,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078759128-f7d6",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078759128,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "gateio",
+      "buyPrice": 0.18691,
+      "sellPrice": 0.18725,
+      "spreadPercent": 0.1819,
+      "quantity": 266.75424964,
+      "tradeSizeUsd": 49.8590368002124,
+      "grossProfit": 0.09069645000000293,
+      "buyFee": 0.04985904,
+      "sellFee": 0.04994973,
+      "totalFees": 0.09980876999999999,
+      "netProfit": -0.009112319999997065,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078735075-bpvx",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078735075,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "gateio",
+      "buyPrice": 4.798,
+      "sellPrice": 4.803,
+      "spreadPercent": 0.1042,
+      "quantity": 10.3985594,
+      "tradeSizeUsd": 49.8922880012,
+      "grossProfit": 0.05199280000000073,
+      "buyFee": 0.04989229,
+      "sellFee": 0.04994428,
+      "totalFees": 0.09983657,
+      "netProfit": -0.04784376999999927,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078729066-5yng",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078729066,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "gateio",
+      "buyPrice": 0.18805,
+      "sellPrice": 0.1882,
+      "spreadPercent": 0.0798,
+      "quantity": 239.27082409,
+      "tradeSizeUsd": 44.9948784701245,
+      "grossProfit": 0.03589061999999643,
+      "buyFee": 0.04499488,
+      "sellFee": 0.04503077,
+      "totalFees": 0.09002565,
+      "netProfit": -0.05413503000000357,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078725054-lgkt",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078725054,
+      "symbol": "MANA/USDT",
+      "baseAsset": "MANA",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bitget",
+      "sellExchange": "binance",
+      "buyPrice": 0.0952,
+      "sellPrice": 0.0955,
+      "spreadPercent": 0.3151,
+      "quantity": 523.5986268,
+      "tradeSizeUsd": 49.84658927136001,
+      "grossProfit": 0.15707958999999505,
+      "buyFee": 0.04984659,
+      "sellFee": 0.05000367,
+      "totalFees": 0.09985026,
+      "netProfit": 0.057229329999995054,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078694974-y4qn",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078694974,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bitget",
+      "sellExchange": "binance",
+      "buyPrice": 0.1874,
+      "sellPrice": 0.1879,
+      "spreadPercent": 0.2668,
+      "quantity": 890.09512593,
+      "tradeSizeUsd": 166.80382659928202,
+      "grossProfit": 0.4450475600000061,
+      "buyFee": 0.16680383,
+      "sellFee": 0.16724887,
+      "totalFees": 0.3340527,
+      "netProfit": 0.11099486000000613,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078684952-8eto",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078684952,
+      "symbol": "MANA/USDT",
+      "baseAsset": "MANA",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "binance",
+      "buyPrice": 0.09492,
+      "sellPrice": 0.0951,
+      "spreadPercent": 0.1896,
+      "quantity": 525.07708839,
+      "tradeSizeUsd": 49.8403172299788,
+      "grossProfit": 0.09451388000000094,
+      "buyFee": 0.04984032,
+      "sellFee": 0.04993483,
+      "totalFees": 0.09977515,
+      "netProfit": -0.005261269999999069,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078666931-u1xz",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078666931,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "bitget",
+      "buyPrice": 4.804,
+      "sellPrice": 4.815,
+      "spreadPercent": 0.229,
+      "quantity": 10.38135098,
+      "tradeSizeUsd": 49.872010107920005,
+      "grossProfit": 0.1141948600000049,
+      "buyFee": 0.04987201,
+      "sellFee": 0.0499862,
+      "totalFees": 0.09985821,
+      "netProfit": 0.014336650000004891,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078664921-4h2s",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078664921,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "bitget",
+      "buyPrice": 0.18707,
+      "sellPrice": 0.1877,
+      "spreadPercent": 0.3368,
+      "quantity": 216.65736099999998,
+      "tradeSizeUsd": 40.530092522269996,
+      "grossProfit": 0.13649414000000348,
+      "buyFee": 0.04053009,
+      "sellFee": 0.04066659,
+      "totalFees": 0.08119668,
+      "netProfit": 0.05529746000000349,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078654901-ohak",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078654901,
+      "symbol": "MANA/USDT",
+      "baseAsset": "MANA",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "okx",
+      "buyPrice": 0.09492,
+      "sellPrice": 0.09499,
+      "spreadPercent": 0.0737,
+      "quantity": 525.73413325,
+      "tradeSizeUsd": 49.902683928090006,
+      "grossProfit": 0.03680139000000082,
+      "buyFee": 0.04990268,
+      "sellFee": 0.04993949,
+      "totalFees": 0.09984217000000001,
+      "netProfit": -0.06304077999999919,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078634845-xdum",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078634845,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "gateio",
+      "sellExchange": "kucoin",
+      "buyPrice": 0.18547,
+      "sellPrice": 0.1856,
+      "spreadPercent": 0.0701,
+      "quantity": 239.27082409,
+      "tradeSizeUsd": 44.3775597439723,
+      "grossProfit": 0.031105209999999772,
+      "buyFee": 0.04437756,
+      "sellFee": 0.04440866,
+      "totalFees": 0.08878622,
+      "netProfit": -0.05768101000000023,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078616814-rz1b",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078616814,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "gateio",
+      "buyPrice": 4.814,
+      "sellPrice": 4.82,
+      "spreadPercent": 0.1246,
+      "quantity": 10.36874431,
+      "tradeSizeUsd": 49.91513510834,
+      "grossProfit": 0.062212459999997805,
+      "buyFee": 0.04991514,
+      "sellFee": 0.04997735,
+      "totalFees": 0.09989249,
+      "netProfit": -0.037680030000002196,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078604789-1mmn",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078604789,
+      "symbol": "PEPE/USDT",
+      "baseAsset": "PEPE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "htx",
+      "sellExchange": "kucoin",
+      "buyPrice": 0.00000387,
+      "sellPrice": 0.00000388,
+      "spreadPercent": 0.2584,
+      "quantity": 7830000,
+      "tradeSizeUsd": 30.302100000000003,
+      "grossProfit": 0.07830000000000226,
+      "buyFee": 0.0303021,
+      "sellFee": 0.0303804,
+      "totalFees": 0.0606825,
+      "netProfit": 0.017617500000002256,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078604789-80xd",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078604789,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "htx",
+      "sellExchange": "binance",
+      "buyPrice": 0.1848,
+      "sellPrice": 0.1853,
+      "spreadPercent": 0.2706,
+      "quantity": 911.0182251082251,
+      "tradeSizeUsd": 168.356168,
+      "grossProfit": 0.4555091100000084,
+      "buyFee": 0.16835617,
+      "sellFee": 0.16881168,
+      "totalFees": 0.33716785,
+      "netProfit": 0.11834126000000839,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078586760-xrln",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078586760,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "gateio",
+      "buyPrice": 4.834,
+      "sellPrice": 4.84,
+      "spreadPercent": 0.1241,
+      "quantity": 9.808248737187974,
+      "tradeSizeUsd": 47.41307439556666,
+      "grossProfit": 0.05884949000000006,
+      "buyFee": 0.04741307,
+      "sellFee": 0.04747192,
+      "totalFees": 0.09488499,
+      "netProfit": -0.03603549999999994,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078574698-3nja",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078574698,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bitget",
+      "sellExchange": "kraken",
+      "buyPrice": 0.1857,
+      "sellPrice": 0.1862,
+      "spreadPercent": 0.2693,
+      "quantity": 152.4092622509424,
+      "tradeSizeUsd": 28.302400000000002,
+      "grossProfit": 0.07620463000000299,
+      "buyFee": 0.0283024,
+      "sellFee": 0.0283786,
+      "totalFees": 0.056680999999999995,
+      "netProfit": 0.019523630000002998,
+      "depthLimited": true,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078544599-dfoc",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078544599,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "okx",
+      "sellExchange": "gateio",
+      "buyPrice": 0.1864,
+      "sellPrice": 0.18693,
+      "spreadPercent": 0.2843,
+      "quantity": 267.49693558,
+      "tradeSizeUsd": 49.86142879211201,
+      "grossProfit": 0.1417733800000036,
+      "buyFee": 0.04986143,
+      "sellFee": 0.0500032,
+      "totalFees": 0.09986463,
+      "netProfit": 0.04190875000000362,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078514517-9svb",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078514517,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "gateio",
+      "buyPrice": 0.1876,
+      "sellPrice": 0.18778,
+      "spreadPercent": 0.0959,
+      "quantity": 558.64258076,
+      "tradeSizeUsd": 104.80134815057599,
+      "grossProfit": 0.10055567000000565,
+      "buyFee": 0.10480135,
+      "sellFee": 0.1049019,
+      "totalFees": 0.20970325,
+      "netProfit": -0.10914757999999436,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078506514-xx3y",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078506514,
+      "symbol": "ORDI/USDT",
+      "baseAsset": "ORDI",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "kucoin",
+      "sellExchange": "bitget",
+      "buyPrice": 4.827,
+      "sellPrice": 4.838,
+      "spreadPercent": 0.2279,
+      "quantity": 19.59531335,
+      "tradeSizeUsd": 94.58657754045001,
+      "grossProfit": 0.21554845,
+      "buyFee": 0.09458658,
+      "sellFee": 0.09480213,
+      "totalFees": 0.18938871000000002,
+      "netProfit": 0.026159739999999987,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078478450-ol6y",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078478450,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "binance",
+      "sellExchange": "kraken",
+      "buyPrice": 0.1873,
+      "sellPrice": 0.1877,
+      "spreadPercent": 0.2136,
+      "quantity": 731.40883468,
+      "tradeSizeUsd": 136.99287473556402,
+      "grossProfit": 0.29256352999999535,
+      "buyFee": 0.13699287,
+      "sellFee": 0.13728544,
+      "totalFees": 0.27427831,
+      "netProfit": 0.018285219999995328,
+      "depthLimited": false,
+      "inventoryLimited": true
+    },
+    {
+      "id": "trade-1777078460418-96c9",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078460418,
+      "symbol": "ATOM/USDT",
+      "baseAsset": "ATOM",
+      "quoteAsset": "USDT",
+      "type": "spot_futures",
+      "buyExchange": "binance",
+      "sellExchange": "okx",
+      "buyPrice": 2.0085,
+      "sellPrice": 2.004,
+      "spreadPercent": 0.224,
+      "quantity": 23.714283861163526,
+      "tradeSizeUsd": 47.63013913514695,
+      "grossProfit": -0.1067142799999985,
+      "buyFee": 0.04763014,
+      "sellFee": 0.04752342,
+      "totalFees": 0.09515356,
+      "netProfit": -0.2018678399999985,
+      "depthLimited": false,
+      "inventoryLimited": false
+    },
+    {
+      "id": "trade-1777078444389-cmjx",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078444389,
+      "symbol": "APE/USDT",
+      "baseAsset": "APE",
+      "quoteAsset": "USDT",
+      "type": "cex_cex",
+      "buyExchange": "bitget",
+      "sellExchange": "bingx",
+      "buyPrice": 0.1885,
+      "sellPrice": 0.1891,
+      "spreadPercent": 0.3183,
+      "quantity": 511.0619355959748,
+      "tradeSizeUsd": 96.33517485984125,
+      "grossProfit": 0.3066371600000082,
+      "buyFee": 0.09633517,
+      "sellFee": 0.09664181,
+      "totalFees": 0.19297698,
+      "netProfit": 0.11366018000000819,
+      "depthLimited": false,
+      "inventoryLimited": true
+    }
+  ],
+  "recentVoided": [
+    {
+      "id": "void-1777079110025-1jnv",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079110025,
+      "symbol": "PEPE/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "binance",
+      "spreadPercent": 0.2571,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079108025-5tev",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079108025,
+      "symbol": "ATOM/USDT",
+      "buyExchange": "kraken",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2264,
+      "reason": "Trade too small ($0.11)"
+    },
+    {
+      "id": "void-1777079102003-aodl",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079102003,
+      "symbol": "INJ/USDT",
+      "buyExchange": "hyperliquid",
+      "sellExchange": "htx",
+      "spreadPercent": 0.2726,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079100000-5xwo",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "ORDI/USDT",
+      "buyExchange": "bingx",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2307,
+      "reason": "Trade too small ($0.10)"
+    },
+    {
+      "id": "void-1777079100000-xil0",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "OP/USDT",
+      "buyExchange": "binance",
+      "sellExchange": "uniswap_v3",
+      "spreadPercent": 0.2034,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079100000-qbwk",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "OP/USDT",
+      "buyExchange": "kucoin",
+      "sellExchange": "uniswap_v3",
+      "spreadPercent": 0.2034,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079100000-d166",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "OP/USDT",
+      "buyExchange": "okx",
+      "sellExchange": "uniswap_v3",
+      "spreadPercent": 0.2034,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079100000-g95c",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "ORDI/USDT",
+      "buyExchange": "mexc",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2307,
+      "reason": "Trade too small ($0.10)"
+    },
+    {
+      "id": "void-1777079100000-ea77",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079100000,
+      "symbol": "OP/USDT",
+      "buyExchange": "hyperliquid",
+      "sellExchange": "htx",
+      "spreadPercent": 0.222,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079095978-6lvm",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079095978,
+      "symbol": "WLD/USDT",
+      "buyExchange": "mexc",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2108,
+      "reason": "Trade too small ($0.09)"
+    },
+    {
+      "id": "void-1777079093979-z8r5",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079093979,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "gateio",
+      "spreadPercent": 0.2455,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079091970-ah17",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079091970,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "htx",
+      "spreadPercent": 0.2193,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079091970-r99h",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079091970,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "bingx",
+      "spreadPercent": 0.2455,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079091970-0tv2",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079091970,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "bitget",
+      "spreadPercent": 0.2849,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079089968-ap59",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079089968,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "mexc",
+      "spreadPercent": 0.2587,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079087963-8l98",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079087963,
+      "symbol": "PEPE/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "binance",
+      "spreadPercent": 0.2571,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079087963-tc4m",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079087963,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "binance",
+      "spreadPercent": 0.2587,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079085960-hih1",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079085960,
+      "symbol": "ORDI/USDT",
+      "buyExchange": "hyperliquid",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2053,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079085960-aq7l",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079085960,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2061,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079079954-ypl6",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079079954,
+      "symbol": "LDO/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "kucoin",
+      "spreadPercent": 0.2061,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079077954-7l2r",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079077954,
+      "symbol": "ORDI/USDT",
+      "buyExchange": "gateio",
+      "sellExchange": "okx",
+      "spreadPercent": 0.0839,
+      "reason": "Trade too small ($0.10)"
+    },
+    {
+      "id": "void-1777079073932-a27f",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079073932,
+      "symbol": "INJ/USDT",
+      "buyExchange": "okx",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2034,
+      "reason": "Trade too small ($0.14)"
+    },
+    {
+      "id": "void-1777079073932-b3fr",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079073932,
+      "symbol": "RENDER/USDT",
+      "buyExchange": "binance",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2506,
+      "reason": "Trade too small ($0.06)"
+    },
+    {
+      "id": "void-1777079073932-gmbb",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079073932,
+      "symbol": "PEPE/USDT",
+      "buyExchange": "uniswap_v3",
+      "sellExchange": "binance",
+      "spreadPercent": 0.2571,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079069933-avnt",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079069933,
+      "symbol": "INJ/USDT",
+      "buyExchange": "binance",
+      "sellExchange": "okx",
+      "spreadPercent": 0.2179,
+      "reason": "Trade too small ($0.14)"
+    },
+    {
+      "id": "void-1777079059916-reee",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079059916,
+      "symbol": "RENDER/USDT",
+      "buyExchange": "gateio",
+      "sellExchange": "jupiter",
+      "spreadPercent": 0.2367,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079059915-m0gm",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079059915,
+      "symbol": "RENDER/USDT",
+      "buyExchange": "binance",
+      "sellExchange": "jupiter",
+      "spreadPercent": 0.2506,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079059915-xmco",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079059915,
+      "symbol": "RENDER/USDT",
+      "buyExchange": "mexc",
+      "sellExchange": "jupiter",
+      "spreadPercent": 0.2506,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079059915-38zo",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079059915,
+      "symbol": "RENDER/USDT",
+      "buyExchange": "bitget",
+      "sellExchange": "jupiter",
+      "spreadPercent": 0.2506,
+      "reason": "DEX not supported"
+    },
+    {
+      "id": "void-1777079059915-lq8g",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079059915,
+      "symbol": "RENDER/USDT",
+      "buyExchange": "kucoin",
+      "sellExchange": "jupiter",
+      "spreadPercent": 0.2506,
+      "reason": "DEX not supported"
+    }
+  ],
+  "recentRebalances": [
+    {
+      "id": "reb-1777079111948-y2eg65",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079111948,
+      "tier": 4,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "bingx",
+      "toExchange": "bingx",
+      "amount": 219.97346802,
+      "amountUsd": 45,
+      "fee": 0.045,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Predictive pre-buy (depletion)",
+      "balanceBefore": {
+        "from": 1386.16391096,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1341.16391096,
+        "to": 219.97346802
+      }
+    },
+    {
+      "id": "reb-1777079111948-zno08g",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079111948,
+      "tier": 4,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "bitget",
+      "toExchange": "bitget",
+      "amount": 207.71745246,
+      "amountUsd": 42.49278536,
+      "fee": 0.04249279,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Predictive pre-buy (depletion)",
+      "balanceBefore": {
+        "from": 1169.97114146,
+        "to": 1055.59005831
+      },
+      "balanceAfter": {
+        "from": 1127.4783561,
+        "to": 1263.30751077
+      }
+    },
+    {
+      "id": "reb-1777079099999-d2hv1n",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079099999,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "bingx",
+      "toExchange": "bingx",
+      "amount": 242.40277198,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought APE on bingx",
+      "balanceBefore": {
+        "from": 1386.03671453,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1336.03671453,
+        "to": 242.40277198
+      }
+    },
+    {
+      "id": "reb-1777079007775-67l5e5",
+      "botId": "magnus-alpha",
+      "timestamp": 1777079007775,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "TIA",
+      "fromExchange": "htx",
+      "toExchange": "htx",
+      "amount": 138.41837265,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought TIA on htx",
+      "balanceBefore": {
+        "from": 1324.16875575,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1274.16875575,
+        "to": 138.41837265
+      }
+    },
+    {
+      "id": "reb-1777078991947-r20x2k",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078991947,
+      "tier": 4,
+      "type": "sell_rebuy",
+      "asset": "PEPE",
+      "fromExchange": "kucoin",
+      "toExchange": "kucoin",
+      "amount": 5705314.90581807,
+      "amountUsd": 22.20875209,
+      "fee": 0.02220875,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Predictive pre-buy (depletion)",
+      "balanceBefore": {
+        "from": 1088.83500835,
+        "to": 10754036.45515912
+      },
+      "balanceAfter": {
+        "from": 1066.62625626,
+        "to": 16459351.36097719
+      }
+    },
+    {
+      "id": "reb-1777078991945-qvuvyr",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078991945,
+      "tier": 4,
+      "type": "usdt_transfer",
+      "asset": "USDT",
+      "fromExchange": "okx",
+      "toExchange": "bingx",
+      "amount": 40,
+      "amountUsd": 40,
+      "fee": 0.01,
+      "feeType": "network",
+      "chain": "Solana",
+      "transferTimeMinutes": 1,
+      "reason": "Predictive pre-send (flow)",
+      "balanceBefore": {
+        "from": 1392.41267208,
+        "to": 1290.97072723
+      },
+      "balanceAfter": {
+        "from": 1352.41267208,
+        "to": 1290.97072723
+      }
+    },
+    {
+      "id": "reb-1777078991720-j28t94",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078991720,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "ORDI",
+      "fromExchange": "binance",
+      "toExchange": "binance",
+      "amount": 10.44662184,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought ORDI on binance",
+      "balanceBefore": {
+        "from": 1458.79330579,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1408.79330579,
+        "to": 10.44662184
+      }
+    },
+    {
+      "id": "reb-1777078971656-bksj7a",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078971656,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "kucoin",
+      "toExchange": "kucoin",
+      "amount": 182.70504338,
+      "amountUsd": 38.07214644,
+      "fee": 0.03807215,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought APE on kucoin",
+      "balanceBefore": {
+        "from": 1126.90715479,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1088.83500835,
+        "to": 182.70504338
+      }
+    },
+    {
+      "id": "reb-1777078951624-tlcu48",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078951624,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "PEPE",
+      "fromExchange": "kucoin",
+      "toExchange": "kucoin",
+      "amount": 12844744.45515912,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought PEPE on kucoin",
+      "balanceBefore": {
+        "from": 1168.78243352,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1118.78243352,
+        "to": 12844744.45515912
+      }
+    },
+    {
+      "id": "reb-1777078939590-u1s4qa",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078939590,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "kucoin",
+      "toExchange": "kucoin",
+      "amount": 243.63714406,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought APE on kucoin",
+      "balanceBefore": {
+        "from": 1168.95978265,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1118.95978265,
+        "to": 243.63714406
+      }
+    },
+    {
+      "id": "reb-1777078927563-8r2rf2",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078927563,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "SAND",
+      "fromExchange": "okx",
+      "toExchange": "okx",
+      "amount": 629.25698545,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought SAND on okx",
+      "balanceBefore": {
+        "from": 1487.17081522,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1437.17081522,
+        "to": 629.25698545
+      }
+    },
+    {
+      "id": "reb-1777078921557-mtnyvj",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078921557,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "RENDER",
+      "fromExchange": "htx",
+      "toExchange": "htx",
+      "amount": 7.43093164,
+      "amountUsd": 13.33880095,
+      "fee": 0.0133388,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue: sold RENDER on htx — USDT was depleted",
+      "balanceBefore": {
+        "from": 24.76977213,
+        "to": 999.98099759
+      },
+      "balanceAfter": {
+        "from": 17.33884049,
+        "to": 1013.30645974
+      }
+    },
+    {
+      "id": "reb-1777078891470-j5gec1",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078891470,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "ORDI",
+      "fromExchange": "bitget",
+      "toExchange": "bitget",
+      "amount": 10.48147643,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought ORDI on bitget",
+      "balanceBefore": {
+        "from": 1169.80241465,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1119.80241465,
+        "to": 10.48147643
+      }
+    },
+    {
+      "id": "reb-1777078871943-6z2u78",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078871943,
+      "tier": 4,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "binance",
+      "toExchange": "binance",
+      "amount": 226.39498187,
+      "amountUsd": 45,
+      "fee": 0.045,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Predictive pre-buy (depletion)",
+      "balanceBefore": {
+        "from": 1438.86125147,
+        "to": 24.77050143
+      },
+      "balanceAfter": {
+        "from": 1393.86125147,
+        "to": 251.1654833
+      }
+    },
+    {
+      "id": "reb-1777078871920-dlrapz",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078871920,
+      "tier": 2,
+      "type": "usdt_transfer",
+      "asset": "USDT",
+      "fromExchange": "okx",
+      "toExchange": "htx",
+      "amount": 251.10753478,
+      "amountUsd": 251.10753478,
+      "fee": 0.01,
+      "feeType": "network",
+      "chain": "Solana",
+      "transferTimeMinutes": 1,
+      "reason": "USDT imbalance: okx vs htx",
+      "balanceBefore": {
+        "from": 1690.86919416,
+        "to": 1019.00241275
+      },
+      "balanceAfter": {
+        "from": 1439.76165938,
+        "to": 1019.00241275
+      }
+    },
+    {
+      "id": "reb-1777078847368-jka4dj",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078847368,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "ORDI",
+      "fromExchange": "gateio",
+      "toExchange": "gateio",
+      "amount": 10.47065544,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought ORDI on gateio",
+      "balanceBefore": {
+        "from": 1488.10977886,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1438.10977886,
+        "to": 10.47065544
+      }
+    },
+    {
+      "id": "reb-1777078819308-fofm6p",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078819308,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "APE",
+      "fromExchange": "binance",
+      "toExchange": "binance",
+      "amount": 261.77050143,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought APE on binance",
+      "balanceBefore": {
+        "from": 1490.11133327,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1440.11133327,
+        "to": 261.77050143
+      }
+    },
+    {
+      "id": "reb-1777078805256-hgebrj",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078805256,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "ORDI",
+      "fromExchange": "gateio",
+      "toExchange": "gateio",
+      "amount": 10.47754643,
+      "amountUsd": 50,
+      "fee": 0.05,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought ORDI on gateio",
+      "balanceBefore": {
+        "from": 1488.20279442,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1438.20279442,
+        "to": 10.47754643
+      }
+    },
+    {
+      "id": "reb-1777078799247-bdslfa",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078799247,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "RENDER",
+      "fromExchange": "htx",
+      "toExchange": "htx",
+      "amount": 10.61561662,
+      "amountUsd": 19.05012211,
+      "fee": 0.01905012,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue: sold RENDER on htx — USDT was depleted",
+      "balanceBefore": {
+        "from": 35.38538875,
+        "to": 999.97134076
+      },
+      "balanceAfter": {
+        "from": 24.76977213,
+        "to": 1019.00241275
+      }
+    },
+    {
+      "id": "reb-1777078775187-uzkj6g",
+      "botId": "magnus-alpha",
+      "timestamp": 1777078775187,
+      "tier": 1,
+      "type": "sell_rebuy",
+      "asset": "ORDI",
+      "fromExchange": "bitget",
+      "toExchange": "bitget",
+      "amount": 5.52105161,
+      "amountUsd": 26.48508973,
+      "fee": 0.02648509,
+      "feeType": "trading",
+      "chain": null,
+      "transferTimeMinutes": null,
+      "reason": "Rescue (reserve-aware): bought ORDI on bitget",
+      "balanceBefore": {
+        "from": 1088.28363242,
+        "to": 0
+      },
+      "balanceAfter": {
+        "from": 1061.79854269,
+        "to": 5.52105161
+      }
+    }
+  ],
+  "startedAt": 1777078271825,
+  "lastTradeAt": 1777079100000,
+  "isRunning": true,
+  "voidByCategory": {
+    "dex": 193,
+    "exchangeMissing": 6,
+    "noInventory": 0,
+    "noUsdt": 0,
+    "tooSmall": 217
+  },
+  "rebalanceStats": {
+    "tier1Count": 30,
+    "tier2Count": 1,
+    "tier3Count": 0,
+    "tier1Fees": 1.39694616,
+    "tier2Fees": 0.01,
+    "tier3Fees": 0,
+    "totalRebalanceCost": 1.6366477,
+    "inTransitCount": 0,
+    "inTransitValueUsd": 0
+  },
+  "inTransitFunds": [
+    {
+      "id": "transit-1777078631929-ous43b",
+      "asset": "USDT",
+      "amount": 39.99,
+      "fromExchange": "okx",
+      "toExchange": "bitget",
+      "startedAt": 1777078631929,
+      "estimatedArrival": 1777078691929,
+      "status": "arrived"
+    },
+    {
+      "id": "transit-1777078751940-dp0c3h",
+      "asset": "USDT",
+      "amount": 39.99,
+      "fromExchange": "okx",
+      "toExchange": "bitget",
+      "startedAt": 1777078751940,
+      "estimatedArrival": 1777078811940,
+      "status": "arrived"
+    },
+    {
+      "id": "transit-1777078871920-n47hjn",
+      "asset": "USDT",
+      "amount": 251.09753478,
+      "fromExchange": "okx",
+      "toExchange": "htx",
+      "startedAt": 1777078871920,
+      "estimatedArrival": 1777078931920,
+      "status": "arrived"
+    },
+    {
+      "id": "transit-1777078991945-y3sgj0",
+      "asset": "USDT",
+      "amount": 39.99,
+      "fromExchange": "okx",
+      "toExchange": "bingx",
+      "startedAt": 1777078991945,
+      "estimatedArrival": 1777079051945,
+      "status": "arrived"
+    }
+  ],
+  "rescuedVoids": 29,
+  "currentCycle": {
+    "cycleNumber": 1,
+    "startedAt": 0,
+    "phase": "trading",
+    "liquidationResults": null,
+    "restockResults": null
+  },
+  "cycleHistory": [],
+  "nextCycleAt": 1777081871825,
+  "totalCycleFees": 0,
+  "realizedInventoryPnl": 0,
+  "unrealizedInventoryPnl": 151.25431046,
+  "restockPrices": {
+    "RENDER": 1.7925,
+    "PEPE": 0.00000387,
+    "ATOM": 2.0035333333333334,
+    "APE": 0.18635333333333334,
+    "INJ": 3.438,
+    "ORDI": 4.855,
+    "WIF": 0.1788,
+    "SHIB": 0.00000618,
+    "TIA": 0.3585,
+    "WLD": 0.2602,
+    "OP": 0.1255,
+    "BONK": 0.00000631,
+    "UNI": 3.256,
+    "NEAR": 1.4048,
+    "ARB": 0.13012
+  },
+  "magnusAlphaMeta": {
+    "rebalanceRoi": {
+      "totalRebalanceCost": 1.6366477,
+      "tradesEnabledByRebalancing": 40,
+      "profitFromEnabledTrades": 2.22449689,
+      "rebalanceROI": 1.4359421873439373,
+      "bestRebalanceDecision": {
+        "description": "APE · sell_rebuy · bingx→bingx",
+        "tradesEnabled": 1,
+        "profit": 0.82169692
+      },
+      "worstRebalanceDecision": {
+        "description": "SEI · sell_rebuy · okx→okx",
+        "tradesEnabled": 1,
+        "profit": -0.21340526
+      }
+    },
+    "flowTracker": {
+      "exchangeFlow": {
+        "okx": {
+          "buys": 9,
+          "sells": 20,
+          "netFlow": 11
+        },
+        "gateio": {
+          "buys": 10,
+          "sells": 10,
+          "netFlow": 0
+        },
+        "binance": {
+          "buys": 10,
+          "sells": 12,
+          "netFlow": 2
+        },
+        "bitget": {
+          "buys": 11,
+          "sells": 10,
+          "netFlow": -1
+        },
+        "kucoin": {
+          "buys": 9,
+          "sells": 8,
+          "netFlow": -1
+        },
+        "bingx": {
+          "buys": 7,
+          "sells": 3,
+          "netFlow": -4
+        },
+        "htx": {
+          "buys": 9,
+          "sells": 5,
+          "netFlow": -4
+        },
+        "mexc": {
+          "buys": 4,
+          "sells": 2,
+          "netFlow": -2
+        },
+        "kraken": {
+          "buys": 3,
+          "sells": 2,
+          "netFlow": -1
+        }
+      },
+      "coinFlow": {
+        "PEPE": {
+          "okx": -12272868.471414238,
+          "kucoin": -14395371.467454161,
+          "htx": 7830000,
+          "bitget": 14656823.9388684,
+          "bingx": 4181416
+        },
+        "WIF": {
+          "bingx": 265.7306282967113,
+          "okx": -265.7306282967113
+        },
+        "INJ": {
+          "bingx": 18.427450739066384,
+          "okx": -18.427450739066384
+        },
+        "TIA": {
+          "htx": -271.2469573657139,
+          "okx": -131.57929788426844,
+          "bitget": 203.37062514665274,
+          "bingx": 23.153,
+          "mexc": 37.88425745332962,
+          "binance": 138.41837265
+        },
+        "WLD": {
+          "htx": 121.67842317690138,
+          "okx": -121.67842317690138
+        },
+        "RENDER": {
+          "htx": 17.67491078498628,
+          "okx": -17.67491078498628
+        },
+        "APE": {
+          "htx": 1920.236514495113,
+          "okx": 1015.2924758225944,
+          "mexc": -511.06193559402516,
+          "kucoin": -1261.8974479872652,
+          "gateio": -801.6759767587097,
+          "kraken": -361.4711978509424,
+          "bitget": 544.5281227122964,
+          "bingx": -1020.9616431559748,
+          "binance": 477.0110883169134
+        },
+        "ORDI": {
+          "okx": -9.787064617451403,
+          "bitget": -36.1921277525486,
+          "kucoin": 76.55081481718798,
+          "gateio": -13.834351870665456,
+          "binance": -20.25487057652252,
+          "bingx": 3.5176000000000003
+        },
+        "MANA": {
+          "bitget": 1577.5818651,
+          "binance": -2102.65895349,
+          "gateio": 1050.81122164,
+          "okx": -525.73413325
+        },
+        "SEI": {
+          "kucoin": 812.78666997844,
+          "okx": -812.78666997844
+        },
+        "ARB": {
+          "bitget": 220.9741935483871,
+          "okx": -220.9741935483871
+        },
+        "OP": {
+          "mexc": 252.25349256734629,
+          "okx": 0.7029356878867361,
+          "gateio": -252.95642825523302
+        },
+        "ATOM": {
+          "binance": 23.714283861163526,
+          "okx": -23.714283861163526
+        },
+        "SHIB": {
+          "bingx": 7692899.453804138,
+          "okx": -7692899.453804138
+        },
+        "NEAR": {
+          "mexc": 22.54130233039383,
+          "okx": -22.54130233039383
+        },
+        "SAND": {
+          "gateio": 629.25698545,
+          "okx": -629.25698545
+        }
+      },
+      "lastReset": 1777078271825
+    },
+    "pendingRebalanceAttribution": [
+      {
+        "rebalanceId": "reb-1777078298112-dyb20m",
+        "asset": "MANA",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078298112
+      },
+      {
+        "rebalanceId": "reb-1777078302125-bq0mij",
+        "asset": "SEI",
+        "exchanges": [
+          "okx"
+        ],
+        "at": 1777078302125
+      },
+      {
+        "rebalanceId": "reb-1777078322157-e36qba",
+        "asset": "APE",
+        "exchanges": [
+          "okx"
+        ],
+        "at": 1777078322157
+      },
+      {
+        "rebalanceId": "reb-1777078384259-9fp4jv",
+        "asset": "APE",
+        "exchanges": [
+          "kucoin"
+        ],
+        "at": 1777078384259
+      },
+      {
+        "rebalanceId": "reb-1777078391919-6ftkf5",
+        "asset": "APE",
+        "exchanges": [
+          "okx"
+        ],
+        "at": 1777078391919
+      },
+      {
+        "rebalanceId": "reb-1777078404327-fy70rv",
+        "asset": "MANA",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078404327
+      },
+      {
+        "rebalanceId": "reb-1777078511928-qq9l6n",
+        "asset": "APE",
+        "exchanges": [
+          "kucoin"
+        ],
+        "at": 1777078511928
+      },
+      {
+        "rebalanceId": "reb-1777078544598-80ht5m",
+        "asset": "APE",
+        "exchanges": [
+          "bingx"
+        ],
+        "at": 1777078544598
+      },
+      {
+        "rebalanceId": "reb-1777078544599-mdmkp1",
+        "asset": "APE",
+        "exchanges": [
+          "gateio"
+        ],
+        "at": 1777078544599
+      },
+      {
+        "rebalanceId": "reb-1777078574698-3u2otg",
+        "asset": "APE",
+        "exchanges": [
+          "kraken"
+        ],
+        "at": 1777078574698
+      },
+      {
+        "rebalanceId": "reb-1777078616814-d0cwpg",
+        "asset": "ORDI",
+        "exchanges": [
+          "gateio"
+        ],
+        "at": 1777078616814
+      },
+      {
+        "rebalanceId": "reb-1777078631929-u7xdw4",
+        "asset": "USDT",
+        "exchanges": [
+          "okx",
+          "bitget"
+        ],
+        "at": 1777078631929
+      },
+      {
+        "rebalanceId": "reb-1777078654901-xfwmuj",
+        "asset": "MANA",
+        "exchanges": [
+          "okx"
+        ],
+        "at": 1777078654901
+      },
+      {
+        "rebalanceId": "reb-1777078666931-nmhltl",
+        "asset": "ORDI",
+        "exchanges": [
+          "bitget"
+        ],
+        "at": 1777078666931
+      },
+      {
+        "rebalanceId": "reb-1777078684952-lvto20",
+        "asset": "MANA",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078684952
+      },
+      {
+        "rebalanceId": "reb-1777078725054-b8r9lg",
+        "asset": "MANA",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078725054
+      },
+      {
+        "rebalanceId": "reb-1777078735075-5gx3gk",
+        "asset": "ORDI",
+        "exchanges": [
+          "gateio"
+        ],
+        "at": 1777078735075
+      },
+      {
+        "rebalanceId": "reb-1777078751940-bogs6d",
+        "asset": "USDT",
+        "exchanges": [
+          "okx",
+          "bitget"
+        ],
+        "at": 1777078751940
+      },
+      {
+        "rebalanceId": "reb-1777078759128-6un0ze",
+        "asset": "APE",
+        "exchanges": [
+          "gateio"
+        ],
+        "at": 1777078759128
+      },
+      {
+        "rebalanceId": "reb-1777078775187-uzkj6g",
+        "asset": "ORDI",
+        "exchanges": [
+          "bitget"
+        ],
+        "at": 1777078775187
+      },
+      {
+        "rebalanceId": "reb-1777078799247-bdslfa",
+        "asset": "RENDER",
+        "exchanges": [
+          "htx"
+        ],
+        "at": 1777078799247
+      },
+      {
+        "rebalanceId": "reb-1777078805256-hgebrj",
+        "asset": "ORDI",
+        "exchanges": [
+          "gateio"
+        ],
+        "at": 1777078805256
+      },
+      {
+        "rebalanceId": "reb-1777078819308-fofm6p",
+        "asset": "APE",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078819308
+      },
+      {
+        "rebalanceId": "reb-1777078847368-jka4dj",
+        "asset": "ORDI",
+        "exchanges": [
+          "gateio"
+        ],
+        "at": 1777078847368
+      },
+      {
+        "rebalanceId": "reb-1777078871920-dlrapz",
+        "asset": "USDT",
+        "exchanges": [
+          "okx",
+          "htx"
+        ],
+        "at": 1777078871920
+      },
+      {
+        "rebalanceId": "reb-1777078871943-6z2u78",
+        "asset": "APE",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078871943
+      },
+      {
+        "rebalanceId": "reb-1777078891470-j5gec1",
+        "asset": "ORDI",
+        "exchanges": [
+          "bitget"
+        ],
+        "at": 1777078891470
+      },
+      {
+        "rebalanceId": "reb-1777078921557-mtnyvj",
+        "asset": "RENDER",
+        "exchanges": [
+          "htx"
+        ],
+        "at": 1777078921557
+      },
+      {
+        "rebalanceId": "reb-1777078927563-8r2rf2",
+        "asset": "SAND",
+        "exchanges": [
+          "okx"
+        ],
+        "at": 1777078927563
+      },
+      {
+        "rebalanceId": "reb-1777078939590-u1s4qa",
+        "asset": "APE",
+        "exchanges": [
+          "kucoin"
+        ],
+        "at": 1777078939590
+      },
+      {
+        "rebalanceId": "reb-1777078951624-tlcu48",
+        "asset": "PEPE",
+        "exchanges": [
+          "kucoin"
+        ],
+        "at": 1777078951624
+      },
+      {
+        "rebalanceId": "reb-1777078971656-bksj7a",
+        "asset": "APE",
+        "exchanges": [
+          "kucoin"
+        ],
+        "at": 1777078971656
+      },
+      {
+        "rebalanceId": "reb-1777078991720-j28t94",
+        "asset": "ORDI",
+        "exchanges": [
+          "binance"
+        ],
+        "at": 1777078991720
+      },
+      {
+        "rebalanceId": "reb-1777078991945-qvuvyr",
+        "asset": "USDT",
+        "exchanges": [
+          "okx",
+          "bingx"
+        ],
+        "at": 1777078991945
+      },
+      {
+        "rebalanceId": "reb-1777078991947-r20x2k",
+        "asset": "PEPE",
+        "exchanges": [
+          "kucoin"
+        ],
+        "at": 1777078991947
+      },
+      {
+        "rebalanceId": "reb-1777079007775-67l5e5",
+        "asset": "TIA",
+        "exchanges": [
+          "htx"
+        ],
+        "at": 1777079007775
+      },
+      {
+        "rebalanceId": "reb-1777079099999-d2hv1n",
+        "asset": "APE",
+        "exchanges": [
+          "bingx"
+        ],
+        "at": 1777079099999
+      },
+      {
+        "rebalanceId": "reb-1777079111948-zno08g",
+        "asset": "APE",
+        "exchanges": [
+          "bitget"
+        ],
+        "at": 1777079111948
+      },
+      {
+        "rebalanceId": "reb-1777079111948-y2eg65",
+        "asset": "APE",
+        "exchanges": [
+          "bingx"
+        ],
+        "at": 1777079111948
+      }
+    ],
+    "reserveDipCount": 0,
+    "rebalanceOutcomes": {
+      "reb-1777078298112-dyb20m": {
+        "tradesEnabled": 1,
+        "profit": 0.00569532,
+        "description": "MANA · sell_rebuy · binance→binance"
+      },
+      "reb-1777078302125-bq0mij": {
+        "tradesEnabled": 1,
+        "profit": -0.21340526,
+        "description": "SEI · sell_rebuy · okx→okx"
+      },
+      "reb-1777078322157-e36qba": {
+        "tradesEnabled": 1,
+        "profit": 0.00397124,
+        "description": "APE · sell_rebuy · okx→okx"
+      },
+      "reb-1777078384259-9fp4jv": {
+        "tradesEnabled": 2,
+        "profit": 0.08972259,
+        "description": "APE · sell_rebuy · kucoin→kucoin"
+      },
+      "reb-1777078391919-6ftkf5": {
+        "tradesEnabled": 3,
+        "profit": 0.24542362,
+        "description": "APE · sell_rebuy · okx→okx"
+      },
+      "reb-1777078404327-fy70rv": {
+        "tradesEnabled": 1,
+        "profit": 0.05819366,
+        "description": "MANA · sell_rebuy · binance→binance"
+      },
+      "reb-1777078511928-qq9l6n": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "APE · sell_rebuy · kucoin→kucoin"
+      },
+      "reb-1777078544598-80ht5m": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "APE · sell_rebuy · bingx→bingx"
+      },
+      "reb-1777078544599-mdmkp1": {
+        "tradesEnabled": 3,
+        "profit": -0.06990729,
+        "description": "APE · sell_rebuy · gateio→gateio"
+      },
+      "reb-1777078574698-3u2otg": {
+        "tradesEnabled": 2,
+        "profit": 0.16293963,
+        "description": "APE · sell_rebuy · kraken→kraken"
+      },
+      "reb-1777078616814-d0cwpg": {
+        "tradesEnabled": 1,
+        "profit": -0.03768003,
+        "description": "ORDI · sell_rebuy · gateio→gateio"
+      },
+      "reb-1777078631929-u7xdw4": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "USDT · usdt_transfer · okx→bitget"
+      },
+      "reb-1777078654901-xfwmuj": {
+        "tradesEnabled": 1,
+        "profit": -0.06304078,
+        "description": "MANA · sell_rebuy · okx→okx"
+      },
+      "reb-1777078666931-nmhltl": {
+        "tradesEnabled": 1,
+        "profit": 0.01433665,
+        "description": "ORDI · sell_rebuy · bitget→bitget"
+      },
+      "reb-1777078684952-lvto20": {
+        "tradesEnabled": 1,
+        "profit": -0.00526127,
+        "description": "MANA · sell_rebuy · binance→binance"
+      },
+      "reb-1777078725054-b8r9lg": {
+        "tradesEnabled": 1,
+        "profit": 0.05722933,
+        "description": "MANA · sell_rebuy · binance→binance"
+      },
+      "reb-1777078735075-5gx3gk": {
+        "tradesEnabled": 1,
+        "profit": -0.04784377,
+        "description": "ORDI · sell_rebuy · gateio→gateio"
+      },
+      "reb-1777078751940-bogs6d": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "USDT · usdt_transfer · okx→bitget"
+      },
+      "reb-1777078759128-6un0ze": {
+        "tradesEnabled": 1,
+        "profit": -0.00911232,
+        "description": "APE · sell_rebuy · gateio→gateio"
+      },
+      "reb-1777078775187-uzkj6g": {
+        "tradesEnabled": 1,
+        "profit": 0.03545619,
+        "description": "ORDI · sell_rebuy · bitget→bitget"
+      },
+      "reb-1777078799247-bdslfa": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "RENDER · sell_rebuy · htx→htx"
+      },
+      "reb-1777078805256-hgebrj": {
+        "tradesEnabled": 1,
+        "profit": -0.04747376,
+        "description": "ORDI · sell_rebuy · gateio→gateio"
+      },
+      "reb-1777078819308-fofm6p": {
+        "tradesEnabled": 1,
+        "profit": 0.57354,
+        "description": "APE · sell_rebuy · binance→binance"
+      },
+      "reb-1777078847368-jka4dj": {
+        "tradesEnabled": 3,
+        "profit": -0.1331889,
+        "description": "ORDI · sell_rebuy · gateio→gateio"
+      },
+      "reb-1777078871920-dlrapz": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "USDT · usdt_transfer · okx→htx"
+      },
+      "reb-1777078871943-6z2u78": {
+        "tradesEnabled": 4,
+        "profit": 0.49989442,
+        "description": "APE · sell_rebuy · binance→binance"
+      },
+      "reb-1777078891470-j5gec1": {
+        "tradesEnabled": 1,
+        "profit": 0.00166031,
+        "description": "ORDI · sell_rebuy · bitget→bitget"
+      },
+      "reb-1777078921557-mtnyvj": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "RENDER · sell_rebuy · htx→htx"
+      },
+      "reb-1777078927563-8r2rf2": {
+        "tradesEnabled": 1,
+        "profit": -0.0616546,
+        "description": "SAND · sell_rebuy · okx→okx"
+      },
+      "reb-1777078939590-u1s4qa": {
+        "tradesEnabled": 1,
+        "profit": 0.40752698,
+        "description": "APE · sell_rebuy · kucoin→kucoin"
+      },
+      "reb-1777078951624-tlcu48": {
+        "tradesEnabled": 1,
+        "profit": 0.00466228,
+        "description": "PEPE · sell_rebuy · kucoin→kucoin"
+      },
+      "reb-1777078971656-bksj7a": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "APE · sell_rebuy · kucoin→kucoin"
+      },
+      "reb-1777078991720-j28t94": {
+        "tradesEnabled": 3,
+        "profit": -0.09348122,
+        "description": "ORDI · sell_rebuy · binance→binance"
+      },
+      "reb-1777078991945-qvuvyr": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "USDT · usdt_transfer · okx→bingx"
+      },
+      "reb-1777078991947-r20x2k": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "PEPE · sell_rebuy · kucoin→kucoin"
+      },
+      "reb-1777079007775-67l5e5": {
+        "tradesEnabled": 1,
+        "profit": 0.02459695,
+        "description": "TIA · sell_rebuy · htx→htx"
+      },
+      "reb-1777079099999-d2hv1n": {
+        "tradesEnabled": 1,
+        "profit": 0.82169692,
+        "description": "APE · sell_rebuy · bingx→bingx"
+      },
+      "reb-1777079111948-zno08g": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "APE · sell_rebuy · bitget→bitget"
+      },
+      "reb-1777079111948-y2eg65": {
+        "tradesEnabled": 0,
+        "profit": 0,
+        "description": "APE · sell_rebuy · bingx→bingx"
+      }
+    },
+    "sellStreak": {
+      "okx": {
+        "PEPE": 1,
+        "WIF": 1,
+        "INJ": 1,
+        "TIA": 1,
+        "WLD": 1,
+        "RENDER": 1,
+        "APE": 0,
+        "ORDI": 1,
+        "SEI": 1,
+        "ARB": 1,
+        "OP": 0,
+        "ATOM": 1,
+        "MANA": 1,
+        "SHIB": 1,
+        "NEAR": 1,
+        "SAND": 1
+      },
+      "bingx": {
+        "WIF": 0,
+        "INJ": 0,
+        "TIA": 0,
+        "APE": 0,
+        "SHIB": 0,
+        "ORDI": 0,
+        "PEPE": 0
+      },
+      "htx": {
+        "TIA": 5,
+        "WLD": 0,
+        "RENDER": 0,
+        "APE": 0,
+        "PEPE": 0
+      },
+      "binance": {
+        "MANA": 4,
+        "ATOM": 0,
+        "APE": 0,
+        "ORDI": 1,
+        "TIA": 0
+      },
+      "bitget": {
+        "MANA": 0,
+        "TIA": 0,
+        "ARB": 0,
+        "ORDI": 5,
+        "APE": 0,
+        "PEPE": 1
+      },
+      "kucoin": {
+        "SEI": 0,
+        "PEPE": 0,
+        "APE": 2,
+        "ORDI": 0
+      },
+      "mexc": {
+        "APE": 2,
+        "TIA": 0,
+        "OP": 0,
+        "NEAR": 0
+      },
+      "gateio": {
+        "APE": 0,
+        "ORDI": 0,
+        "MANA": 0,
+        "SAND": 0,
+        "OP": 1
+      },
+      "kraken": {
+        "APE": 0
+      }
+    },
+    "predictiveCheckAt": 0
+  },
+  "targetAllocations": {
+    "okx": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "gateio": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "binance": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "bitget": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "kucoin": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "bingx": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "htx": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "mexc": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    },
+    "kraken": {
+      "USDT": 1444.4444444444443,
+      "RENDER": 17.710477961523985,
+      "PEPE": 12304663.467454163,
+      "ATOM": 23.76753449857632,
+      "APE": 511.0619355959748,
+      "INJ": 18.46773225481777,
+      "ORDI": 9.808248737187974,
+      "WIF": 266.32576968147436,
+      "SHIB": 7705347.511172753,
+      "TIA": 132.8285847114299,
+      "WLD": 122.00627112233569,
+      "OP": 252.95642825523302,
+      "BONK": 5031066.8377229385,
+      "UNI": 9.75000975000975,
+      "NEAR": 22.598257222403006,
+      "ARB": 243.9750364742679
+    }
+  }
+}

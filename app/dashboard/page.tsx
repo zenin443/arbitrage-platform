@@ -74,27 +74,75 @@ export default function DashboardPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.1.0</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.2.4</span>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-1.5">
-            <span className="animate-pulse bg-[#3FB950] rounded-full w-2 h-2" />
+        <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
+          <div className="flex items-center gap-1 mr-1">
+            <span className="animate-pulse bg-[#3FB950] rounded-full w-1.5 h-1.5" />
             <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
-          <span className="text-[#484F58]">{now}</span>
+          <span className="text-[#484F58] text-[10px] font-mono mr-1">{now}</span>
+          <Link
+            href="/intelligence"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">Intelligence</span>
+          </Link>
+          <Link
+            href="/magnus"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">Magnus</span>
+          </Link>
+          <Link
+            href="/dex"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">DEX Markets</span>
+          </Link>
+          <Link
+            href="/triangular"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">Triangular</span>
+          </Link>
+          <Link
+            href="/cross-chain"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">Cross-Chain</span>
+          </Link>
+          <Link
+            href="/new-listings"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">New Listings</span>
+          </Link>
+          <Link
+            href="/alerts"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
+          >
+            <span className="text-[10px] font-mono">Alerts</span>
+          </Link>
           <Link
             href="/funding-rates"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
           >
-            <span className="text-[11px] font-mono">Funding Rates</span>
+            <span className="text-[10px] font-mono">Funding Rates</span>
+          </Link>
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#388BFD]/10 border border-[#388BFD]/40 text-[#388BFD] text-[10px] font-mono whitespace-nowrap"
+          >
+            Dashboard
           </Link>
           <Link
             href="/settings"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
             title="Settings"
           >
             <SettingsIcon className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-mono">Settings</span>
+            <span className="text-[10px] font-mono">Settings</span>
           </Link>
         </div>
       </header>
@@ -130,7 +178,8 @@ export default function DashboardPage() {
         <PriceSidebar market={market} />
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-5 space-y-5 min-w-0">
+        <main className="flex-1 overflow-y-auto p-3 space-y-3 min-w-0">
+          <div className="max-w-[1600px] mx-auto space-y-3">
           {/* Stats row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatsCard
@@ -168,6 +217,7 @@ export default function DashboardPage() {
             All spreads shown are net of taker fees + withdrawal fees · Notional
             trade size $1,000 USDT
           </p>
+          </div>
         </main>
       </div>
     </div>

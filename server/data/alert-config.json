@@ -1,0 +1,45 @@
+{
+  "minSpreadPercent": 0.07,
+  "alertFrequency": "realtime",
+  "enabledTypes": {
+    "cexCex": true,
+    "spotFutures": true,
+    "dexCex": false,
+    "newListings": true,
+    "triangular": false,
+    "crossChain": false
+  },
+  "trackedCoins": [
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB",
+    "XRP",
+    "ADA",
+    "AVAX",
+    "LINK",
+    "DOT",
+    "DOGE",
+    "MATIC",
+    "NEAR",
+    "UNI",
+    "ATOM",
+    "FTM",
+    "APE",
+    "SAND",
+    "MANA",
+    "LDO",
+    "ARB",
+    "OP",
+    "SUI",
+    "SEI",
+    "INJ",
+    "TIA"
+  ],
+  "quietHours": {
+    "enabled": false,
+    "start": "22:00",
+    "end": "08:00",
+    "timezone": "UTC"
+  }
+}

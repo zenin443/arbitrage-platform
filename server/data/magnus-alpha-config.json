@@ -1,0 +1,35 @@
+{
+  "totalCapital": 19000,
+  "reservePerExchange": 1000,
+  "exchanges": [
+    "okx",
+    "gateio",
+    "binance",
+    "bitget",
+    "kucoin",
+    "bingx",
+    "htx",
+    "mexc",
+    "kraken"
+  ],
+  "inventoryCoins": [
+    "APE",
+    "INJ",
+    "ORDI",
+    "WIF",
+    "SHIB",
+    "PEPE",
+    "TIA",
+    "WLD",
+    "OP",
+    "BONK",
+    "ATOM",
+    "RENDER",
+    "UNI",
+    "NEAR",
+    "ARB"
+  ],
+  "maxPositionPercent": 10,
+  "rebalanceMode": "roi_driven",
+  "cycleIntervalMs": 3600000
+}

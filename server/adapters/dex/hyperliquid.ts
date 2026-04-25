@@ -3,9 +3,16 @@ import { BaseDexAdapter, DexPrice } from './base'
 
 const HL_WS_URL   = 'wss://api.hyperliquid.xyz/ws'
 const HL_REST_URL = 'https://api.hyperliquid.xyz/info'
-export const HYPERLIQUID_GAS_FEE_USD = 0
+export const HYPERLIQUID_GAS_FEE_USD = 0.15
 
-const TRACKED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'ARB', 'DOGE', 'AVAX', 'LINK', 'BNB']
+const TRACKED_SYMBOLS = [
+  // Tier 1 — Majors
+  'BTC', 'ETH', 'SOL', 'BNB', 'XRP',
+  // Tier 2 — Large caps
+  'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT',
+  // Tier 3 — Mid caps (Hyperliquid supports most of these as perps)
+  'ARB', 'OP', 'NEAR', 'UNI', 'ATOM', 'SUI', 'SEI', 'INJ', 'WIF', 'PEPE', 'ORDI',
+]
 
 // Hyperliquid perpetuals use "$X" pair naming convention internally; we normalise to X/USDT
 function toPairSymbol(coin: string): string {

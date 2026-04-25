@@ -30,19 +30,19 @@ export default function StatsCard({
   return (
     <div
       className={clsx(
-        "relative bg-[#161B22] border border-[#21262D] rounded-lg p-4 hover:border-[#388BFD]/50 transition",
+        "relative bg-[#161B22] border border-[#21262D] rounded-lg p-3 hover:border-[#388BFD]/50 transition",
         className
       )}
     >
       {pulse && (
-        <span className="absolute top-3 right-3 flex h-2 w-2">
+        <span className="absolute top-2 right-2 flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3FB950] opacity-60" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-[#3FB950]" />
         </span>
       )}
 
-      <div className="flex items-start justify-between mb-2">
-        <span className="text-xs text-[#484F58] font-mono tracking-widest uppercase">
+      <div className="flex items-start justify-between mb-1">
+        <span className="text-[10px] text-[#484F58] font-mono tracking-widest uppercase">
           {title}
         </span>
         {icon && <span className="text-[#484F58] ml-4">{icon}</span>}
@@ -50,7 +50,7 @@ export default function StatsCard({
 
       <div
         className={clsx(
-          "text-3xl font-mono font-bold tabular-nums",
+          "text-[20px] font-mono font-bold tabular-nums",
           trendColor
         )}
       >
@@ -58,7 +58,7 @@ export default function StatsCard({
       </div>
 
       {subtitle && (
-        <div className="mt-1 text-xs text-[#8B949E] font-mono">{subtitle}</div>
+        <div className="mt-0.5 text-[10px] text-[#8B949E] font-mono">{subtitle}</div>
       )}
     </div>
   );

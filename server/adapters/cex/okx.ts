@@ -3,8 +3,17 @@ import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from '.
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
 
 const SYMBOLS = [
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT',
-  'AVAX/USDT', 'DOT/USDT', 'LINK/USDT', 'DOGE/USDT',
+  // Tier 1 — Majors
+  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
+  // Tier 2 — Large caps
+  'ADA/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT',
+  // Tier 3 — Mid caps
+  'MATIC/USDT', 'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT',
+  'APE/USDT', 'SAND/USDT', 'MANA/USDT', 'LDO/USDT', 'ARB/USDT',
+  'OP/USDT', 'SUI/USDT', 'SEI/USDT', 'INJ/USDT', 'TIA/USDT',
+  // Tier 4 — Small caps / memes
+  'PEPE/USDT', 'WIF/USDT', 'BONK/USDT', 'FLOKI/USDT', 'SHIB/USDT',
+  '1000SATS/USDT', 'ORDI/USDT', 'WLD/USDT', 'JUP/USDT', 'RENDER/USDT',
 ]
 
 function toOkxId(sym: string): string {

@@ -199,38 +199,49 @@ export default function FundingRatesPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.1.0</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.2.4</span>
         </div>
-        <div className="flex items-center gap-4 text-xs font-mono">
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
+          <div className="flex items-center gap-1 mr-1">
             <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
             <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
-          <Link
-            href="/funding-rates"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#388BFD]/10 border border-[#388BFD]/40 text-[#388BFD] text-[11px] font-mono"
-          >
+          <Link href="/intelligence" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Intelligence</span>
+          </Link>
+          <Link href="/magnus" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Magnus</span>
+          </Link>
+          <Link href="/dex" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">DEX Markets</span>
+          </Link>
+          <Link href="/triangular" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Triangular</span>
+          </Link>
+          <Link href="/cross-chain" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Cross-Chain</span>
+          </Link>
+          <Link href="/new-listings" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">New Listings</span>
+          </Link>
+          <Link href="/alerts" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Alerts</span>
+          </Link>
+          <Link href="/funding-rates" className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#388BFD]/10 border border-[#388BFD]/40 text-[#388BFD] text-[10px] font-mono whitespace-nowrap">
             Funding Rates
           </Link>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors"
-          >
-            Dashboard
+          <Link href="/dashboard" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Dashboard</span>
           </Link>
-          <Link
-            href="/settings"
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors"
-            title="Settings"
-          >
+          <Link href="/settings" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
-            <span className="text-[11px] font-mono">Settings</span>
+            <span className="text-[10px] font-mono">Settings</span>
           </Link>
         </div>
       </header>
 
       {/* ── Page Header ── */}
-      <div className="px-6 pt-6 pb-4 border-b border-[#21262D]">
+      <div className="px-6 pt-3 pb-2 border-b border-[#21262D]">
         <div className="flex items-center gap-3 mb-1">
           <span className="flex h-2 w-2 rounded-full bg-[#3FB950] animate-pulse" />
           <h1 className="text-lg font-bold tracking-widest uppercase font-mono text-[#E6EDF3]">
@@ -242,7 +253,8 @@ export default function FundingRatesPage() {
         </p>
       </div>
 
-      <main className="flex-1 p-5 space-y-8 overflow-y-auto">
+      <main className="flex-1 p-3 space-y-4 overflow-y-auto">
+        <div className="max-w-[1600px] mx-auto space-y-4">
         {/* ── Section A: Arbitrage Opportunities ── */}
         <section>
           {/* Section header — stays outside the scroll container */}
@@ -266,20 +278,20 @@ export default function FundingRatesPage() {
             style={{ boxShadow: "inset 0 -20px 20px -10px #0D1117" }}
           >
             {loadingOpps ? (
-              <div className="grid grid-cols-4 gap-3 p-4">
+              <div className="grid grid-cols-4 gap-3 p-3">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="h-36 rounded-lg bg-[#161B22] border border-[#21262D] animate-pulse" />
+                  <div key={i} className="h-[80px] rounded-lg bg-[#161B22] border border-[#21262D] animate-pulse" />
                 ))}
               </div>
             ) : visibleOpportunities.length === 0 ? (
-              <div className="rounded-lg border border-[#21262D] bg-[#161B22] px-6 py-8 text-center m-4">
+              <div className="rounded-lg border border-[#21262D] bg-[#161B22] px-6 py-3 text-center m-3 max-h-[200px]">
                 <p className="text-xs text-[#484F58] font-mono">
                   No spot-futures arbitrage opportunities found · waiting for data from{" "}
                   <span className="text-[#388BFD]">/api/spot-futures</span>
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-4 gap-3 p-4">
+              <div className="grid grid-cols-4 gap-3 p-3">
                 {visibleOpportunities.map((opp, i) => (
                   <OpportunityCard key={`${opp.symbol}-${i}`} opp={opp} />
                 ))}
@@ -305,7 +317,7 @@ export default function FundingRatesPage() {
 
         {/* ── Section B: Full Funding Rate Table ── */}
         <section>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
             <TrendingDownIcon className="h-3.5 w-3.5 text-[#484F58]" />
             <h2 className="text-xs font-semibold text-[#8B949E] uppercase tracking-wider font-mono">
@@ -333,19 +345,19 @@ export default function FundingRatesPage() {
               <table className="w-full text-xs font-mono">
                 <thead>
                   <tr className="border-b border-[#21262D] bg-[#1C2128]">
-                    <th className="text-left px-4 py-2.5 text-[#484F58] font-mono text-xs tracking-widest uppercase w-32">
+                    <th className="text-left px-3 py-1 text-[#484F58] font-mono text-[11px] tracking-widest uppercase w-32">
                       Symbol
                     </th>
-                    <th className="text-right px-4 py-2.5 text-[#484F58] font-mono text-xs tracking-widest uppercase">
+                    <th className="text-right px-3 py-1 text-[#484F58] font-mono text-[11px] tracking-widest uppercase">
                       Binance
                     </th>
-                    <th className="text-right px-4 py-2.5 text-[#484F58] font-mono text-xs tracking-widest uppercase">
+                    <th className="text-right px-3 py-1 text-[#484F58] font-mono text-[11px] tracking-widest uppercase">
                       Bybit
                     </th>
-                    <th className="text-right px-4 py-2.5 text-[#484F58] font-mono text-xs tracking-widest uppercase">
+                    <th className="text-right px-3 py-1 text-[#484F58] font-mono text-[11px] tracking-widest uppercase">
                       OKX
                     </th>
-                    <th className="text-right px-4 py-2.5 text-[#484F58] font-mono text-xs tracking-widest uppercase">
+                    <th className="text-right px-3 py-1 text-[#484F58] font-mono text-[11px] tracking-widest uppercase">
                       Spread
                     </th>
                   </tr>
@@ -364,17 +376,17 @@ export default function FundingRatesPage() {
                           key={row.symbol}
                           className="border-b border-[#21262D] hover:bg-[#1C2128] transition-colors"
                         >
-                          <td className="px-4 py-2.5 text-[#E6EDF3] font-semibold">{row.symbol}</td>
-                          <td className={`px-4 py-2.5 text-right ${rateColor(row.binance)}`}>
+                          <td className="px-3 py-1 text-[#E6EDF3] text-[12px] font-mono font-semibold">{row.symbol}</td>
+                          <td className={`px-3 py-1 text-right text-[11px] font-mono ${rateColor(row.binance)}`}>
                             {fmtRate(row.binance)}
                           </td>
-                          <td className={`px-4 py-2.5 text-right ${rateColor(row.bybit)}`}>
+                          <td className={`px-3 py-1 text-right text-[11px] font-mono ${rateColor(row.bybit)}`}>
                             {fmtRate(row.bybit)}
                           </td>
-                          <td className={`px-4 py-2.5 text-right ${rateColor(row.okx)}`}>
+                          <td className={`px-3 py-1 text-right text-[11px] font-mono ${rateColor(row.okx)}`}>
                             {fmtRate(row.okx)}
                           </td>
-                          <td className="px-4 py-2.5 text-right">
+                          <td className="px-3 py-1 text-right">
                             <SpreadBadge spread={row.spread} />
                           </td>
                         </tr>
@@ -383,19 +395,19 @@ export default function FundingRatesPage() {
                       {/* Average row */}
                       {avgRow && (
                         <tr className="border-t border-[#21262D] bg-[#161B22]">
-                          <td className="px-4 py-2.5 text-[#484F58] uppercase text-[10px] tracking-widest">
+                          <td className="px-3 py-1 text-[#484F58] uppercase text-[10px] tracking-widest font-mono">
                             Avg
                           </td>
-                          <td className={`px-4 py-2.5 text-right ${rateColor(avgRow.binance)}`}>
+                          <td className={`px-3 py-1 text-right text-[11px] font-mono ${rateColor(avgRow.binance)}`}>
                             {fmtRate(avgRow.binance)}
                           </td>
-                          <td className={`px-4 py-2.5 text-right ${rateColor(avgRow.bybit)}`}>
+                          <td className={`px-3 py-1 text-right text-[11px] font-mono ${rateColor(avgRow.bybit)}`}>
                             {fmtRate(avgRow.bybit)}
                           </td>
-                          <td className={`px-4 py-2.5 text-right ${rateColor(avgRow.okx)}`}>
+                          <td className={`px-3 py-1 text-right text-[11px] font-mono ${rateColor(avgRow.okx)}`}>
                             {fmtRate(avgRow.okx)}
                           </td>
-                          <td className="px-4 py-2.5 text-right">
+                          <td className="px-3 py-1 text-right">
                             <SpreadBadge spread={avgRow.spread} />
                           </td>
                         </tr>
@@ -427,6 +439,7 @@ export default function FundingRatesPage() {
         <p className="text-[10px] text-[#484F58] font-mono text-right pb-2">
           Funding rates are annualized · 8h settlement windows · Rates shown are indicative only
         </p>
+        </div>
       </main>
     </div>
   );
@@ -436,46 +449,32 @@ export default function FundingRatesPage() {
 
 function OpportunityCard({ opp }: { opp: SpotFuturesOpportunity }) {
   return (
-    <div className="bg-[#161B22] border border-[#21262D] rounded-lg p-4 flex flex-col gap-3 hover:border-[#388BFD]/30 transition-colors">
-      {/* Symbol + strategy */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-bold font-mono text-[#E6EDF3]">{opp.symbol}</p>
-          <p className="text-[10px] text-[#8B949E] font-mono mt-0.5 leading-snug">{opp.strategy}</p>
+    <div className="bg-[#161B22] border border-[#21262D] rounded-lg p-2 flex flex-col gap-1 hover:border-[#388BFD]/30 transition-colors max-h-[80px] overflow-hidden">
+      {/* Symbol + strategy + yield on one line */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-[13px] font-bold font-mono text-[#E6EDF3] leading-none">{opp.symbol}</p>
+          <p className="text-[10px] text-[#8B949E] font-mono truncate">{opp.strategy}</p>
         </div>
-        <div className="text-right">
-          <p className="text-xl font-bold font-mono text-[#3FB950] tabular-nums leading-none">
+        <div className="flex items-baseline gap-1 flex-shrink-0">
+          <p className="text-[16px] font-bold font-mono text-[#3FB950] tabular-nums leading-none">
             {(opp.combinedYieldAnnualized ?? 0) >= 0 ? "+" : ""}
             {(opp.combinedYieldAnnualized ?? 0).toFixed(2)}%
           </p>
-          <p className="text-[9px] text-[#484F58] font-mono mt-0.5">annualized</p>
+          <p className="text-[9px] text-[#484F58] font-mono">ann.</p>
         </div>
       </div>
 
-      {/* Exchange details */}
-      <div className="space-y-1.5 text-[11px] font-mono">
-        <div className="flex justify-between items-center">
-          <span className="text-[#484F58] font-mono text-xs">Spot</span>
-          <span className="text-[#E6EDF3] font-mono text-xs">
-            <span className="text-[#388BFD] font-mono text-xs font-semibold mr-1">{opp.spotExchange}</span>
-            {fmtUsd(opp.spotPrice ?? 0)}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-[#484F58] font-mono text-xs">Futures</span>
-          <span className="text-[#E6EDF3] font-mono text-xs">
-            <span className="text-[#388BFD] font-mono text-xs font-semibold mr-1">{opp.futuresExchange}</span>
-            <span className={rateColor(opp.fundingRate ?? null)}>{fmtRate(opp.fundingRate ?? null)}</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Profit */}
-      <div className="pt-2 border-t border-[#21262D] flex justify-between items-center">
-        <span className="text-[10px] text-[#484F58] font-mono">Est. profit / $1k / 8h</span>
-        <span className="text-[#3FB950] font-mono font-bold text-sm tabular-nums">
-          {fmtUsd(opp.estimatedProfit8h ?? 0)}
-        </span>
+      {/* Exchange details inline */}
+      <div className="flex items-center gap-3 text-[11px] font-mono">
+        <span className="text-[#484F58]">Spot</span>
+        <span className="text-[#388BFD] font-semibold">{opp.spotExchange}</span>
+        <span className="text-[#E6EDF3] font-mono">{fmtUsd(opp.spotPrice ?? 0)}</span>
+        <span className="text-[#484F58]">·</span>
+        <span className="text-[#484F58]">Fund</span>
+        <span className="text-[#388BFD] font-semibold">{opp.futuresExchange}</span>
+        <span className={rateColor(opp.fundingRate ?? null)}>{fmtRate(opp.fundingRate ?? null)}</span>
+        <span className="ml-auto text-[11px] text-[#3FB950] font-mono font-bold">{fmtUsd(opp.estimatedProfit8h ?? 0)}<span className="text-[9px] text-[#484F58] ml-0.5">/8h</span></span>
       </div>
     </div>
   );

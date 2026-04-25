@@ -1,6 +1,6 @@
 import { BaseDexAdapter, DexPrice } from './base'
 
-const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=solana,bonk,dogwifcoin,jupiter-exchange-solana&vs_currencies=usd'
+const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=solana,bonk,dogwifcoin,jupiter-exchange-solana,render-token,orca,raydium&vs_currencies=usd'
 const POLL_INTERVAL_MS       = 30_000
 const RATE_LIMIT_BACKOFF_MS  = 60_000
 const CONNECTED_TIMEOUT_MS   = 120_000
@@ -12,10 +12,13 @@ interface TokenConfig {
 }
 
 const TRACKED_TOKENS: TokenConfig[] = [
-  { cgId: 'solana',                   pairSymbol: 'SOL/USDT'  },
-  { cgId: 'bonk',                     pairSymbol: 'BONK/USDT' },
-  { cgId: 'dogwifcoin',               pairSymbol: 'WIF/USDT'  },
-  { cgId: 'jupiter-exchange-solana',  pairSymbol: 'JUP/USDT'  },
+  { cgId: 'solana',                  pairSymbol: 'SOL/USDT'    },
+  { cgId: 'bonk',                    pairSymbol: 'BONK/USDT'   },
+  { cgId: 'dogwifcoin',              pairSymbol: 'WIF/USDT'    },
+  { cgId: 'jupiter-exchange-solana', pairSymbol: 'JUP/USDT'    },
+  { cgId: 'render-token',            pairSymbol: 'RENDER/USDT' },
+  { cgId: 'orca',                    pairSymbol: 'ORCA/USDT'   },
+  { cgId: 'raydium',                 pairSymbol: 'RAY/USDT'    },
 ]
 
 type CoinGeckoResponse = Record<string, { usd: number }>

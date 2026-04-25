@@ -205,7 +205,7 @@ export default function PriceSidebar({ market }: Props) {
                   onClick={() => hasData && handleCoinClick(data.symbol)}
                   disabled={!hasData}
                   className={clsx(
-                    "w-full flex items-center px-2 py-1.5 text-left transition-colors",
+                    "w-full flex items-center px-2 py-0.5 text-left transition-colors",
                       hasData
                         ? "hover:bg-[#1C2128] cursor-pointer"
                       : "cursor-default opacity-40"
@@ -213,12 +213,12 @@ export default function PriceSidebar({ market }: Props) {
                 >
                   {isOpen ? (
                     <>
-                      <span className="text-[#E6EDF3] font-mono font-semibold text-sm flex-1 truncate">
+                      <span className="text-[#E6EDF3] font-mono font-semibold text-[11px] flex-1 truncate">
                         {displaySymbol(data.symbol)}
                       </span>
                       <span
                         className={clsx(
-                          "font-mono text-sm tabular-nums ml-1",
+                          "font-mono text-[11px] tabular-nums ml-1",
                           data.direction === "up"
                             ? "text-[#3FB950]"
                             : data.direction === "down"

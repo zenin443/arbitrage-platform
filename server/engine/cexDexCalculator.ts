@@ -1,20 +1,19 @@
 import { tickStore } from './tickStore'
 import { dexTickStore } from './dexTickStore'
 import { CexDexOpportunity } from '../adapters/dex/base'
-import { JUPITER_GAS_FEE_USD } from '../adapters/dex/jupiter'
-import { UNISWAP_GAS_FEE_USD } from '../adapters/dex/uniswap'
-import { HYPERLIQUID_GAS_FEE_USD } from '../adapters/dex/hyperliquid'
 
 const MIN_NET_PROFIT_PERCENT = 0.1
 
-const GAS_FEE_BY_DEX: Record<string, number> = {
-  jupiter:      JUPITER_GAS_FEE_USD,
-  uniswap_v3:   UNISWAP_GAS_FEE_USD,
-  hyperliquid:  HYPERLIQUID_GAS_FEE_USD,
+// Per-chain gas cost estimates in USD (one-way execution cost)
+const CHAIN_GAS_COSTS: Record<string, number> = {
+  solana:   0.001,
+  arbitrum: 0.15,
+  ethereum: 8.00,
+  base:     0.05,
 }
 
-function gasFeeForDex(dexId: string): number {
-  return GAS_FEE_BY_DEX[dexId] ?? 0
+function gasFeeForChain(chain: string): number {
+  return CHAIN_GAS_COSTS[chain] ?? 0.50
 }
 
 function confidenceLevel(netProfitPercent: number): 'high' | 'medium' | 'low' {
@@ -53,9 +52,11 @@ export function calculateCexDexOpportunities(): CexDexOpportunity[] {
 
       const rawDiffPercent = ((dexPrice.price - cexMid) / cexMid) * 100
 
-      // Gas fee as a % of a hypothetical $1000 trade
-      const gasFeeUSD       = gasFeeForDex(dexPrice.dexId)
-      const gasFeePercent   = (gasFeeUSD / 1_000) * 100
+      // Gas fee based on the DEX's chain; expressed as % of actual trade size
+      const gasFeeUSD    = gasFeeForChain(dexPrice.chain)
+      const maxTradeSize = maxTradeSizeBeforeSlippage(dexPrice.liquidity)
+      const tradeSize    = maxTradeSize > 0 ? maxTradeSize : 1_000
+      const gasFeePercent   = (gasFeeUSD / tradeSize) * 100
       const netProfitPercent = parseFloat((Math.abs(rawDiffPercent) - gasFeePercent).toFixed(8))
 
       if (netProfitPercent <= MIN_NET_PROFIT_PERCENT) continue
@@ -76,7 +77,7 @@ export function calculateCexDexOpportunities(): CexDexOpportunity[] {
         netProfitPercent,
         direction,
         liquidityUSD:      dexPrice.liquidity,
-        maxTradeSize:      maxTradeSizeBeforeSlippage(dexPrice.liquidity),
+        maxTradeSize,
         confidence:        confidenceLevel(netProfitPercent),
         detectedAt:        Date.now(),
       })

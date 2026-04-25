@@ -1,8 +1,14 @@
 import { BaseFuturesAdapter, FundingRateData } from '../adapters/futures/baseFutures'
 
 const TRACKED_SYMBOLS = [
+  // Tier 1 & 2
   'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
   'DOGE/USDT', 'AVAX/USDT', 'LINK/USDT', 'ADA/USDT', 'ARB/USDT',
+  // Tier 3
+  'MATIC/USDT', 'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT',
+  'OP/USDT', 'SUI/USDT', 'SEI/USDT', 'INJ/USDT', 'TIA/USDT',
+  // Tier 4 with perps
+  'PEPE/USDT', 'WIF/USDT', 'SHIB/USDT', 'WLD/USDT', 'RENDER/USDT', 'ORDI/USDT',
 ]
 
 const FETCH_INTERVAL_MS = 60_000

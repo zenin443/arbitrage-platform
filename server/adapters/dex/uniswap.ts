@@ -1,11 +1,11 @@
 import { BaseDexAdapter, DexPrice } from './base'
 
-const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,bitcoin,chainlink,uniswap,arbitrum,optimism,pepe&vs_currencies=usd'
+const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,bitcoin,chainlink,uniswap,arbitrum,optimism,pepe,aave,lido-dao,shiba-inu,matic-network&vs_currencies=usd'
 const POLL_INTERVAL_MS       = 45_000
 const RATE_LIMIT_BACKOFF_MS  = 60_000
 const CONNECTED_TIMEOUT_MS   = 180_000
 const INITIAL_DELAY_MS       = 15_000
-export const UNISWAP_GAS_FEE_USD = 15
+export const UNISWAP_GAS_FEE_USD = 8.00
 
 interface TokenMap {
   cgId: string       // CoinGecko ID
@@ -13,13 +13,17 @@ interface TokenMap {
 }
 
 const TRACKED_TOKENS: TokenMap[] = [
-  { cgId: 'ethereum',  pairSymbol: 'ETH/USDT'  },
-  { cgId: 'bitcoin',   pairSymbol: 'BTC/USDT'  },
-  { cgId: 'chainlink', pairSymbol: 'LINK/USDT' },
-  { cgId: 'uniswap',   pairSymbol: 'UNI/USDT'  },
-  { cgId: 'arbitrum',  pairSymbol: 'ARB/USDT'  },
-  { cgId: 'optimism',  pairSymbol: 'OP/USDT'   },
-  { cgId: 'pepe',      pairSymbol: 'PEPE/USDT' },
+  { cgId: 'ethereum',      pairSymbol: 'ETH/USDT'  },
+  { cgId: 'bitcoin',       pairSymbol: 'BTC/USDT'  },
+  { cgId: 'chainlink',     pairSymbol: 'LINK/USDT' },
+  { cgId: 'uniswap',       pairSymbol: 'UNI/USDT'  },
+  { cgId: 'arbitrum',      pairSymbol: 'ARB/USDT'  },
+  { cgId: 'optimism',      pairSymbol: 'OP/USDT'   },
+  { cgId: 'pepe',          pairSymbol: 'PEPE/USDT' },
+  { cgId: 'aave',          pairSymbol: 'AAVE/USDT' },
+  { cgId: 'lido-dao',      pairSymbol: 'LDO/USDT'  },
+  { cgId: 'shiba-inu',     pairSymbol: 'SHIB/USDT' },
+  { cgId: 'matic-network', pairSymbol: 'MATIC/USDT'},
 ]
 
 type CoinGeckoResponse = Record<string, { usd: number }>

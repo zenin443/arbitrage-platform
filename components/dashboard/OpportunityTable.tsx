@@ -55,7 +55,7 @@ export default function OpportunityTable() {
   return (
     <div className="bg-[#161B22] border border-[#21262D] rounded-lg overflow-hidden">
       {/* Table header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[#161B22] border-b border-[#21262D]">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#161B22] border-b border-[#21262D]">
         <span className="text-xs font-mono text-[#388BFD] uppercase tracking-wider">
           Arbitrage Opportunities
         </span>
@@ -80,35 +80,40 @@ export default function OpportunityTable() {
         <table className="w-full text-xs font-mono">
           <thead>
             <tr className="bg-[#1C2128] text-[#484F58] uppercase tracking-widest text-[10px] font-mono">
-              <th className="px-4 py-2.5 text-left font-medium">Symbol</th>
-              <th className="px-4 py-2.5 text-left font-medium">Buy</th>
-              <th className="px-4 py-2.5 text-left font-medium">Sell</th>
-              <th className="px-4 py-2.5 text-right font-medium">Gross %</th>
-              <th className="px-4 py-2.5 text-right font-medium">Net %</th>
-              <th className="px-4 py-2.5 text-right font-medium">Est. Profit</th>
-              <th className="px-4 py-2.5 text-right font-medium">Liquidity</th>
-              <th className="px-4 py-2.5 text-right font-medium">Network</th>
-              <th className="px-4 py-2.5 text-right font-medium">Confidence</th>
-              <th className="px-4 py-2.5 text-right font-medium">Detected</th>
+              <th className="px-3 py-1 text-left font-medium">Symbol</th>
+              <th className="px-3 py-1 text-left font-medium">Buy</th>
+              <th className="px-3 py-1 text-left font-medium">Sell</th>
+              <th className="px-3 py-1 text-right font-medium">Gross %</th>
+              <th className="px-3 py-1 text-right font-medium">Net %</th>
+              <th className="px-3 py-1 text-right font-medium">Est. Profit</th>
+              <th className="px-3 py-1 text-right font-medium">Liquidity</th>
+              <th className="px-3 py-1 text-right font-medium">Network</th>
+              <th className="px-3 py-1 text-right font-medium">Confidence</th>
+              <th className="px-3 py-1 text-right font-medium">Detected</th>
             </tr>
           </thead>
             <tbody>
             {opportunities.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-12">
-                  <div className="flex flex-col items-center gap-3 text-[#484F58]">
-                    <div className="relative flex h-4 w-4">
+                <td colSpan={10} className="px-4 py-4 max-h-[200px]">
+                  <div className="flex flex-col items-center gap-2 text-[#484F58]">
+                    <div className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1C2128] opacity-60" />
-                      <span className="relative inline-flex rounded-full h-4 w-4 bg-[#161B22] border border-[#21262D]" />
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-[#161B22] border border-[#21262D]" />
                     </div>
-                    <span className="text-xs tracking-widest uppercase text-[#8B949E]">
+                    <span className="text-[11px] tracking-widest uppercase text-[#8B949E]">
                       {isConnecting
                         ? "Connecting to price feed…"
-                        : "No opportunities detected"}
+                        : "No CEX-CEX opportunities detected"}
                     </span>
-                    <span className="text-[10px] text-[#484F58]">
-                      {!isConnecting && "Scanning all exchange pairs in real-time"}
-                    </span>
+                    {!isConnecting && (
+                      <span className="text-[10px] text-[#484F58] text-center max-w-md">
+                        CEX-CEX spot spreads are currently below fee threshold.{" "}
+                        <a href="/intelligence" className="text-[#388BFD] hover:underline">
+                          See Intelligence page for profitable gaps across all types →
+                        </a>
+                      </span>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -126,36 +131,36 @@ export default function OpportunityTable() {
                       isNew && "animate-fade-in"
                     )}
                   >
-                    <td className="px-4 py-2.5 text-[#E6EDF3] font-mono font-semibold">
+                    <td className="px-3 py-1 text-[#E6EDF3] font-mono text-[12px] font-semibold">
                       {opp.symbol}
                     </td>
-                    <td className="px-4 py-2.5 text-[#3FB950] font-mono text-xs">
+                    <td className="px-3 py-1 text-[#3FB950] font-mono text-[11px]">
                       {exchangeLabel(opp.buyExchange)}
                     </td>
-                    <td className="px-4 py-2.5 text-[#F85149] font-mono text-xs">
+                    <td className="px-3 py-1 text-[#F85149] font-mono text-[11px]">
                       {exchangeLabel(opp.sellExchange)}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-[#8B949E] font-mono text-sm tabular-nums">
+                    <td className="px-3 py-1 text-right text-[#8B949E] font-mono text-[11px] tabular-nums">
                       {formatSpread(opp.grossSpread)}
                     </td>
-                    <td className={clsx("px-4 py-2.5 text-right tabular-nums font-mono font-bold", opp.netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]")}>
+                    <td className={clsx("px-3 py-1 text-right tabular-nums font-mono text-[12px] font-bold", opp.netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]")}>
                       {formatSpread(opp.netSpread)}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-[#388BFD] font-mono font-semibold tabular-nums">
+                    <td className="px-3 py-1 text-right text-[#388BFD] font-mono text-[11px] font-semibold tabular-nums">
                       {formatProfit(opp.estimatedProfit)}
                     </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">
+                    <td className="px-3 py-1 text-right tabular-nums">
                       <LiquidityBar score={opp.liquidityScore} />
                     </td>
-                    <td className="px-4 py-2.5 text-right text-[#8B949E] tabular-nums text-[10px]">
+                    <td className="px-3 py-1 text-right text-[#8B949E] tabular-nums text-[10px]">
                       {opp.bestNetwork || "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <span className={clsx("inline-flex items-center font-mono uppercase", CONFIDENCE_BADGE[tier])}>
+                    <td className="px-3 py-1 text-right">
+                      <span className={clsx("inline-flex items-center font-mono text-[10px] uppercase", CONFIDENCE_BADGE[tier])}>
                         {tier}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-right text-[#484F58] tabular-nums">
+                    <td className="px-3 py-1 text-right text-[#484F58] tabular-nums text-[10px]">
                       {formatTimestamp(opp.detectedAt)}
                     </td>
                   </tr>

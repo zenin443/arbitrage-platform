@@ -16,6 +16,7 @@ type OpportunityTypes = {
   spotFutures: boolean;
   dexCex: boolean;
   triangular: boolean;
+  crossChain: boolean;
 };
 
 type QuietHours = {
@@ -52,7 +53,15 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       selectedExchanges: ["binance", "bybit", "okx"],
-      selectedCoins: ["BTC", "ETH", "SOL", "XRP", "BNB"],
+      selectedCoins: [
+        // Major
+        "BTC", "ETH", "SOL", "BNB", "XRP",
+        "ADA", "AVAX", "LINK", "DOT", "DOGE",
+        // Mid Cap
+        "MATIC", "NEAR", "UNI", "ATOM", "FTM",
+        "APE", "SAND", "MANA", "LDO", "ARB",
+        "OP", "SUI", "SEI", "INJ", "TIA",
+      ],
       minNetSpread: 0.05,
       alertFrequency: "realtime",
       tradeSize: 1000,
@@ -63,6 +72,7 @@ export const useSettingsStore = create<SettingsState>()(
         spotFutures: true,
         dexCex: false,
         triangular: false,
+        crossChain: false,
       },
       quietHours: { enabled: false, start: "23:00", end: "07:00" },
 
