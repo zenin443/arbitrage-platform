@@ -17,6 +17,21 @@ import { BybitAdapter } from './adapters/cex/bybit'
 import { OkxAdapter } from './adapters/cex/okx'
 import { KucoinAdapter } from './adapters/cex/kucoin'
 import { createAllTier2Adapters } from './adapters/cex/ccxtFactory'
+import { CoinbaseAdapter } from './adapters/cex/coinbase'
+import { CryptoComAdapter } from './adapters/cex/cryptocom'
+import { BitfinexAdapter } from './adapters/cex/bitfinex'
+import { BitstampAdapter } from './adapters/cex/bitstamp'
+import { UpbitAdapter } from './adapters/cex/upbit'
+import { PhemexAdapter } from './adapters/cex/phemex'
+import { WhiteBitAdapter } from './adapters/cex/whitebit'
+import { LBankAdapter } from './adapters/cex/lbank'
+import { CoinExAdapter } from './adapters/cex/coinex'
+import { BitMartAdapter } from './adapters/cex/bitmart'
+import { AscendExAdapter } from './adapters/cex/ascendex'
+import { ProbitAdapter } from './adapters/cex/probit'
+import { BtseAdapter } from './adapters/cex/btse'
+import { DeribitAdapter } from './adapters/cex/deribit'
+import { CoinWAdapter } from './adapters/cex/coinw'
 import { tickStore } from './engine/tickStore'
 import { calculateAllSpreads } from './engine/spreadCalculator'
 import { rankOpportunities } from './engine/opportunityScorer'
@@ -498,6 +513,31 @@ async function start(): Promise<void> {
     )
   }
 
+  // 4b. Tier 3 native REST adapters (15 new exchanges)
+  const tier3 = [
+    new CoinbaseAdapter(),
+    new CryptoComAdapter(),
+    new BitfinexAdapter(),
+    new BitstampAdapter(),
+    new UpbitAdapter(),
+    new PhemexAdapter(),
+    new WhiteBitAdapter(),
+    new LBankAdapter(),
+    new CoinExAdapter(),
+    new BitMartAdapter(),
+    new AscendExAdapter(),
+    new ProbitAdapter(),
+    new BtseAdapter(),
+    new DeribitAdapter(),
+    new CoinWAdapter(),
+  ]
+
+  for (const adapter of tier3) {
+    adapter.connect(onTick).catch(err =>
+      console.error(`[PriceServer] ${adapter.config.id} connect error: ${String(err)}`)
+    )
+  }
+
   // 5. Futures adapters
   const futuresAdapters = [
     new BinanceFuturesAdapter(),
@@ -536,8 +576,8 @@ async function start(): Promise<void> {
       .catch((err: Error) => console.error(`[DEX] ${adapter.dexId} failed:`, err.message))
   }
 
-  const totalExchanges = tier1.length + tier2.length
-  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot + ${futuresAdapters.length} futures + ${dexAdapters.length} DEX exchanges`)
+  const totalExchanges = tier1.length + tier2.length + tier3.length
+  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot (${tier1.length} tier1 WS + ${tier2.length} tier2 CCXT + ${tier3.length} tier3 native) + ${futuresAdapters.length} futures + ${dexAdapters.length} DEX exchanges`)
 
   // 8. New listing scanner
   startNewListingScanner()

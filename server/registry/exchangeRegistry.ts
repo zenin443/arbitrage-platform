@@ -135,7 +135,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     active: true
   },
   coinbase: {
-    id: 'coinbase', name: 'Coinbase', tier: 2,
+    id: 'coinbase', name: 'Coinbase', tier: 3,
     takerFee: 0.006, makerFee: 0.004,
     withdrawalFees: {
       USDT: { ERC20: 10 },
@@ -143,9 +143,182 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
       ETH:  { ERC20: 0 },
     },
     supportedNetworks: ['BTC', 'ERC20'],
-    restUrl: 'https://api.coinbase.com',
+    restUrl: 'https://api.exchange.coinbase.com',
     active: true
-  }
+  },
+  cryptocom: {
+    id: 'cryptocom', name: 'Crypto.com', tier: 3,
+    takerFee: 0.00075, makerFee: 0.00075,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10 },
+      BTC:  { BTC: 0.0004 },
+      ETH:  { ERC20: 0.004 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    restUrl: 'https://api.crypto.com',
+    active: true
+  },
+  bitfinex: {
+    id: 'bitfinex', name: 'Bitfinex', tier: 3,
+    takerFee: 0.002, makerFee: 0.001,
+    withdrawalFees: {
+      USDT: { ERC20: 10, TRC20: 1 },
+      BTC:  { BTC: 0.0004 },
+      ETH:  { ERC20: 0.00135 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    wsUrl: 'wss://api-pub.bitfinex.com/ws/2',
+    restUrl: 'https://api-pub.bitfinex.com',
+    active: true
+  },
+  bitstamp: {
+    id: 'bitstamp', name: 'Bitstamp', tier: 3,
+    takerFee: 0.005, makerFee: 0.003,
+    withdrawalFees: {
+      USDT: { ERC20: 10 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.004 },
+    },
+    supportedNetworks: ['BTC', 'ERC20'],
+    restUrl: 'https://www.bitstamp.net',
+    active: true
+  },
+  upbit: {
+    id: 'upbit', name: 'Upbit', tier: 3,
+    takerFee: 0.0025, makerFee: 0.0025,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    restUrl: 'https://api.upbit.com',
+    active: true
+  },
+  phemex: {
+    id: 'phemex', name: 'Phemex', tier: 3,
+    takerFee: 0.001, makerFee: 0.001,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
+    restUrl: 'https://api.phemex.com',
+    active: true
+  },
+  whitebit: {
+    id: 'whitebit', name: 'WhiteBit', tier: 3,
+    takerFee: 0.001, makerFee: 0.001,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
+    restUrl: 'https://whitebit.com',
+    active: true
+  },
+  lbank: {
+    id: 'lbank', name: 'LBank', tier: 3,
+    takerFee: 0.001, makerFee: 0.001,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    restUrl: 'https://api.lbank.info',
+    active: true
+  },
+  coinex: {
+    id: 'coinex', name: 'CoinEx', tier: 3,
+    takerFee: 0.002, makerFee: 0.002,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
+    restUrl: 'https://api.coinex.com',
+    active: true
+  },
+  bitmart: {
+    id: 'bitmart', name: 'BitMart', tier: 3,
+    takerFee: 0.0025, makerFee: 0.0025,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
+    restUrl: 'https://api-cloud.bitmart.com',
+    active: true
+  },
+  ascendex: {
+    id: 'ascendex', name: 'AscendEX', tier: 3,
+    takerFee: 0.001, makerFee: 0.001,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
+    restUrl: 'https://ascendex.com',
+    active: true
+  },
+  probit: {
+    id: 'probit', name: 'ProBit', tier: 3,
+    takerFee: 0.002, makerFee: 0.002,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    restUrl: 'https://api.probit.com',
+    active: true
+  },
+  btse: {
+    id: 'btse', name: 'BTSE', tier: 3,
+    takerFee: 0.001, makerFee: 0.001,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    restUrl: 'https://api.btse.com',
+    active: true
+  },
+  deribit: {
+    id: 'deribit', name: 'Deribit', tier: 3,
+    takerFee: 0.0005, makerFee: 0,
+    withdrawalFees: {
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.0006 },
+      USDT: { ERC20: 10 },
+    },
+    supportedNetworks: ['BTC', 'ERC20'],
+    restUrl: 'https://www.deribit.com',
+    active: true
+  },
+  coinw: {
+    id: 'coinw', name: 'CoinW', tier: 3,
+    takerFee: 0.002, makerFee: 0.002,
+    withdrawalFees: {
+      USDT: { TRC20: 1, ERC20: 10 },
+      BTC:  { BTC: 0.0005 },
+      ETH:  { ERC20: 0.005 },
+    },
+    supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
+    restUrl: 'https://api.coinw.com',
+    active: true
+  },
+}
+
+export function getTier3Exchanges(): ExchangeConfig[] {
+  return getAllExchanges().filter(e => e.tier === 3)
 }
 
 export function getExchange(id: string): ExchangeConfig {

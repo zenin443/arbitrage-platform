@@ -2778,11 +2778,8 @@ function evaluate(): void {
         }
 
         // Execute — spot-futures market neutral model:
-        // Buy leg: USDT pays taker fee only (spot opens; closed at convergence)
-        // Sell leg: futures short captures spread as USDT profit
-        magnusFutures.portfolio[buyEx].USDT = parseFloat(
-          (magnusFutures.portfolio[buyEx].USDT - maxTrade * 0.001).toFixed(8)
-        )
+        // netProfit already has both legs' fees subtracted (0.2% total)
+        // Only credit the sell exchange; no separate fee deduction to avoid double-counting
         magnusFutures.portfolio[sellEx].USDT = parseFloat(
           (magnusFutures.portfolio[sellEx].USDT + netProfit).toFixed(8)
         )
@@ -2838,6 +2835,17 @@ function evaluate(): void {
         if (!magnusFutures.worstTrade || netProfit < magnusFutures.worstTrade.netProfit) {
           magnusFutures.worstTrade = tradeRecord
         }
+      }
+
+      // Rebalance futures USDT every 100 trades
+      if (magnusFutures.totalTrades % 100 === 0 && magnusFutures.totalTrades > 0) {
+        const exchanges = Object.keys(magnusFutures.portfolio)
+        const totalUsdt = exchanges.reduce((s, ex) => s + (magnusFutures.portfolio[ex].USDT || 0), 0)
+        const perExchange = totalUsdt / exchanges.length
+        exchanges.forEach(ex => {
+          magnusFutures.portfolio[ex].USDT = perExchange
+        })
+        console.log('[Magnus Futures] Rebalanced USDT — $' + perExchange.toFixed(2) + ' per exchange')
       }
     }
   } catch (err) {

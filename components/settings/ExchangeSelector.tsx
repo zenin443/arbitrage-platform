@@ -16,14 +16,34 @@ type Exchange = {
 };
 
 const EXCHANGES: Exchange[] = [
-  { id: "binance", name: "Binance",  fee: 0.10, color: "bg-yellow-500",  initial: "B", status: "active" },
-  { id: "bybit",   name: "Bybit",    fee: 0.10, color: "bg-orange-500",  initial: "B", status: "active" },
-  { id: "okx",     name: "OKX",      fee: 0.08, color: "bg-blue-500",    initial: "O", status: "active" },
-  { id: "kucoin",  name: "KuCoin",   fee: 0.10, color: "bg-green-500",   initial: "K", status: "active" },
-  { id: "gateio",  name: "Gate.io",  fee: 0.20, color: "bg-purple-500",  initial: "G", status: "active" },
-  { id: "mexc",    name: "MEXC",     fee: 0.00, color: "bg-teal-500",    initial: "M", status: "active" },
-  { id: "huobi",   name: "Huobi",    fee: 0.20, color: "bg-red-500",     initial: "H", status: "coming-soon" },
-  { id: "kraken",  name: "Kraken",   fee: 0.26, color: "bg-indigo-500",  initial: "K", status: "coming-soon" },
+  // Tier 1 — WebSocket, sub-millisecond feeds
+  { id: "binance",   name: "Binance",    fee: 0.10, color: "bg-yellow-500",  initial: "B",  status: "active" },
+  { id: "bybit",     name: "Bybit",      fee: 0.10, color: "bg-orange-500",  initial: "B",  status: "active" },
+  { id: "okx",       name: "OKX",        fee: 0.08, color: "bg-blue-500",    initial: "O",  status: "active" },
+  { id: "kucoin",    name: "KuCoin",     fee: 0.10, color: "bg-green-500",   initial: "K",  status: "active" },
+  // Tier 2 — CCXT REST
+  { id: "gateio",    name: "Gate.io",    fee: 0.20, color: "bg-purple-500",  initial: "G",  status: "active" },
+  { id: "mexc",      name: "MEXC",       fee: 0.00, color: "bg-teal-500",    initial: "M",  status: "active" },
+  { id: "bitget",    name: "Bitget",     fee: 0.10, color: "bg-cyan-500",    initial: "B",  status: "active" },
+  { id: "htx",       name: "HTX",        fee: 0.20, color: "bg-red-500",     initial: "H",  status: "active" },
+  { id: "bingx",     name: "BingX",      fee: 0.20, color: "bg-blue-400",    initial: "B",  status: "active" },
+  { id: "kraken",    name: "Kraken",     fee: 0.26, color: "bg-indigo-500",  initial: "K",  status: "active" },
+  // Tier 3 — Native REST adapters
+  { id: "coinbase",  name: "Coinbase",   fee: 0.60, color: "bg-blue-600",    initial: "C",  status: "active" },
+  { id: "cryptocom", name: "Crypto.com", fee: 0.075, color: "bg-blue-800",   initial: "C",  status: "active" },
+  { id: "bitfinex",  name: "Bitfinex",   fee: 0.20, color: "bg-green-700",   initial: "B",  status: "active" },
+  { id: "bitstamp",  name: "Bitstamp",   fee: 0.50, color: "bg-orange-600",  initial: "B",  status: "active" },
+  { id: "upbit",     name: "Upbit",      fee: 0.25, color: "bg-blue-400",    initial: "U",  status: "active" },
+  { id: "phemex",    name: "Phemex",     fee: 0.10, color: "bg-purple-600",  initial: "P",  status: "active" },
+  { id: "whitebit",  name: "WhiteBit",   fee: 0.10, color: "bg-gray-600",    initial: "W",  status: "active" },
+  { id: "lbank",     name: "LBank",      fee: 0.10, color: "bg-pink-600",    initial: "L",  status: "active" },
+  { id: "coinex",    name: "CoinEx",     fee: 0.20, color: "bg-yellow-600",  initial: "C",  status: "active" },
+  { id: "bitmart",   name: "BitMart",    fee: 0.25, color: "bg-emerald-600", initial: "B",  status: "active" },
+  { id: "ascendex",  name: "AscendEX",   fee: 0.10, color: "bg-violet-600",  initial: "A",  status: "active" },
+  { id: "probit",    name: "ProBit",     fee: 0.20, color: "bg-red-600",     initial: "P",  status: "active" },
+  { id: "btse",      name: "BTSE",       fee: 0.10, color: "bg-sky-600",     initial: "B",  status: "active" },
+  { id: "deribit",   name: "Deribit",    fee: 0.05, color: "bg-amber-600",   initial: "D",  status: "active" },
+  { id: "coinw",     name: "CoinW",      fee: 0.20, color: "bg-lime-600",    initial: "C",  status: "active" },
 ];
 
 export default function ExchangeSelector() {
