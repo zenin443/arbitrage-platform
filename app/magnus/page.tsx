@@ -102,6 +102,43 @@ interface BotStates {
   magnusBeta10k: BotStateLike;
 }
 
+interface FuturesTrade {
+  id: string;
+  timestamp: number;
+  symbol: string;
+  type: string;
+  buyExchange: string;
+  sellExchange: string;
+  spreadPercent: number;
+  tradeSizeUsd: number;
+  grossProfit: number;
+  totalFees: number;
+  netProfit: number;
+}
+
+interface FuturesState {
+  id: string;
+  name: string;
+  startingCapital: number;
+  totalPortfolioValueUsd: number;
+  totalPnl: number;
+  totalPnlPercent: number;
+  totalTrades: number;
+  voidedSignals: number;
+  winningTrades: number;
+  losingTrades: number;
+  winRate: number;
+  totalFeesPaid: number;
+  maxDrawdown: number;
+  peakValue: number;
+  startedAt: number;
+  lastTradeAt: number | null;
+  activeExchanges: string[];
+  portfolio: Record<string, { USDT: number }>;
+  voidByCategory: { dex: number; exchangeMissing: number; noInventory: number; noUsdt: number; tooSmall: number };
+  recentTrades: FuturesTrade[];
+}
+
 function fmtTime(ts: number): string {
   return new Date(ts).toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -224,27 +261,231 @@ function ComparisonTable({
   );
 }
 
+function FuturesPanel({ state }: { state: FuturesState | null }) {
+  if (!state) {
+    return (
+      <div className="max-w-[1600px] mx-auto text-[11px] font-mono text-[#8B949E]">
+        Magnus Futures initialising… spot-futures gaps required (type === &apos;spot_futures&apos;).
+      </div>
+    );
+  }
+
+  const FUTURES_EXCHANGES = ["okx", "gateio", "binance", "bitget", "kucoin", "mexc", "htx"];
+  const hours = Math.max(0.0001, (Date.now() - state.startedAt) / 3_600_000);
+  const voidTotal =
+    state.totalTrades + state.voidedSignals > 0
+      ? (state.voidedSignals / (state.totalTrades + state.voidedSignals)) * 100
+      : 0;
+
+  const statCards = [
+    {
+      label: "PORTFOLIO",
+      value: `$${state.totalPortfolioValueUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      sub: `${state.totalPnl >= 0 ? "+" : ""}$${(state.totalPortfolioValueUsd - state.startingCapital).toFixed(2)} vs start`,
+      color: state.totalPortfolioValueUsd >= state.startingCapital ? "text-[#3FB950]" : "text-[#F85149]",
+    },
+    {
+      label: "TOTAL P&L",
+      value: `${state.totalPnl >= 0 ? "+" : ""}$${Math.abs(state.totalPnl).toFixed(2)}`,
+      sub: `${state.totalPnlPercent >= 0 ? "+" : ""}${state.totalPnlPercent.toFixed(3)}%`,
+      color: state.totalPnl >= 0 ? "text-[#3FB950]" : "text-[#F85149]",
+    },
+    {
+      label: "TRADES",
+      value: String(state.totalTrades),
+      sub: state.totalTrades > 0
+        ? `${state.winRate.toFixed(0)}% win · ${state.winningTrades}W/${state.losingTrades}L`
+        : "—",
+      color: "text-[#E6EDF3]",
+    },
+    {
+      label: "VOID RATE",
+      value: `${voidTotal.toFixed(0)}%`,
+      sub: `sm:${state.voidByCategory.tooSmall} nu:${state.voidByCategory.noUsdt} ex:${state.voidByCategory.exchangeMissing}`,
+      color: "text-[#D29922]",
+    },
+    {
+      label: "FEES PAID",
+      value: `$${state.totalFeesPaid.toFixed(3)}`,
+      sub: "0.1% × 2 legs",
+      color: "text-[#8B949E]",
+    },
+    {
+      label: "TRADES/HR",
+      value: (state.totalTrades / hours).toFixed(1),
+      sub: `P&L/hr: ${state.totalPnl >= 0 ? "+" : ""}$${(state.totalPnl / hours).toFixed(2)}`,
+      color: "text-[#A371F7]",
+    },
+    {
+      label: "MAX DD",
+      value: `${state.maxDrawdown.toFixed(2)}%`,
+      sub: `peak $${state.peakValue.toFixed(2)}`,
+      color: state.maxDrawdown > 2 ? "text-[#F85149]" : "text-[#3FB950]",
+    },
+    {
+      label: "MODEL",
+      value: "NEUTRAL",
+      sub: "no coin exposure",
+      color: "text-[#A371F7]",
+    },
+  ];
+
+  return (
+    <div className="max-w-[1600px] mx-auto space-y-4">
+      {/* Header badge */}
+      <div className="flex items-center gap-2">
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#A371F7]/20 text-[#A371F7] border border-[#A371F7]/40">
+          SPOT-FUTURES · MARKET NEUTRAL · USDT-ONLY
+        </span>
+        <span className="text-[10px] text-[#484F58] font-mono">
+          $142.86 / exchange · no coin inventory · no price exposure
+        </span>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+        {statCards.map((c) => (
+          <div key={c.label} className="bg-[#161B22] border border-[#21262D] rounded p-2">
+            <p className="text-[8px] font-mono text-[#8B949E] uppercase">{c.label}</p>
+            <p className={`text-[13px] font-mono font-bold ${c.color}`}>{c.value}</p>
+            {c.sub && <p className="text-[9px] font-mono text-[#484F58] mt-0.5">{c.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col xl:flex-row gap-4">
+        {/* Left — USDT balances */}
+        <div className="flex-1 min-w-0 space-y-3">
+          <div className="bg-[#161B22] border border-[#21262D] rounded p-3">
+            <p className="text-[9px] font-mono text-[#8B949E] uppercase mb-3">USDT balance per exchange</p>
+            <div className="space-y-2">
+              {FUTURES_EXCHANGES.map((ex) => {
+                const u = state.portfolio[ex]?.USDT ?? 0;
+                const target = state.startingCapital / FUTURES_EXCHANGES.length;
+                const fill = Math.min(100, (u / (target * 2)) * 100);
+                const barColor = u >= target ? "bg-[#3FB950]" : u >= target * 0.5 ? "bg-[#D29922]" : "bg-[#F85149]";
+                const pnl = u - target;
+                return (
+                  <div key={ex} className="text-[10px] font-mono">
+                    <div className="flex justify-between mb-0.5">
+                      <span className="w-16 text-[#E6EDF3]">{shortEx(ex)}</span>
+                      <span className="text-[#E6EDF3]">${u.toFixed(2)}</span>
+                      <span className={pnl >= 0 ? "text-[#3FB950]" : "text-[#F85149]"}>
+                        {pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-[#21262D] rounded overflow-hidden">
+                      <div className={`h-full ${barColor} rounded`} style={{ width: `${fill}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Void breakdown */}
+          <div className="bg-[#161B22] border border-[#21262D] rounded p-3">
+            <p className="text-[9px] font-mono text-[#8B949E] uppercase mb-2">Void signal breakdown</p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {[
+                { label: "Too small", val: state.voidByCategory.tooSmall },
+                { label: "No USDT", val: state.voidByCategory.noUsdt },
+                { label: "Exchange missing", val: state.voidByCategory.exchangeMissing },
+                { label: "No inventory", val: state.voidByCategory.noInventory },
+                { label: "DEX", val: state.voidByCategory.dex },
+              ].map((v) => (
+                <div key={v.label} className="bg-[#0D1117] rounded p-2 text-center">
+                  <p className="text-[11px] font-mono font-bold text-[#D29922]">{v.val}</p>
+                  <p className="text-[9px] font-mono text-[#484F58] mt-0.5">{v.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right — Recent trades */}
+        <div className="w-full xl:w-[55%] space-y-3">
+          <div className="bg-[#161B22] border border-[#21262D] rounded overflow-hidden">
+            <p className="text-[9px] font-mono text-[#8B949E] uppercase px-2 py-1 border-b border-[#21262D]">
+              Recent trades
+            </p>
+            {state.recentTrades.length === 0 ? (
+              <p className="px-3 py-4 text-[11px] font-mono text-[#484F58]">
+                No trades yet — waiting for spot-futures gaps ≥ 0.25% spread…
+              </p>
+            ) : (
+              <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
+                <table className="w-full text-[10px] font-mono">
+                  <thead>
+                    <tr className="text-[#484F58] border-b border-[#21262D]">
+                      <th className="text-left px-2 py-1">TIME</th>
+                      <th className="text-left px-2 py-1">SYMBOL</th>
+                      <th className="text-left px-2 py-1">ROUTE</th>
+                      <th className="text-right px-2 py-1">SPREAD</th>
+                      <th className="text-right px-2 py-1">SIZE</th>
+                      <th className="text-right px-2 py-1">NET P&L</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.recentTrades.map((t) => (
+                      <tr key={t.id} className="border-b border-[#21262D]/60 h-6">
+                        <td className="px-2 text-[#8B949E]">{fmtTime(t.timestamp)}</td>
+                        <td className="px-2 text-[#E6EDF3]">{t.symbol}</td>
+                        <td className="px-2 text-[#8B949E]">
+                          {shortEx(t.buyExchange)}→{shortEx(t.sellExchange)}
+                        </td>
+                        <td className="px-2 text-right text-[#D29922]">{t.spreadPercent.toFixed(2)}%</td>
+                        <td className="px-2 text-right">${t.tradeSizeUsd.toFixed(0)}</td>
+                        <td className={`px-2 text-right font-bold ${t.netProfit >= 0 ? "text-[#3FB950]" : "text-[#F85149]"}`}>
+                          {t.netProfit >= 0 ? "+" : ""}${t.netProfit.toFixed(4)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Why market neutral */}
+          <div className="bg-[#161B22] border border-[#A371F7]/20 rounded p-3">
+            <p className="text-[9px] font-mono text-[#A371F7] uppercase mb-2">Why market neutral?</p>
+            <div className="space-y-1 text-[10px] font-mono text-[#8B949E]">
+              <p><span className="text-[#3FB950]">CEX-CEX (Alpha):</span> buys coins on exchange A, sells on B → holds coin inventory → exposed to price drops</p>
+              <p><span className="text-[#A371F7]">Spot-Futures (this):</span> buys spot + shorts equal futures simultaneously → spread captured at convergence → zero net coin exposure</p>
+              <p className="text-[#484F58] pt-1">Both sides use USDT only. No rebalancing needed. No inventory depreciation risk.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MagnusPage() {
-  const [tab, setTab] = useState<"alpha" | "beta">("alpha");
+  const [tab, setTab] = useState<"alpha" | "beta" | "futures">("alpha");
   const [alphaState, setAlphaState] = useState<BotStateLike | null>(null);
   const [perf, setPerf] = useState<MagnusPerformance | null>(null);
   const [rebalances, setRebalances] = useState<RebalanceEvent[]>([]);
   const [betaStates, setBetaStates] = useState<BotStates | null>(null);
+  const [futuresState, setFuturesState] = useState<FuturesState | null>(null);
   const [compareOpen, setCompareOpen] = useState(true);
   const [now, setNow] = useState(() => new Date().toLocaleTimeString("en-US", { hour12: false }));
 
   const fetchAll = useCallback(async () => {
     try {
-      const [a, p, r, b] = await Promise.all([
+      const [a, p, r, b, f] = await Promise.all([
         fetch("/api/magnus/alpha", { cache: "no-store" }),
         fetch("/api/magnus/alpha/performance", { cache: "no-store" }),
         fetch("/api/magnus/alpha/rebalances?limit=20", { cache: "no-store" }),
         fetch("/api/simulators", { cache: "no-store" }),
+        fetch("/api/magnus/futures", { cache: "no-store" }),
       ]);
       if (a.ok) setAlphaState(await a.json());
       if (p.ok) setPerf(await p.json());
       if (r.ok) setRebalances(await r.json());
       if (b.ok) setBetaStates(await b.json());
+      if (f.ok) setFuturesState(await f.json());
       setNow(new Date().toLocaleTimeString("en-US", { hour12: false }));
     } catch {
       /* keep */
@@ -303,7 +544,7 @@ export default function MagnusPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.4.0</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.4.2</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -386,7 +627,7 @@ export default function MagnusPage() {
             Inventory model · ROI-driven rebalancing · predictive pre-balancing
           </p>
         </div>
-        <span className="text-[10px] text-[#484F58] font-mono">v0.4.0 · Last updated: {now}</span>
+        <span className="text-[10px] text-[#484F58] font-mono">v0.4.2 · Last updated: {now}</span>
       </div>
 
       <div className="px-6 pt-3 flex gap-1">
@@ -410,10 +651,22 @@ export default function MagnusPage() {
         >
           Magnus Beta · $10K
         </button>
+        <button
+          onClick={() => setTab("futures")}
+          className={`px-3 py-1 rounded text-[10px] font-mono border ${
+            tab === "futures"
+              ? "bg-[#A371F7]/15 text-[#A371F7] border-[#A371F7]"
+              : "text-[#8B949E] border-[#21262D]"
+          }`}
+        >
+          Magnus Futures · $1K
+        </button>
       </div>
 
       <main className="flex-1 px-6 py-4 overflow-y-auto">
-        {tab === "beta" ? (
+        {tab === "futures" ? (
+          <FuturesPanel state={futuresState} />
+        ) : tab === "beta" ? (
           <div className="max-w-[1600px] mx-auto text-[11px] font-mono text-[#8B949E]">
             Beta baseline bots run on the server with frozen logic. View raw states via{" "}
             <Link href="/api/simulators" className="text-[#388BFD]">

@@ -58,6 +58,10 @@ import {
   getMagnusAlphaVoided,
   getMagnusAlphaRebalances,
   resetMagnusAlpha,
+  getMagnusFuturesState,
+  getMagnusFuturesTrades,
+  getMagnusFuturesVoided,
+  resetMagnusFutures,
   type MagnusAlphaConfig,
 } from './services/paper-trader'
 
@@ -254,6 +258,28 @@ const httpServer = http.createServer(async (req, res) => {
   }
   if (url.pathname === '/magnus/beta' && method === 'GET') {
     json(res, 200, getAllBotStates())
+    return
+  }
+
+  // ── Magnus Futures ─────────────────────────────────────────────────────────
+  if (url.pathname === '/magnus/futures' && method === 'GET') {
+    const state = getMagnusFuturesState()
+    if (!state) { json(res, 503, { error: 'Magnus Futures not initialised yet' }); return }
+    json(res, 200, state)
+    return
+  }
+  if (url.pathname === '/magnus/futures/trades' && method === 'GET') {
+    const limit = parseInt(url.searchParams.get('limit') ?? '50')
+    json(res, 200, getMagnusFuturesTrades(isNaN(limit) ? 50 : limit))
+    return
+  }
+  if (url.pathname === '/magnus/futures/voided' && method === 'GET') {
+    const limit = parseInt(url.searchParams.get('limit') ?? '30')
+    json(res, 200, getMagnusFuturesVoided(isNaN(limit) ? 30 : limit))
+    return
+  }
+  if (url.pathname === '/magnus/futures/reset' && method === 'POST') {
+    json(res, 200, resetMagnusFutures())
     return
   }
 

@@ -273,7 +273,7 @@ const TRANSFER_CHAINS = [
 ] as const
 
 const ACTIVE_EXCHANGES = [
-  'okx', 'gateio', 'binance', 'bitget', 'kucoin', 'bingx', 'htx', 'mexc', 'kraken',
+  'okx', 'gateio', 'binance', 'bitget', 'kucoin', 'mexc', 'htx',
 ]
 const DEX_EXCHANGES = new Set(['jupiter', 'uniswap_v3', 'hyperliquid'])
 const DEFAULT_INVENTORY_COINS = [
@@ -282,7 +282,7 @@ const DEFAULT_INVENTORY_COINS = [
 ]
 
 const COIN_WEIGHT: Record<string, number> = {
-  'APE':    3.0, 'INJ':    2.0, 'ORDI':   1.5, 'WIF':    1.5, 'SHIB':   1.5,
+  'APE':    5.0, 'INJ':    2.0, 'ORDI':   1.5, 'WIF':    1.5, 'SHIB':   1.5,
   'PEPE':   1.5, 'TIA':    1.5, 'WLD':    1.0, 'OP':     1.0, 'BONK':   1.0,
   'ATOM':   1.5, 'RENDER': 1.0, 'UNI':    1.0, 'NEAR':   1.0, 'ARB':    1.0,
 }
@@ -2427,6 +2427,16 @@ class MagnusAlphaBot extends PaperBot {
   }
 
   override evaluateTrade(gap: GapRecord): void {
+    const MIN_PROFITABLE_SPREAD = 0.25
+    if (gap.spreadPercent < MIN_PROFITABLE_SPREAD) {
+      this.recordVoid(gap, `Spread below min (${gap.spreadPercent.toFixed(3)}% < 0.25%)`, 'tooSmall')
+      return
+    }
+    if (gap.type === 'spot_futures') {
+      this.recordVoid(gap, 'Spot-futures disabled (CEX-CEX only)', 'tooSmall')
+      return
+    }
+
     const now = Date.now()
     if (this.tradedGaps.has(gap.id)) return
     const lastSymbolTrade = this.symbolCooldown.get(gap.symbol)
@@ -2640,6 +2650,9 @@ const magnusBeta1k = new PaperBot('magnus-beta-1k', 'Magnus Beta · $1K', 1_000)
 const magnusBeta10k = new PaperBot('magnus-beta-10k', 'Magnus Beta · $10K', 10_000)
 const magnusAlpha = new MagnusAlphaBot()
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let magnusFutures: any = null
+
 let isRunning = false
 
 // ── Evaluate loop ─────────────────────────────────────────────────────────────
@@ -2678,6 +2691,155 @@ function evaluate(): void {
       magnusBeta10k.evaluateTrade(gap)
       magnusAlpha.evaluateTrade(gap)
     }
+
+    // === Magnus Futures Bot — Spot-Futures Arbitrage ===
+    if (magnusFutures) {
+      const futuresGaps = gaps.filter((g: GapRecord) =>
+        g.type === 'spot_futures' &&
+        g.spreadPercent >= 0.25 &&
+        !magnusFutures.processedGapIds.has(g.id)
+      )
+
+      for (const gap of futuresGaps) {
+        magnusFutures.processedGapIds.add(gap.id)
+
+        const lastCd = magnusFutures.symbolCooldowns.get(gap.symbol)
+        if (lastCd && Date.now() - lastCd < 30_000) continue
+
+        const buyEx: string = gap.buyExchange
+        const sellEx: string = gap.sellExchange
+
+        if (!magnusFutures.portfolio[buyEx]) {
+          magnusFutures.voidedSignals++
+          magnusFutures.voidByCategory.exchangeMissing++
+          magnusFutures.recentVoided.unshift({
+            id: `mf-v-${Date.now()}`, botId: 'magnus-futures', timestamp: Date.now(),
+            symbol: gap.symbol, buyExchange: buyEx, sellExchange: sellEx,
+            spreadPercent: gap.spreadPercent, reason: 'exchangeMissing',
+          })
+          if (magnusFutures.recentVoided.length > 30) magnusFutures.recentVoided.length = 30
+          continue
+        }
+        if (!magnusFutures.portfolio[sellEx]) {
+          magnusFutures.voidedSignals++
+          magnusFutures.voidByCategory.exchangeMissing++
+          magnusFutures.recentVoided.unshift({
+            id: `mf-v-${Date.now()}`, botId: 'magnus-futures', timestamp: Date.now(),
+            symbol: gap.symbol, buyExchange: buyEx, sellExchange: sellEx,
+            spreadPercent: gap.spreadPercent, reason: 'exchangeMissing',
+          })
+          if (magnusFutures.recentVoided.length > 30) magnusFutures.recentVoided.length = 30
+          continue
+        }
+
+        const buyUsdt: number = magnusFutures.portfolio[buyEx].USDT ?? 0
+        const sellUsdt: number = magnusFutures.portfolio[sellEx].USDT ?? 0
+
+        if (buyUsdt < 10) {
+          magnusFutures.voidedSignals++
+          magnusFutures.voidByCategory.noUsdt++
+          magnusFutures.recentVoided.unshift({
+            id: `mf-v-${Date.now()}`, botId: 'magnus-futures', timestamp: Date.now(),
+            symbol: gap.symbol, buyExchange: buyEx, sellExchange: sellEx,
+            spreadPercent: gap.spreadPercent, reason: 'noUsdt',
+          })
+          if (magnusFutures.recentVoided.length > 30) magnusFutures.recentVoided.length = 30
+          continue
+        }
+        if (sellUsdt < 10) {
+          magnusFutures.voidedSignals++
+          magnusFutures.voidByCategory.noUsdt++
+          magnusFutures.recentVoided.unshift({
+            id: `mf-v-${Date.now()}`, botId: 'magnus-futures', timestamp: Date.now(),
+            symbol: gap.symbol, buyExchange: buyEx, sellExchange: sellEx,
+            spreadPercent: gap.spreadPercent, reason: 'noUsdt',
+          })
+          if (magnusFutures.recentVoided.length > 30) magnusFutures.recentVoided.length = 30
+          continue
+        }
+
+        // Position sizing: 50% of available USDT on each side, cap $200/trade
+        const maxTrade = Math.min(buyUsdt * 0.5, sellUsdt * 0.5, 200)
+        if (maxTrade < 10) {
+          magnusFutures.voidedSignals++
+          magnusFutures.voidByCategory.tooSmall++
+          continue
+        }
+
+        const spread = gap.spreadPercent / 100
+        const grossProfit = parseFloat((maxTrade * spread).toFixed(8))
+        const totalFees = parseFloat((maxTrade * 0.002).toFixed(8))   // 0.1% taker × 2 legs
+        const netProfit = parseFloat((grossProfit - totalFees).toFixed(8))
+
+        if (netProfit <= 0) {
+          magnusFutures.voidedSignals++
+          magnusFutures.voidByCategory.tooSmall++
+          continue
+        }
+
+        // Execute — spot-futures market neutral model:
+        // Buy leg: USDT pays taker fee only (spot opens; closed at convergence)
+        // Sell leg: futures short captures spread as USDT profit
+        magnusFutures.portfolio[buyEx].USDT = parseFloat(
+          (magnusFutures.portfolio[buyEx].USDT - maxTrade * 0.001).toFixed(8)
+        )
+        magnusFutures.portfolio[sellEx].USDT = parseFloat(
+          (magnusFutures.portfolio[sellEx].USDT + netProfit).toFixed(8)
+        )
+
+        // Cooldown
+        magnusFutures.symbolCooldowns.set(gap.symbol, Date.now())
+
+        // Portfolio value (USDT-only — no coin holdings)
+        let newTotal = 0
+        for (const wallet of Object.values(magnusFutures.portfolio as Record<string, Record<string, number>>)) {
+          newTotal += (wallet as Record<string, number>).USDT ?? 0
+        }
+        newTotal = parseFloat(newTotal.toFixed(8))
+        magnusFutures.totalPortfolioValueUsd = newTotal
+        magnusFutures.totalPnlPercent = parseFloat(
+          (((newTotal - magnusFutures.startingCapital) / magnusFutures.startingCapital) * 100).toFixed(8)
+        )
+
+        if (newTotal > magnusFutures.peakValue) magnusFutures.peakValue = newTotal
+        const dd = ((magnusFutures.peakValue - newTotal) / magnusFutures.peakValue) * 100
+        if (dd > magnusFutures.maxDrawdown) magnusFutures.maxDrawdown = parseFloat(dd.toFixed(8))
+
+        magnusFutures.totalPnl = parseFloat((magnusFutures.totalPnl + netProfit).toFixed(8))
+        magnusFutures.totalFeesPaid = parseFloat((magnusFutures.totalFeesPaid + totalFees).toFixed(8))
+        magnusFutures.totalTrades++
+        if (netProfit > 0) magnusFutures.winningTrades++
+        else magnusFutures.losingTrades++
+        magnusFutures.winRate = parseFloat(
+          ((magnusFutures.winningTrades / magnusFutures.totalTrades) * 100).toFixed(2)
+        )
+        magnusFutures.lastTradeAt = Date.now()
+
+        const tradeRecord = {
+          id: `mf-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          botId: 'magnus-futures',
+          timestamp: Date.now(),
+          symbol: gap.symbol,
+          type: 'spot_futures',
+          buyExchange: buyEx,
+          sellExchange: sellEx,
+          spreadPercent: gap.spreadPercent,
+          tradeSizeUsd: maxTrade,
+          grossProfit,
+          totalFees,
+          netProfit,
+        }
+        magnusFutures.recentTrades.unshift(tradeRecord)
+        if (magnusFutures.recentTrades.length > 50) magnusFutures.recentTrades.length = 50
+
+        if (!magnusFutures.bestTrade || netProfit > magnusFutures.bestTrade.netProfit) {
+          magnusFutures.bestTrade = tradeRecord
+        }
+        if (!magnusFutures.worstTrade || netProfit < magnusFutures.worstTrade.netProfit) {
+          magnusFutures.worstTrade = tradeRecord
+        }
+      }
+    }
   } catch (err) {
     console.error('[PaperBot] Evaluate error:', err)
   }
@@ -2689,6 +2851,8 @@ export function getBotState(id: string): BotState | null {
   if (id === 'magnus-beta-1k') return magnusBeta1k.getState()
   if (id === 'magnus-beta-10k') return magnusBeta10k.getState()
   if (id === 'magnus-alpha') return magnusAlpha.getState()
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  if (id === 'magnus-futures') return magnusFutures?.getState() ?? null
   return null
 }
 
@@ -2703,6 +2867,31 @@ export function resetBot(id: string): BotState | null {
   if (id === 'magnus-beta-1k') return magnusBeta1k.reset()
   if (id === 'magnus-beta-10k') return magnusBeta10k.reset()
   if (id === 'magnus-alpha') return magnusAlpha.reset()
+  if (id === 'magnus-futures' && magnusFutures) {
+    const FUTURES_EXCHANGES = ['okx', 'gateio', 'binance', 'bitget', 'kucoin', 'mexc', 'htx']
+    FUTURES_EXCHANGES.forEach(ex => { magnusFutures.portfolio[ex] = { USDT: 1000 / FUTURES_EXCHANGES.length } })
+    magnusFutures.totalPortfolioValueUsd = 1000
+    magnusFutures.totalPnl = 0
+    magnusFutures.totalPnlPercent = 0
+    magnusFutures.totalTrades = 0
+    magnusFutures.voidedSignals = 0
+    magnusFutures.winningTrades = 0
+    magnusFutures.losingTrades = 0
+    magnusFutures.winRate = 0
+    magnusFutures.bestTrade = null
+    magnusFutures.worstTrade = null
+    magnusFutures.totalFeesPaid = 0
+    magnusFutures.maxDrawdown = 0
+    magnusFutures.peakValue = 1000
+    magnusFutures.recentTrades = []
+    magnusFutures.recentVoided = []
+    magnusFutures.lastTradeAt = null
+    magnusFutures.startedAt = Date.now()
+    magnusFutures.processedGapIds = new Set<string>()
+    magnusFutures.symbolCooldowns = new Map<string, number>()
+    magnusFutures.voidByCategory = { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0 }
+    return magnusFutures.getState()
+  }
   return null
 }
 
@@ -2710,6 +2899,8 @@ export function getBotTrades(id: string, limit = 50): SimTrade[] {
   if (id === 'magnus-beta-1k') return magnusBeta1k.getTrades(limit)
   if (id === 'magnus-beta-10k') return magnusBeta10k.getTrades(limit)
   if (id === 'magnus-alpha') return magnusAlpha.getTrades(limit)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  if (id === 'magnus-futures') return (magnusFutures?.recentTrades ?? []).slice(0, limit)
   return []
 }
 
@@ -2717,6 +2908,8 @@ export function getBotVoidedSignals(id: string, limit = 30): VoidedSignal[] {
   if (id === 'magnus-beta-1k') return magnusBeta1k.getVoidedSignals(limit)
   if (id === 'magnus-beta-10k') return magnusBeta10k.getVoidedSignals(limit)
   if (id === 'magnus-alpha') return magnusAlpha.getVoidedSignals(limit)
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  if (id === 'magnus-futures') return (magnusFutures?.recentVoided ?? []).slice(0, limit)
   return []
 }
 
@@ -2864,9 +3057,64 @@ export function resetMagnusAlpha(): BotState {
   return magnusAlpha.reset()
 }
 
+export function getMagnusFuturesState(): Record<string, unknown> | null {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return magnusFutures?.getState() ?? null
+}
+
+export function getMagnusFuturesTrades(limit = 50): SimTrade[] {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return (magnusFutures?.recentTrades ?? []).slice(0, limit)
+}
+
+export function getMagnusFuturesVoided(limit = 30): VoidedSignal[] {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  return (magnusFutures?.recentVoided ?? []).slice(0, limit)
+}
+
+export function resetMagnusFutures(): Record<string, unknown> | null {
+  return resetBot('magnus-futures') as unknown as Record<string, unknown> | null
+}
+
 export function startPaperTraders(): void {
   if (isRunning) return
   isRunning = true
+
+  // ── Magnus Futures — $1K USDT, spot-futures arbitrage, market neutral ────────
+  const FUTURES_EXCHANGES = ['okx', 'gateio', 'binance', 'bitget', 'kucoin', 'mexc', 'htx']
+  const futuresPortfolio: Record<string, Record<string, number>> = {}
+  FUTURES_EXCHANGES.forEach(ex => { futuresPortfolio[ex] = { USDT: 1000 / FUTURES_EXCHANGES.length } })
+  magnusFutures = {
+    id: 'magnus-futures',
+    name: 'Magnus Futures',
+    startingCapital: 1000,
+    portfolio: futuresPortfolio,
+    totalPortfolioValueUsd: 1000,
+    totalPnl: 0,
+    totalPnlPercent: 0,
+    totalTrades: 0,
+    voidedSignals: 0,
+    winningTrades: 0,
+    losingTrades: 0,
+    winRate: 0,
+    bestTrade: null as SimTrade | null,
+    worstTrade: null as SimTrade | null,
+    totalFeesPaid: 0,
+    maxDrawdown: 0,
+    peakValue: 1000,
+    inventoryCoins: [] as string[],
+    activeExchanges: FUTURES_EXCHANGES,
+    recentTrades: [] as SimTrade[],
+    recentVoided: [] as VoidedSignal[],
+    startedAt: Date.now(),
+    lastTradeAt: null as number | null,
+    isRunning: true,
+    voidByCategory: { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0 },
+    processedGapIds: new Set<string>(),
+    symbolCooldowns: new Map<string, number>(),
+    getState() { return this },
+  }
+  console.log('[Magnus Futures] Started — $1000 USDT across 7 exchanges, spot-futures only')
 
   setInterval(evaluate, EVAL_INTERVAL_MS)
 
