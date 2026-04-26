@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { formatPercent, formatPrice, formatDuration } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
 import AdZone from "@/components/ui/AdZone";
 import MagnusAICard from "@/components/intelligence/MagnusAICard";
@@ -138,26 +139,6 @@ function fmtUsd(val: number, decimals = 2): string {
   return prefix + abs.toFixed(decimals);
 }
 
-function fmtDuration(ms: number): string {
-  if (ms < 1_000) return "<1s";
-  const s = Math.floor(ms / 1_000);
-  if (s < 60) return `${s}s`;
-  const m = Math.floor(s / 60);
-  const rem = s % 60;
-  if (m < 60) return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
-  const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
-}
-
-function fmtSpread(pct: number): string {
-  return pct.toFixed(3) + "%";
-}
-
-function fmtProfit(val: number): string {
-  if (val >= 0) return "+$" + val.toFixed(2);
-  return "-$" + Math.abs(val).toFixed(2);
-}
-
 const EX_DISPLAY: Record<string, string> = {
   binance: "BIN", bybit: "BYB", okx: "OKX", gateio: "GATE", kucoin: "KUC",
   bingx: "BNGX", mexc: "MEXC", htx: "HTX", huobi: "HTX", bitget: "BTG",
@@ -289,7 +270,7 @@ function DepthDetailPanel({ gap }: { gap: GapRecord }) {
             {d.profitCurve.map((p) => (
               <span key={p.tradeSize} className="whitespace-nowrap">
                 <span className="text-[#484F58]">{fmtUsd(p.tradeSize, 0)} → </span>
-                <span className={profitColor(p.netProfit)}>{fmtProfit(p.netProfit)}</span>
+                <span className={profitColor(p.netProfit)}>{formatPrice(p.netProfit)}</span>
               </span>
             ))}
           </div>
@@ -304,7 +285,7 @@ function DepthDetailPanel({ gap }: { gap: GapRecord }) {
             </span>
             <span>
               <span className="text-[#484F58]">Optimal: </span>
-              <span className="text-[#D29922]">{fmtUsd(d.optimalSize, 0)} → {fmtProfit(d.optimalProfit)}</span>
+              <span className="text-[#D29922]">{fmtUsd(d.optimalSize, 0)} → {formatPrice(d.optimalProfit)}</span>
             </span>
             <span>
               <span className="text-[#484F58]">{shortEx(d.buyExchange)} asks: </span>
@@ -370,7 +351,7 @@ function GapRow({
           className={`px-2 py-1 font-mono font-medium whitespace-nowrap ${spreadColor(gap.spreadPercent)}`}
           style={{ fontSize: "var(--fs-sm)" }}
         >
-          {fmtSpread(gap.spreadPercent)}
+          {formatPercent(gap.spreadPercent, 3)}
         </td>
         {/* Trend sparkline */}
         <td className="px-2 py-1" style={{ width: "80px", textAlign: "center" }}>
@@ -408,7 +389,7 @@ function GapRow({
           className={`px-2 py-1 font-mono whitespace-nowrap ${durationColor(gap.durationMs)}`}
           style={{ fontSize: "var(--fs-xs)" }}
         >
-          {fmtDuration(gap.durationMs)}
+          {formatDuration(gap.durationMs)}
         </td>
         {/* Score */}
         <td className="px-2 py-1">
@@ -1144,7 +1125,7 @@ export default function IntelligencePage() {
                         : (stats?.avgSpreadPercent ?? 0) >= 0.05 ? "#D29922" : "#8B949E",
                     }}
                   >
-                    {fmtSpread(stats?.avgSpreadPercent ?? 0)}
+                    {formatPercent(stats?.avgSpreadPercent ?? 0, 3)}
                   </span>
                   <StatDeltaBadge history={statHistory.spread} />
                 </div>
@@ -1170,7 +1151,7 @@ export default function IntelligencePage() {
                         : (stats?.avgGapDurationMs ?? 0) >= 30_000 ? "#D29922" : "#F85149",
                     }}
                   >
-                    {fmtDuration(stats?.avgGapDurationMs ?? 0)}
+                    {formatDuration(stats?.avgGapDurationMs ?? 0)}
                   </span>
                   <StatDeltaBadge history={statHistory.duration} />
                 </div>
@@ -1235,7 +1216,7 @@ export default function IntelligencePage() {
                           >
                             <span className="font-mono font-medium text-[#E6EDF3] leading-tight" style={{ fontSize: "var(--fs-lg)" }}>{s.coin}</span>
                             <span className="font-mono text-[#3FB950] leading-tight" style={{ fontSize: "var(--fs-md)" }}>{s.count}</span>
-                            <span className="font-mono text-[#8B949E] leading-tight" style={{ fontSize: "var(--fs-xs)" }}>{s.avgSpread.toFixed(3)}%</span>
+                            <span className="font-mono text-[#8B949E] leading-tight" style={{ fontSize: "var(--fs-xs)" }}>{formatPercent(s.avgSpread, 3)}</span>
                           </div>
                         );
                       }
@@ -1358,11 +1339,11 @@ export default function IntelligencePage() {
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className={`font-mono ${spreadTxt}`} style={{ fontSize: "10px" }}>
-                                {t.count > 0 ? `${t.avgSpread.toFixed(2)}%` : "—"}
+                                {t.count > 0 ? formatPercent(t.avgSpread, 2) : "—"}
                               </span>
                               {t.count > 0 && (
                                 <span className="font-mono text-[#484F58]" style={{ fontSize: "9px" }}>
-                                  {fmtDuration(t.avgDuration)}
+                                  {formatDuration(t.avgDuration)}
                                 </span>
                               )}
                             </div>
@@ -1511,7 +1492,7 @@ export default function IntelligencePage() {
             ) : (
               <div>
                 {leaderboard.map((item, i) => {
-                  const spread = fmtSpread(item.maxSpread);
+                  const spread = formatPercent(item.maxSpread, 3);
 
                   if (i === 0) {
                     return (

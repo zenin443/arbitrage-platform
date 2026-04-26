@@ -11,6 +11,7 @@ export interface ArbitrageOpportunity {
   sellPrice: number
   grossSpread: number
   netSpread: number
+  isProfitable: boolean      // true when netSpread > 0 after all fees
   estimatedProfit: number    // based on $1000 trade
   liquidityScore: number     // 0–100
   confidence: 'high' | 'medium' | 'low'
@@ -106,9 +107,14 @@ export function calculateSpread(
   sellTick: PriceTick
 ): ArbitrageOpportunity | null {
   if (buyTick.exchangeId === sellTick.exchangeId) return null
-  if (buyTick.ask <= 0 || sellTick.bid <= 0) return null
+
+  // Guard: invalid prices
+  if (!buyTick.ask || !sellTick.bid || buyTick.ask <= 0 || sellTick.bid <= 0) return null
 
   const grossSpread = ((sellTick.bid - buyTick.ask) / buyTick.ask) * 100
+
+  // Guard: floating-point artifacts or data errors
+  if (isNaN(grossSpread) || !isFinite(grossSpread)) return null
   if (grossSpread <= 0) return null
   if (grossSpread > MAX_REASONABLE_SPREAD) return null
 
@@ -120,6 +126,7 @@ export function calculateSpread(
   const sellExchange = EXCHANGE_REGISTRY[sellTick.exchangeId]
   if (!buyExchange || !sellExchange) return null
 
+  // Use taker fees — arbitrage executes as market orders
   const buyFee = buyExchange.takerFee * 100
   const sellFee = sellExchange.takerFee * 100
 
@@ -138,9 +145,31 @@ export function calculateSpread(
     transferTimeMinutes = networkResult.timeMinutes
   }
 
-  const netSpread = grossSpread - buyFee - sellFee - withdrawFeePercent
-  if (Math.random() < 0.01) console.log(`[SPREAD] ${buyTick.symbol} ${buyTick.exchangeId}→${sellTick.exchangeId} gross=${grossSpread.toFixed(4)}% net=${netSpread.toFixed(4)}%`)
+  // Round to 4 decimal places to avoid floating-point artifacts (e.g. 0.30000000000000004)
+  const netSpread = Math.round((grossSpread - buyFee - sellFee - withdrawFeePercent) * 10000) / 10000
+
+  // Guard: result must be a real number
+  if (isNaN(netSpread) || !isFinite(netSpread)) return null
   if (netSpread < MIN_NET_SPREAD_PCT) return null
+
+  const isProfitable = netSpread > 0
+
+  // Fee audit log — 1 sample per 100 calculations for backend diagnostics
+  if (Math.random() < 0.01) {
+    console.log('[FeeAudit]', {
+      symbol:      buyTick.symbol,
+      buyExchange: buyTick.exchangeId,
+      sellExchange: sellTick.exchangeId,
+      buyPrice:    buyTick.ask,
+      sellPrice:   sellTick.bid,
+      grossSpread: grossSpread.toFixed(4),
+      buyFee:      buyFee.toFixed(4),
+      sellFee:     sellFee.toFixed(4),
+      withdrawFee: withdrawFeePercent.toFixed(4),
+      netSpread:   netSpread.toFixed(4),
+      isProfitable,
+    })
+  }
 
   const estimatedProfit = (netSpread / 100) * TRADE_SIZE_USD
   const liq = liquidityScore(buyTick, sellTick)
@@ -153,7 +182,8 @@ export function calculateSpread(
     buyPrice: buyTick.ask,
     sellPrice: sellTick.bid,
     grossSpread: parseFloat(grossSpread.toFixed(4)),
-    netSpread: parseFloat(netSpread.toFixed(4)),
+    netSpread,
+    isProfitable,
     estimatedProfit: parseFloat(estimatedProfit.toFixed(2)),
     liquidityScore: liq,
     confidence: 'low',

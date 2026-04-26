@@ -15,6 +15,7 @@ import SignalInsightPanel from "@/components/dashboard/SignalInsightPanel";
 import AdZone from "@/components/ui/AdZone";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { formatPercent, formatNumber } from "@/lib/formatters";
 
 interface StatsResponse {
   total: number;
@@ -133,8 +134,8 @@ export default function DashboardPage() {
   const exchangeSubtitle = stats
     ? formatExchangeSubtitle(stats.byExchange)
     : "Fetching exchange data…";
-  const countDisplay = opportunityCount === null ? "—" : String(opportunityCount);
-  const spreadDisplay = bestSpread === null ? "—" : `${bestSpread.toFixed(4)}%`;
+  const countDisplay = opportunityCount === null ? "—" : formatNumber(opportunityCount);
+  const spreadDisplay = bestSpread === null ? "—" : formatPercent(bestSpread, 4);
 
   const statCards = [
     {

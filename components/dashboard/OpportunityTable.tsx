@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { formatTimestamp } from "@/lib/utils/formatters";
 import { formatUsd } from "@/lib/utils";
+import { formatPercent } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
 
 const EXCHANGE_LABELS: Record<string, string> = {
@@ -220,7 +221,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                       </ExchangeLink>
                     </td>
                     <td className="px-3 py-1 text-right text-[#8B949E] font-mono text-[12px] tabular-nums">
-                      {gap.spreadPercent.toFixed(3)}%
+                      {formatPercent(gap.spreadPercent, 3)}
                     </td>
                     <td
                       className={clsx(
@@ -228,7 +229,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                         netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]"
                       )}
                     >
-                      {netSpread.toFixed(3)}%
+                      {formatPercent(netSpread, 3)}
                     </td>
                     <td className="px-3 py-1 text-right text-[#388BFD] font-mono text-[12px] font-medium tabular-nums">
                       {formatUsd(estimatedProfit)}

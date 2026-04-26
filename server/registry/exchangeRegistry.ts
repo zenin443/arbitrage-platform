@@ -76,7 +76,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
   },
   mexc: {
     id: 'mexc', name: 'MEXC', tier: 2,
-    takerFee: 0.002, makerFee: 0.002,
+    takerFee: 0.001, makerFee: 0.0, // maker-free; taker 0.10%
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
@@ -113,7 +113,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
   },
   bingx: {
     id: 'bingx', name: 'BingX', tier: 2,
-    takerFee: 0.002, makerFee: 0.002,
+    takerFee: 0.001, makerFee: 0.001, // 0.10% / 0.10%
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
@@ -124,7 +124,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
   },
   kraken: {
     id: 'kraken', name: 'Kraken', tier: 2,
-    takerFee: 0.002, makerFee: 0.0016,
+    takerFee: 0.0026, makerFee: 0.0016, // 0.26% / 0.16%
     withdrawalFees: {
       USDT: { ERC20: 10 },
       BTC:  { BTC: 0.0002 },
@@ -314,6 +314,36 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
     restUrl: 'https://api.coinw.com',
     active: false // DISABLED — low volume, unreliable data quality
+  },
+
+  // ── DEX protocol stubs ──────────────────────────────────────────────────────
+  // These entries allow fee lookup when DEX prices participate in spread comparisons.
+  // Actual DEX trading logic lives in server/adapters/dex/; these stubs provide fee data only.
+  // Gas/slippage costs are handled separately in cexDexCalculator.ts.
+
+  hyperliquid: {
+    id: 'hyperliquid', name: 'Hyperliquid', tier: 3,
+    takerFee: 0.0005, makerFee: 0.0002, // 0.05% / 0.02% — perp DEX, deep books
+    withdrawalFees: {},
+    supportedNetworks: ['ARB'],
+    restUrl: 'https://api.hyperliquid.xyz',
+    active: false // price feed handled by HyperliquidAdapter → dexTickStore
+  },
+  jupiter: {
+    id: 'jupiter', name: 'Jupiter', tier: 3,
+    takerFee: 0.0, makerFee: 0.0, // DEX aggregator — fees embedded in slippage
+    withdrawalFees: {},
+    supportedNetworks: ['SOL'],
+    restUrl: 'https://price.jup.ag',
+    active: false // price feed handled by JupiterAdapter → dexTickStore
+  },
+  uniswap_v3: {
+    id: 'uniswap_v3', name: 'Uniswap V3', tier: 3,
+    takerFee: 0.003, makerFee: 0.0, // 0.30% pool fee tier (most common)
+    withdrawalFees: {},
+    supportedNetworks: ['ERC20', 'ARB', 'OP', 'BASE'],
+    restUrl: 'https://api.uniswap.org',
+    active: false // price feed handled by UniswapAdapter → dexTickStore
   },
 }
 
