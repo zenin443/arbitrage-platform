@@ -3,6 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getReferralUrl } from "@/lib/referrals";
 
+interface RawPriceTick {
+  symbol?: string; s?: string;
+  exchangeId?: string; exchange?: string; e?: string;
+  bid?: number; ask?: number; price?: number; p?: number;
+  timestamp?: number; t?: number;
+}
+
 interface CoinEntry {
   symbol: string;
   coinName: string;
@@ -165,8 +172,8 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
         const data = await res.json();
         const ticks = Array.isArray(data) ? data : (data.ticks || []);
 
-        const latestBySymbol: Record<string, any> = {};
-        ticks.forEach((t: any) => {
+        const latestBySymbol: Record<string, RawPriceTick> = {};
+        ticks.forEach((t: RawPriceTick) => {
           const sym = t.symbol || t.s;
           if (!sym) return;
           const tTime = t.timestamp || t.t || 0;
@@ -177,7 +184,7 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
         });
 
         const newCoins = Object.entries(latestBySymbol)
-          .map(([symbol, tick]: [string, any]) => {
+          .map(([symbol, tick]: [string, RawPriceTick]) => {
             const price = tick.bid || tick.price || tick.p || 0;
             if (price > 0 && !(symbol in firstSeenPrices.current)) {
               firstSeenPrices.current[symbol] = price;

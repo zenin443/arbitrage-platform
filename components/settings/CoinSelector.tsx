@@ -52,7 +52,8 @@ export default function CoinSelector() {
 
   const coins = COINS[activeTier];
   const selectedInTier = coins.filter((c) => selectedCoins.includes(c));
-  const totalSelected = Object.values(COINS).flat().filter(c => selectedCoins.includes(c)).length;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _totalSelected = Object.values(COINS).flat().filter(c => selectedCoins.includes(c)).length;
   const totalCoins = Object.values(COINS).flat().length;
 
   function handleSelectAll() {

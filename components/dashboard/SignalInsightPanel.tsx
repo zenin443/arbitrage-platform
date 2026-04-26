@@ -197,6 +197,7 @@ export default function SignalInsightPanel({
       historyRef.current = [];
       setIsDexSignal(DEX_EXCHANGES.has(signal.buyExchange) || DEX_EXCHANGES.has(signal.sellExchange));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signal?.symbol, signal?.buyExchange, signal?.sellExchange]);
 
   // Live polling — builds real order book from /api/prices ticks
@@ -209,11 +210,12 @@ export default function SignalInsightPanel({
         const data = await res.json();
         const ticks = Array.isArray(data) ? data : (data.ticks || []);
 
-        const getExId = (t: any) => t.exchangeId || t.exchange || t.e || "";
-        const getSym  = (t: any) => t.symbol || t.s || "";
+        type RawTick = { exchangeId?: string; exchange?: string; e?: string; symbol?: string; s?: string; bid?: number; ask?: number; price?: number; bidSize?: number; askSize?: number };
+        const getExId = (t: RawTick) => t.exchangeId || t.exchange || t.e || "";
+        const getSym  = (t: RawTick) => t.symbol || t.s || "";
 
-        const buyTick  = ticks.find((t: any) => getSym(t) === signal.symbol && getExId(t) === signal.buyExchange);
-        const sellTick = ticks.find((t: any) => getSym(t) === signal.symbol && getExId(t) === signal.sellExchange);
+        const buyTick  = ticks.find((t: RawTick) => getSym(t) === signal.symbol && getExId(t) === signal.buyExchange);
+        const sellTick = ticks.find((t: RawTick) => getSym(t) === signal.symbol && getExId(t) === signal.sellExchange);
 
         // Use tick prices if available, else fall back to gap object prices (for DEX)
         const currentBuyAsk  = buyTick?.ask  || buyTick?.bid   || buyTick?.price  || signal.buyPrice  || 0;
@@ -239,23 +241,23 @@ export default function SignalInsightPanel({
           setSpreadHistory([...newHistory]);
 
           // Build real order book from all ticks for this symbol across all exchanges
-          const allSymbolTicks = ticks.filter((t: any) => getSym(t) === signal.symbol);
+          const allSymbolTicks = ticks.filter((t: RawTick) => getSym(t) === signal.symbol);
 
           const buyLevelsRaw: OrderLevel[] = allSymbolTicks
-            .filter((t: any) => t.ask && t.ask > 0)
-            .map((t: any) => ({
-              price: t.ask,
-              volume: (t.askSize || 0) * t.ask || signal.maxTradeableUsd || 5000,
+            .filter((t: RawTick) => t.ask && (t.ask ?? 0) > 0)
+            .map((t: RawTick) => ({
+              price: t.ask ?? 0,
+              volume: (t.askSize || 0) * (t.ask ?? 0) || signal.maxTradeableUsd || 5000,
               exchange: getExId(t),
             }))
             .sort((a: OrderLevel, b: OrderLevel) => a.price - b.price)
             .slice(0, 5);
 
           const sellLevelsRaw: OrderLevel[] = allSymbolTicks
-            .filter((t: any) => t.bid && t.bid > 0)
-            .map((t: any) => ({
-              price: t.bid,
-              volume: (t.bidSize || 0) * t.bid || signal.maxTradeableUsd || 5000,
+            .filter((t: RawTick) => t.bid && (t.bid ?? 0) > 0)
+            .map((t: RawTick) => ({
+              price: t.bid ?? 0,
+              volume: (t.bidSize || 0) * (t.bid ?? 0) || signal.maxTradeableUsd || 5000,
               exchange: getExId(t),
             }))
             .sort((a: OrderLevel, b: OrderLevel) => b.price - a.price)
@@ -275,6 +277,7 @@ export default function SignalInsightPanel({
       active = false;
       clearInterval(interval);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signal?.symbol, signal?.buyExchange, signal?.sellExchange]);
 
   // Drag handler for left edge resize

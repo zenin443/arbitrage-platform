@@ -13,11 +13,28 @@ import CoinDetailPanel from "@/components/dashboard/CoinDetailPanel";
 import OpportunityTable from "@/components/dashboard/OpportunityTable";
 import SignalInsightPanel from "@/components/dashboard/SignalInsightPanel";
 import AdZone from "@/components/ui/AdZone";
+import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 interface StatsResponse {
   total: number;
   byExchange: Record<string, number>;
   bySymbol: Record<string, number>;
+}
+
+interface Opportunity {
+  id?: string;
+  type: string;
+  symbol: string;
+  buyExchange: string;
+  sellExchange: string;
+  spreadPercent: number;
+  netSpread?: number;
+  buyPrice: number;
+  sellPrice: number;
+  maxTradeableUsd: number;
+  detectedAt: number;
+  durationMs: number;
 }
 
 async function fetchExchangeStats(): Promise<StatsResponse | null> {
@@ -41,11 +58,12 @@ function formatExchangeSubtitle(byExchange: Record<string, number>): string {
 
 export default function DashboardPage() {
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
-  const [selectedSignal, setSelectedSignal] = useState<any>(null);
+  const [selectedSignal, setSelectedSignal] = useState<Opportunity | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [opportunities, setOpportunities] = useState<any[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [opportunityCount, setOpportunityCount] = useState<number | null>(null);
   const [bestSpread, setBestSpread] = useState<number | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
 
   const now = new Date().toLocaleTimeString("en-US", {
     hour: "2-digit",
@@ -53,6 +71,16 @@ export default function DashboardPage() {
     second: "2-digit",
     hour12: false,
   });
+
+  // Check backend connectivity once
+  useEffect(() => {
+    fetch('/api/profitable-gaps')
+      .then(r => {
+        if (r.ok) setConnectionStatus('connected')
+        else setConnectionStatus('error')
+      })
+      .catch(() => setConnectionStatus('error'))
+  }, []);
 
   // Fetch exchange stats once
   useEffect(() => {
@@ -90,14 +118,15 @@ export default function DashboardPage() {
   // Auto-select best signal when opportunities first load and nothing is selected
   useEffect(() => {
     if (!selectedSignal && opportunities.length > 0) {
-      const best = opportunities.reduce((best: any, current: any) => {
-        if (!current || !current.spreadPercent || !current.symbol) return best;
-        return (!best || current.spreadPercent > best.spreadPercent) ? current : best;
+      const best = opportunities.reduce((acc: Opportunity | null, current: Opportunity) => {
+        if (!current || !current.spreadPercent || !current.symbol) return acc;
+        return (!acc || current.spreadPercent > acc.spreadPercent) ? current : acc;
       }, null);
       if (best && best.spreadPercent > 0 && best.symbol) {
         setSelectedSignal(best);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunities]); // intentionally excludes selectedSignal to avoid re-selecting after user closes
 
   const activeExchangeCount = stats ? Object.keys(stats.byExchange).length : 0;
@@ -177,6 +206,12 @@ export default function DashboardPage() {
             <span className="animate-pulse bg-[#3FB950] rounded-full w-1.5 h-1.5" />
             <span className="text-[#3FB950] font-mono text-[11px]">LIVE</span>
           </div>
+          {connectionStatus === 'connecting' && (
+            <span className="text-[#D29922] font-mono text-[11px] mr-1">Connecting…</span>
+          )}
+          {connectionStatus === 'error' && (
+            <span className="text-[#F85149] font-mono text-[11px] mr-1">Backend unavailable</span>
+          )}
           <span className="text-[#484F58] text-[11px] font-mono mr-1">{now}</span>
           <Link
             href="/intelligence"
@@ -229,14 +264,18 @@ export default function DashboardPage() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* Left: Coin sidebar (hidden on mobile) */}
-        <PriceSidebar onSelectCoin={setSelectedCoin} selectedCoin={selectedCoin} />
+        <ErrorBoundary name="Watchlist">
+          <PriceSidebar onSelectCoin={setSelectedCoin} selectedCoin={selectedCoin} />
+        </ErrorBoundary>
 
         {/* Middle-left: Coin detail panel — always visible */}
         <div className="hidden lg:block">
-          <CoinDetailPanel
-            symbol={selectedCoin}
-            onSelectSignal={setSelectedSignal}
-          />
+          <ErrorBoundary name="Coin detail">
+            <CoinDetailPanel
+              symbol={selectedCoin}
+              onSelectSignal={setSelectedSignal}
+            />
+          </ErrorBoundary>
         </div>
 
         {/* Center: Stats + signals area */}
@@ -314,14 +353,23 @@ export default function DashboardPage() {
 
           {/* Opportunity table — fills remaining height */}
           <div className="flex-1 min-h-0 overflow-hidden">
-            <OpportunityTable
-              onSelectSignal={setSelectedSignal}
-              selectedSignalId={
-                selectedSignal
-                  ? (selectedSignal.id ?? `${selectedSignal.symbol}:${selectedSignal.buyExchange}:${selectedSignal.sellExchange}`)
-                  : null
-              }
-            />
+            <ErrorBoundary name="Opportunities">
+              {opportunities.length === 0 && opportunityCount !== null ? (
+                <EmptyState
+                  title="No active signals"
+                  subtitle="Signals appear when arbitrage gaps are detected"
+                />
+              ) : (
+                <OpportunityTable
+                  onSelectSignal={setSelectedSignal}
+                  selectedSignalId={
+                    selectedSignal
+                      ? (selectedSignal.id ?? `${selectedSignal.symbol}:${selectedSignal.buyExchange}:${selectedSignal.sellExchange}`)
+                      : null
+                  }
+                />
+              )}
+            </ErrorBoundary>
           </div>
 
           {/* Footer note */}
@@ -331,13 +379,15 @@ export default function DashboardPage() {
         </div>
 
         {/* Right: Signal insight panel — always visible */}
-        <SignalInsightPanel
-          signal={selectedSignal}
-          onClose={() => setSelectedSignal(null)}
-          totalSignals={opportunities.length}
-          bestSpread={opportunities.length > 0 ? Math.max(...opportunities.map((g: any) => g.spreadPercent ?? 0)).toFixed(3) : '0'}
-          topCoin={opportunities.length > 0 ? (opportunities[0].symbol?.split('/')[0] ?? '—') : '—'}
-        />
+        <ErrorBoundary name="Signal insight">
+          <SignalInsightPanel
+            signal={selectedSignal}
+            onClose={() => setSelectedSignal(null)}
+            totalSignals={opportunities.length}
+            bestSpread={opportunities.length > 0 ? Math.max(...opportunities.map((g) => g.spreadPercent ?? 0)).toFixed(3) : '0'}
+            topCoin={opportunities.length > 0 ? (opportunities[0].symbol?.split('/')[0] ?? '—') : '—'}
+          />
+        </ErrorBoundary>
 
       </div>
     </div>

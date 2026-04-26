@@ -20,7 +20,7 @@ export default function LiveStats() {
 
         setOpportunityCount(opps.length);
         setBestSpread(
-          opps.length > 0 ? Math.max(...opps.map((o: any) => o.netSpread ?? 0)) : null
+          opps.length > 0 ? Math.max(...opps.map((o: { netSpread?: number }) => o.netSpread ?? 0)) : null
         );
       } catch {
         // leave previous values in place on transient errors

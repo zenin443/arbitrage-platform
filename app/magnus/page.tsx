@@ -917,7 +917,6 @@ export default function MagnusPage() {
                   <div className="space-y-1.5">
                     {EX_COLS.map(({ id, label }) => {
                       const u = alphaState?.portfolio[id]?.USDT ?? 0;
-                      const trad = Math.max(0, u - reserve);
                       const maxBar = reserve + 600;
                       const fill = Math.min(100, (u / maxBar) * 100);
                       const reservePct = (reserve / maxBar) * 100;

@@ -3,6 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { PriceTick } from "@/types";
 import { useWebSocket } from "@/app/lib/useWebSocket";
 

@@ -3,6 +3,12 @@
 import { useState, useEffect } from "react";
 import { ExchangeLink, getReferralUrl, getCommission } from "@/lib/referrals";
 
+interface RawTick {
+  symbol?: string; s?: string;
+  exchangeId?: string; exchange?: string; e?: string;
+  bid?: number; ask?: number; price?: number;
+}
+
 interface PriceTick {
   symbol: string;
   exchange: string;
@@ -73,7 +79,7 @@ function timeAgoShort(ms: number): string {
 
 interface Props {
   symbol: string | null;
-  onSelectSignal: (signal: any) => void;
+  onSelectSignal: (signal: GapRecord) => void;
 }
 
 export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
@@ -100,10 +106,13 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
 
         if (!active) return;
 
-        const rawTicks: any[] = priceData.ticks ?? (Array.isArray(priceData) ? priceData : []);
+        const rawTicks: RawTick[] = priceData.ticks ?? (Array.isArray(priceData) ? priceData : []);
         const allTicks: PriceTick[] = rawTicks.map((t) => ({
-          ...t,
+          symbol: t.symbol || t.s || "",
           exchange: t.exchangeId || t.exchange || t.e || "unknown",
+          bid: t.bid ?? 0,
+          ask: t.ask ?? 0,
+          price: t.price,
         }));
 
         const symBase = symbol.split("/")[0].replace("USDT", "").replace("USDC", "");
