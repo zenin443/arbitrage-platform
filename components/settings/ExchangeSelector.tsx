@@ -5,6 +5,7 @@ import { clsx } from "clsx";
 import { AlertTriangleIcon, CheckIcon } from "lucide-react";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import Badge from "@/components/ui/Badge";
+import { getReferralUrl, getCommission } from "@/lib/referrals";
 
 type Tier = 1 | 2 | 3;
 
@@ -120,65 +121,80 @@ export default function ExchangeSelector() {
               {/* Exchange grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
                 {tierExchanges.map((ex) => {
-                  const isSelected = selectedExchanges.includes(ex.id);
+                  const isSelected   = selectedExchanges.includes(ex.id);
                   const isComingSoon = ex.status === "coming-soon";
-                  const isDisabled = ex.status === "disabled";
-                  const isBlocked = isComingSoon || isDisabled;
+                  const isDisabled   = ex.status === "disabled";
+                  const isBlocked    = isComingSoon || isDisabled;
+                  const commission   = getCommission(ex.id);
+                  const referralUrl  = getReferralUrl(ex.id);
 
                   return (
-                    <button
-                      key={ex.id}
-                      onClick={() => !isBlocked && handleToggle(ex.id)}
-                      disabled={isBlocked}
-                      className={clsx(
-                        "flex flex-col items-start gap-2.5 p-3 rounded-lg border transition-all text-left",
-                        isDisabled
-                          ? "opacity-40 cursor-not-allowed border-th-border bg-th-surface"
-                          : isComingSoon
-                          ? "opacity-50 cursor-not-allowed border-th-border bg-th-surface"
-                          : isSelected
-                          ? "border-th-green bg-th-green/10 shadow-[0_0_12px_rgba(63,185,80,0.08)]"
-                          : "border-th-border bg-th-surface hover:border-th-border/80 hover:bg-th-hover"
-                      )}
-                    >
-                      {/* Icon row */}
-                      <div className="flex items-center justify-between w-full">
-                        <div
-                          className={clsx(
-                            "h-7 w-7 rounded-md flex items-center justify-center text-white text-xs font-bold font-mono",
-                            isDisabled ? "bg-[#30363D]" : ex.color
-                          )}
-                        >
-                          {ex.initial}
-                        </div>
-                        {isSelected && !isBlocked && (
-                          <div className="h-4 w-4 rounded-full bg-th-green flex items-center justify-center">
-                            <CheckIcon className="h-2.5 w-2.5 text-white" />
-                          </div>
+                    <div key={ex.id} className="flex flex-col gap-1">
+                      <button
+                        onClick={() => !isBlocked && handleToggle(ex.id)}
+                        disabled={isBlocked}
+                        className={clsx(
+                          "flex flex-col items-start gap-2.5 p-3 rounded-lg border transition-all text-left w-full",
+                          isDisabled
+                            ? "opacity-40 cursor-not-allowed border-th-border bg-th-surface"
+                            : isComingSoon
+                            ? "opacity-50 cursor-not-allowed border-th-border bg-th-surface"
+                            : isSelected
+                            ? "border-th-green bg-th-green/10 shadow-[0_0_12px_rgba(63,185,80,0.08)]"
+                            : "border-th-border bg-th-surface hover:border-th-border/80 hover:bg-th-hover"
                         )}
-                      </div>
+                      >
+                        {/* Icon row */}
+                        <div className="flex items-center justify-between w-full">
+                          <div
+                            className={clsx(
+                              "h-7 w-7 rounded-md flex items-center justify-center text-white text-xs font-bold font-mono",
+                              isDisabled ? "bg-[#30363D]" : ex.color
+                            )}
+                          >
+                            {ex.initial}
+                          </div>
+                          {isSelected && !isBlocked && (
+                            <div className="h-4 w-4 rounded-full bg-th-green flex items-center justify-center">
+                              <CheckIcon className="h-2.5 w-2.5 text-white" />
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Name + fee */}
-                      <div>
-                        <p className="text-xs font-semibold text-th-primary font-mono leading-tight">
-                          {ex.name}
-                        </p>
-                        <p className="text-[10px] text-th-dim font-mono mt-0.5">
-                          {ex.fee.toFixed(ex.fee < 0.1 && ex.fee !== 0 ? 3 : 2)}%
-                        </p>
-                      </div>
+                        {/* Name + fee */}
+                        <div>
+                          <p className="text-xs font-semibold text-th-primary font-mono leading-tight">
+                            {ex.name}
+                          </p>
+                          <p className="text-[10px] text-th-dim font-mono mt-0.5">
+                            {ex.fee.toFixed(ex.fee < 0.1 && ex.fee !== 0 ? 3 : 2)}%
+                          </p>
+                        </div>
 
-                      {/* Status badge */}
-                      {isDisabled ? (
-                        <Badge variant="danger">Data Quality</Badge>
-                      ) : isComingSoon ? (
-                        <Badge variant="warning">Coming Soon</Badge>
-                      ) : (
-                        <Badge variant={isSelected ? "success" : "default"}>
-                          {isSelected ? "Active" : "Inactive"}
-                        </Badge>
+                        {/* Status badge */}
+                        {isDisabled ? (
+                          <Badge variant="danger">Data Quality</Badge>
+                        ) : isComingSoon ? (
+                          <Badge variant="warning">Coming Soon</Badge>
+                        ) : (
+                          <Badge variant={isSelected ? "success" : "default"}>
+                            {isSelected ? "Active" : "Inactive"}
+                          </Badge>
+                        )}
+                      </button>
+
+                      {/* Referral signup link */}
+                      {!isBlocked && commission && referralUrl !== '#' && (
+                        <a
+                          href={referralUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[8px] text-[#388BFD] underline px-1 hover:text-[#388BFD]/80 transition-colors font-mono"
+                        >
+                          No account? Sign up → {commission}
+                        </a>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>

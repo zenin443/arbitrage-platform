@@ -42,7 +42,7 @@ export default function StatsCard({
       )}
 
       <div className="flex items-start justify-between mb-1">
-        <span className="text-[10px] text-[#484F58] font-mono tracking-widest uppercase">
+        <span className="text-[11px] text-[#484F58] font-sans">
           {title}
         </span>
         {icon && <span className="text-[#484F58] ml-4">{icon}</span>}
@@ -50,7 +50,7 @@ export default function StatsCard({
 
       <div
         className={clsx(
-          "text-[20px] font-mono font-bold tabular-nums",
+          "text-[20px] font-mono font-medium tabular-nums",
           trendColor
         )}
       >
@@ -58,7 +58,7 @@ export default function StatsCard({
       </div>
 
       {subtitle && (
-        <div className="mt-0.5 text-[10px] text-[#8B949E] font-mono">{subtitle}</div>
+        <div className="mt-0.5 text-[11px] text-[#8B949E] font-sans">{subtitle}</div>
       )}
     </div>
   );
