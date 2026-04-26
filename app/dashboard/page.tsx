@@ -14,8 +14,7 @@ import LiveStats from "@/components/dashboard/LiveStats";
 import PriceSidebar from "@/components/dashboard/PriceSidebar";
 import OpportunityTable from "@/components/dashboard/OpportunityTable";
 
-/** Tracked symbols across all exchanges */
-const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"];
+const SYMBOLS_PREVIEW = "BTC · ETH · SOL · BNB · XRP · ADA · DOGE · AVAX · DOT · LINK · UNI · MATIC";
 
 interface StatsResponse {
   total: number;
@@ -74,7 +73,7 @@ export default function DashboardPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.2.4</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.5.3</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -101,34 +100,16 @@ export default function DashboardPage() {
             <span className="text-[10px] font-mono">DEX Markets</span>
           </Link>
           <Link
-            href="/triangular"
+            href="/funding-rates"
             className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
           >
-            <span className="text-[10px] font-mono">Triangular</span>
-          </Link>
-          <Link
-            href="/cross-chain"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Cross-Chain</span>
-          </Link>
-          <Link
-            href="/new-listings"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">New Listings</span>
+            <span className="text-[10px] font-mono">Funding Rates</span>
           </Link>
           <Link
             href="/alerts"
             className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
           >
             <span className="text-[10px] font-mono">Alerts</span>
-          </Link>
-          <Link
-            href="/funding-rates"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Funding Rates</span>
           </Link>
           <Link
             href="/dashboard"
@@ -146,6 +127,14 @@ export default function DashboardPage() {
           </Link>
         </div>
       </header>
+
+      {/* Intelligence redirect banner */}
+      <div className="bg-[#388BFD]/10 border border-[#388BFD]/30 rounded p-3 mx-4 mt-3 text-center">
+        <span className="text-[#388BFD] text-[12px]">
+          📊 For the full arbitrage intelligence experience with all 90 coins and 25 exchanges,
+          visit the <a href="/intelligence" className="underline font-bold">Intelligence Dashboard →</a>
+        </span>
+      </div>
 
       {/* Market toggle bar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-[#21262D] bg-[#0D1117]">
@@ -190,8 +179,8 @@ export default function DashboardPage() {
             />
             <StatsCard
               title="Symbols Tracked"
-              value={SYMBOLS.length}
-              subtitle={SYMBOLS.map((s) => s.replace("USDT", "")).join(" · ")}
+              value={90}
+              subtitle={SYMBOLS_PREVIEW + " · +78 more"}
               icon={<LayersIcon className="h-4 w-4" />}
             />
             {/* Dynamic stats fetched client-side */}

@@ -1,27 +1,56 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
-import type { ArbitrageOpportunity } from "@/types";
-import {
-  formatSpread,
-  formatProfit,
-  formatTimestamp,
-} from "@/lib/utils/formatters";
-import { useWebSocket } from "@/app/lib/useWebSocket";
+import { formatTimestamp } from "@/lib/utils/formatters";
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance: "Binance",
   bybit: "Bybit",
   okx: "OKX",
   kucoin: "KuCoin",
+  kraken: "Kraken",
+  coinbase: "Coinbase",
+  gate: "Gate.io",
+  htx: "HTX",
+  mexc: "MEXC",
 };
 
 function exchangeLabel(id: string): string {
-  return EXCHANGE_LABELS[id] ?? id.toUpperCase();
+  return EXCHANGE_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
 }
 
-type ConfidenceTier = ArbitrageOpportunity["confidence"];
+function networkLabel(type: string): string {
+  switch (type) {
+    case "cex_cex":     return "CEX";
+    case "dex_cex":     return "DEX";
+    case "spot_futures": return "S-F";
+    case "triangular":  return "TRI";
+    case "cross_chain": return "X-CHAIN";
+    default:            return type.toUpperCase().replace(/_/g, "-");
+  }
+}
+
+type ConfidenceTier = "high" | "medium" | "low";
+
+function computeConfidence(spreadPercent: number, durationMs: number): ConfidenceTier {
+  if (spreadPercent > 0.5 && durationMs < 30_000) return "high";
+  if (spreadPercent > 0.2) return "medium";
+  return "low";
+}
+
+function formatLiquidity(usd: number): string {
+  if (usd >= 1_000_000) return `$${(usd / 1_000_000).toFixed(1)}M`;
+  if (usd >= 1_000)     return `$${(usd / 1_000).toFixed(0)}K`;
+  return `$${usd.toFixed(0)}`;
+}
+
+function timeAgo(ms: number): string {
+  const seconds = Math.floor((Date.now() - ms) / 1000);
+  if (seconds < 60)  return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
+}
 
 const ROW_ACCENT: Record<ConfidenceTier, string> = {
   high:   "border-l-2 border-l-[#3FB950] border-b border-[#21262D] hover:bg-[#1C2128]",
@@ -35,20 +64,49 @@ const CONFIDENCE_BADGE: Record<ConfidenceTier, string> = {
   low:    "text-[#8B949E] text-xs px-2 py-0.5",
 };
 
+interface GapRecord {
+  id?: string;
+  type: string;
+  symbol: string;
+  buyExchange: string;
+  sellExchange: string;
+  spreadPercent: number;
+  buyPrice: number;
+  sellPrice: number;
+  maxTradeableUsd: number;
+  detectedAt: number;
+  durationMs: number;
+}
+
 export default function OpportunityTable() {
+  const [gaps, setGaps] = useState<GapRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const seenIds = useRef<Set<string>>(new Set());
 
-  const { opportunities, connected } = useWebSocket("ws://localhost:3002");
+  useEffect(() => {
+    const fetchGaps = async () => {
+      try {
+        const res = await fetch("/api/profitable-gaps");
+        const data = await res.json();
+        setGaps(Array.isArray(data) ? data : []);
+      } catch {
+        // keep previous data on transient errors
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const isConnecting = !connected && opportunities.length === 0;
-  const isError = false; // WebSocket errors are handled internally with reconnect
+    fetchGaps();
+    const interval = setInterval(fetchGaps, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
-  // Track new IDs for flash animation
   const newIds = new Set<string>();
-  for (const opp of opportunities) {
-    if (!seenIds.current.has(opp.id)) {
-      newIds.add(opp.id);
-      seenIds.current.add(opp.id);
+  for (const gap of gaps) {
+    const key = gap.id ?? `${gap.symbol}:${gap.buyExchange}:${gap.sellExchange}`;
+    if (!seenIds.current.has(key)) {
+      newIds.add(key);
+      seenIds.current.add(key);
     }
   }
 
@@ -60,16 +118,13 @@ export default function OpportunityTable() {
           Arbitrage Opportunities
         </span>
         <div className="flex items-center gap-2">
-          {isConnecting ? (
-            <span className="text-xs font-mono text-[#484F58]">Connecting…</span>
-          ) : isError ? (
-            <span className="text-xs font-mono text-[#F85149]">Feed error</span>
+          {loading && gaps.length === 0 ? (
+            <span className="text-xs font-mono text-[#484F58]">Loading…</span>
           ) : (
             <>
               <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
               <span className="bg-[#388BFD]/10 text-[#388BFD] border border-[#388BFD]/20 text-xs px-2 py-0.5 rounded-full font-mono">
-                {opportunities.length} signal
-                {opportunities.length !== 1 ? "s" : ""}
+                {gaps.length} signal{gaps.length !== 1 ? "s" : ""}
               </span>
             </>
           )}
@@ -92,8 +147,8 @@ export default function OpportunityTable() {
               <th className="px-3 py-1 text-right font-medium">Detected</th>
             </tr>
           </thead>
-            <tbody>
-            {opportunities.length === 0 ? (
+          <tbody>
+            {gaps.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-4 max-h-[200px]">
                   <div className="flex flex-col items-center gap-2 text-[#484F58]">
@@ -102,15 +157,13 @@ export default function OpportunityTable() {
                       <span className="relative inline-flex rounded-full h-3 w-3 bg-[#161B22] border border-[#21262D]" />
                     </div>
                     <span className="text-[11px] tracking-widest uppercase text-[#8B949E]">
-                      {isConnecting
-                        ? "Connecting to price feed…"
-                        : "No CEX-CEX opportunities detected"}
+                      {loading ? "Loading opportunities…" : "No profitable opportunities detected"}
                     </span>
-                    {!isConnecting && (
+                    {!loading && (
                       <span className="text-[10px] text-[#484F58] text-center max-w-md">
-                        CEX-CEX spot spreads are currently below fee threshold.{" "}
+                        Spreads are currently below fee threshold.{" "}
                         <a href="/intelligence" className="text-[#388BFD] hover:underline">
-                          See Intelligence page for profitable gaps across all types →
+                          See Intelligence page for all gap types →
                         </a>
                       </span>
                     )}
@@ -118,13 +171,19 @@ export default function OpportunityTable() {
                 </td>
               </tr>
             ) : (
-              opportunities.map((opp) => {
-                const tier = opp.confidence;
-                const isNew = newIds.has(opp.id);
+              gaps.map((gap) => {
+                const key = gap.id ?? `${gap.symbol}:${gap.buyExchange}:${gap.sellExchange}`;
+                const tier = computeConfidence(gap.spreadPercent, gap.durationMs);
+                const netSpread = gap.spreadPercent - 0.2;
+                const estimatedProfit =
+                  (gap.maxTradeableUsd * gap.spreadPercent) / 100 -
+                  gap.maxTradeableUsd * 0.002;
+                const liquidityScore = Math.min(100, (gap.maxTradeableUsd / 10_000) * 100);
+                const isNew = newIds.has(key);
 
                 return (
                   <tr
-                    key={opp.id}
+                    key={key}
                     className={clsx(
                       "transition-colors duration-200",
                       ROW_ACCENT[tier],
@@ -132,36 +191,48 @@ export default function OpportunityTable() {
                     )}
                   >
                     <td className="px-3 py-1 text-[#E6EDF3] font-mono text-[12px] font-semibold">
-                      {opp.symbol}
+                      {gap.symbol}
                     </td>
                     <td className="px-3 py-1 text-[#3FB950] font-mono text-[11px]">
-                      {exchangeLabel(opp.buyExchange)}
+                      {exchangeLabel(gap.buyExchange)}
                     </td>
                     <td className="px-3 py-1 text-[#F85149] font-mono text-[11px]">
-                      {exchangeLabel(opp.sellExchange)}
+                      {exchangeLabel(gap.sellExchange)}
                     </td>
                     <td className="px-3 py-1 text-right text-[#8B949E] font-mono text-[11px] tabular-nums">
-                      {formatSpread(opp.grossSpread)}
+                      {gap.spreadPercent.toFixed(3)}%
                     </td>
-                    <td className={clsx("px-3 py-1 text-right tabular-nums font-mono text-[12px] font-bold", opp.netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]")}>
-                      {formatSpread(opp.netSpread)}
+                    <td
+                      className={clsx(
+                        "px-3 py-1 text-right tabular-nums font-mono text-[12px] font-bold",
+                        netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]"
+                      )}
+                    >
+                      {netSpread.toFixed(3)}%
                     </td>
                     <td className="px-3 py-1 text-right text-[#388BFD] font-mono text-[11px] font-semibold tabular-nums">
-                      {formatProfit(opp.estimatedProfit)}
+                      ${estimatedProfit.toFixed(2)}
                     </td>
                     <td className="px-3 py-1 text-right tabular-nums">
-                      <LiquidityBar score={opp.liquidityScore} />
+                      <LiquidityBar score={liquidityScore} label={formatLiquidity(gap.maxTradeableUsd)} />
                     </td>
                     <td className="px-3 py-1 text-right text-[#8B949E] tabular-nums text-[10px]">
-                      {opp.bestNetwork || "—"}
+                      <span className="bg-[#1C2128] border border-[#21262D] px-1.5 py-0.5 rounded text-[10px]">
+                        {networkLabel(gap.type)}
+                      </span>
                     </td>
                     <td className="px-3 py-1 text-right">
-                      <span className={clsx("inline-flex items-center font-mono text-[10px] uppercase", CONFIDENCE_BADGE[tier])}>
+                      <span
+                        className={clsx(
+                          "inline-flex items-center font-mono text-[10px] uppercase",
+                          CONFIDENCE_BADGE[tier]
+                        )}
+                      >
                         {tier}
                       </span>
                     </td>
                     <td className="px-3 py-1 text-right text-[#484F58] tabular-nums text-[10px]">
-                      {formatTimestamp(opp.detectedAt)}
+                      {gap.detectedAt ? timeAgo(gap.detectedAt) : formatTimestamp(Date.now())}
                     </td>
                   </tr>
                 );
@@ -174,14 +245,14 @@ export default function OpportunityTable() {
   );
 }
 
-function LiquidityBar({ score }: { score: number }) {
+function LiquidityBar({ score, label }: { score: number; label: string }) {
   const pct = Math.round(Math.max(0, Math.min(100, score)));
   const color =
     pct >= 70 ? "bg-[#3FB950]" : pct >= 40 ? "bg-[#D29922]" : "bg-[#484F58]";
 
   return (
     <span className="inline-flex items-center gap-1.5 justify-end">
-      <span className="text-[#8B949E] tabular-nums">{pct}</span>
+      <span className="text-[#8B949E] tabular-nums text-[10px]">{label}</span>
       <span className="w-10 h-1 rounded-full bg-[#1C2128] overflow-hidden">
         <span
           className={clsx("h-full rounded-full block", color)}

@@ -863,7 +863,7 @@ export default function IntelligencePage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.3.5</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.5.2</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -879,20 +879,11 @@ export default function IntelligencePage() {
           <Link href="/dex" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
             <span className="text-[10px] font-mono">DEX Markets</span>
           </Link>
-          <Link href="/triangular" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
-            <span className="text-[10px] font-mono">Triangular</span>
-          </Link>
-          <Link href="/cross-chain" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
-            <span className="text-[10px] font-mono">Cross-Chain</span>
-          </Link>
-          <Link href="/new-listings" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
-            <span className="text-[10px] font-mono">New Listings</span>
+          <Link href="/funding-rates" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
+            <span className="text-[10px] font-mono">Funding Rates</span>
           </Link>
           <Link href="/alerts" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
             <span className="text-[10px] font-mono">Alerts</span>
-          </Link>
-          <Link href="/funding-rates" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
-            <span className="text-[10px] font-mono">Funding Rates</span>
           </Link>
           <Link href="/dashboard" className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap">
             <span className="text-[10px] font-mono">Dashboard</span>
@@ -1647,7 +1638,7 @@ export default function IntelligencePage() {
 
         {/* ── Footer ── */}
         <div className="text-[10px] text-[#484F58] font-mono text-right pb-2">
-          v0.3.5 · Inventory bots (9 CEX · 15 coins) · hourly liquidation cycle · speed-priority USDT (Solana 1min) ·
+          v0.5.2 · Inventory bots (9 CEX · 15 coins) · hourly liquidation cycle · speed-priority USDT (Solana 1min) ·
           0.1% taker fee · T1:2m · T2:5m · T3:10m · Gap history: last {stats?.totalGapsDetected ?? 0} total
         </div>
         </div>

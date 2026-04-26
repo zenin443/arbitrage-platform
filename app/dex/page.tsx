@@ -304,7 +304,7 @@ export default function DexMarketsPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.2.4</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.5.2</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -330,34 +330,16 @@ export default function DexMarketsPage() {
             DEX Markets
           </Link>
           <Link
-            href="/triangular"
+            href="/funding-rates"
             className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
           >
-            <span className="text-[10px] font-mono">Triangular</span>
-          </Link>
-          <Link
-            href="/cross-chain"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Cross-Chain</span>
-          </Link>
-          <Link
-            href="/new-listings"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">New Listings</span>
+            <span className="text-[10px] font-mono">Funding Rates</span>
           </Link>
           <Link
             href="/alerts"
             className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
           >
             <span className="text-[10px] font-mono">Alerts</span>
-          </Link>
-          <Link
-            href="/funding-rates"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Funding Rates</span>
           </Link>
           <Link
             href="/dashboard"

@@ -1,35 +1,20 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { clsx } from "clsx";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { useWebSocket } from "@/app/lib/useWebSocket";
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance: "Binance",
   bybit: "Bybit",
   okx: "OKX",
   kucoin: "KuCoin",
+  kraken: "Kraken",
+  coinbase: "Coinbase",
+  gate: "Gate.io",
+  htx: "HTX",
+  mexc: "MEXC",
 };
-
-// All tracked symbols — big caps + placeholders for mid/meme
-const ALL_SYMBOLS = [
-  "BTCUSDT",
-  "ETHUSDT",
-  "SOLUSDT",
-  "BNBUSDT",
-  "XRPUSDT",
-  "ADAUSDT",
-  "DOGEUSDT",
-  "AVAXUSDT",
-  "DOTUSDT",
-  "MATICUSDT",
-  "LINKUSDT",
-  "UNIUSDT",
-  "SHIBUSDT",
-  "PEPEUSDT",
-  "WIFUSDT",
-];
 
 function formatPrice(value: number): string {
   if (value >= 1000) {
@@ -45,10 +30,17 @@ function formatPrice(value: number): string {
 }
 
 function displaySymbol(raw: string): string {
-  return raw.split("/")[0].replace(/USDT$/, "");
+  return raw.split("/")[0].replace(/USDT$/, "").replace(/USDC$/, "");
 }
 
 type Direction = "up" | "down" | "neutral";
+
+interface PriceTick {
+  exchangeId: string;
+  symbol: string;
+  bid: number;
+  ask: number;
+}
 
 interface ExchangePrice {
   id: string;
@@ -73,9 +65,29 @@ interface Props {
 export default function PriceSidebar({ market }: Props) {
   const [isOpen, setIsOpen] = useState(true);
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+  const [ticks, setTicks] = useState<PriceTick[]>([]);
   const prevPrices = useRef<Map<string, number>>(new Map());
 
-  const { ticks } = useWebSocket("ws://localhost:3002");
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch("/api/prices");
+        const data = await res.json();
+        const incoming: PriceTick[] = Array.isArray(data)
+          ? data
+          : Array.isArray(data.ticks)
+          ? data.ticks
+          : [];
+        setTicks(incoming);
+      } catch {
+        // keep previous data on transient errors
+      }
+    };
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Group ticks by symbol, track direction vs previous value
   const grouped = new Map<string, Map<string, ExchangePrice>>();
@@ -108,15 +120,11 @@ export default function PriceSidebar({ market }: Props) {
     });
   }
 
-  // Build ordered symbol list — only symbols that have live price data
-  const feedSymbols = new Set(grouped.keys());
-  const orderedSymbols = [
-    ...ALL_SYMBOLS.filter((s) => feedSymbols.has(s)),
-    ...[...feedSymbols].filter((s) => !ALL_SYMBOLS.includes(s)),
-  ];
+  // Symbols that have live price data, sorted alphabetically
+  const feedSymbols = [...grouped.keys()].sort();
 
   // Compute derived data per symbol
-  const symbolDataList: SymbolData[] = orderedSymbols.map((symbol) => {
+  const symbolDataList: SymbolData[] = feedSymbols.map((symbol) => {
     const exchangeMap = grouped.get(symbol);
     const exchanges: ExchangePrice[] = exchangeMap
       ? Array.from(exchangeMap.values())
@@ -137,11 +145,7 @@ export default function PriceSidebar({ market }: Props) {
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
     const cheapest = exchanges.find((e) => e.mid === minPrice)!;
-    const spread =
-      minPrice > 0 ? ((maxPrice - minPrice) / minPrice) * 100 : 0;
-
-    // Overall direction: use cheapest exchange direction
-    const direction = cheapest.direction;
+    const spread = minPrice > 0 ? ((maxPrice - minPrice) / minPrice) * 100 : 0;
 
     return {
       symbol,
@@ -149,25 +153,142 @@ export default function PriceSidebar({ market }: Props) {
       cheapestExchange: cheapest.label,
       spread,
       exchanges,
-      direction,
+      direction: cheapest.direction,
     };
   });
 
-  const filtered = symbolDataList.filter((d) =>
-    d.symbol.endsWith("/" + market)
+  // Filter by selected market
+  const filtered = symbolDataList.filter(
+    (d) =>
+      d.symbol.endsWith("/" + market) ||
+      d.symbol.endsWith(market) // handle both "BTC/USDT" and "BTCUSDT"
   );
 
   const handleCoinClick = useCallback((symbol: string) => {
     setExpandedSymbol((prev) => (prev === symbol ? null : symbol));
   }, []);
 
+  const CoinRow = ({ data, compact = false }: { data: SymbolData; compact?: boolean }) => {
+    const isExpanded = expandedSymbol === data.symbol;
+    const hasData = data.exchanges.length > 0;
+
+    return (
+      <div
+        className={clsx(
+          "border-b border-[#21262D]/60 transition-colors",
+          isExpanded && "border-l-2 border-l-[#388BFD] bg-[#388BFD]/5"
+        )}
+      >
+        <button
+          onClick={() => hasData && handleCoinClick(data.symbol)}
+          disabled={!hasData}
+          className={clsx(
+            "w-full flex items-center text-left transition-colors",
+            compact ? "px-3 py-2" : "px-2 py-0.5",
+            hasData
+              ? "hover:bg-[#1C2128] cursor-pointer"
+              : "cursor-default opacity-40"
+          )}
+        >
+          <span
+            className={clsx(
+              "text-[#E6EDF3] font-mono font-semibold flex-1 truncate",
+              compact ? "text-sm" : "text-[11px]"
+            )}
+          >
+            {displaySymbol(data.symbol)}
+          </span>
+          <span
+            className={clsx(
+              "font-mono tabular-nums ml-1",
+              compact ? "text-sm" : "text-[11px]",
+              data.direction === "up"
+                ? "text-[#3FB950]"
+                : data.direction === "down"
+                ? "text-[#F85149]"
+                : "text-[#E6EDF3]"
+            )}
+          >
+            {hasData ? formatPrice(data.cheapestPrice) : "—"}
+          </span>
+          <span className="text-[#484F58] text-[10px] font-mono bg-[#1C2128] px-1 rounded ml-1">
+            {market}
+          </span>
+          {!compact && data.direction === "up" && (
+            <span className="text-[#3FB950] text-[9px] ml-0.5">▲</span>
+          )}
+          {!compact && data.direction === "down" && (
+            <span className="text-[#F85149] text-[9px] ml-0.5">▼</span>
+          )}
+        </button>
+
+        {/* Expanded exchange breakdown */}
+        {isExpanded && hasData && (
+          <div className={clsx("pb-1.5 space-y-0.5 bg-[#0D1117]", compact ? "px-3" : "px-2")}>
+            <div className="flex justify-end mb-1">
+              <span className="text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/20 text-[10px] font-mono px-1.5 rounded py-0.5">
+                {data.spread.toFixed(3)}% gross spread
+              </span>
+            </div>
+            {(() => {
+              const prices = data.exchanges.map((e) => e.mid);
+              const minPrice = Math.min(...prices);
+              const maxPrice = Math.max(...prices);
+              return data.exchanges
+                .slice()
+                .sort((a, b) => a.mid - b.mid)
+                .map((ex) => {
+                  const isCheapest = ex.mid === minPrice;
+                  const isMostExpensive = ex.mid === maxPrice && maxPrice !== minPrice;
+                  return (
+                    <div
+                      key={ex.id}
+                      className={clsx(
+                        "flex items-center justify-between rounded px-1.5 py-0.5",
+                        isCheapest && "bg-[#3FB950]/15",
+                        isMostExpensive && "bg-[#F85149]/10"
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          "font-mono text-xs truncate",
+                          isCheapest
+                            ? "text-[#3FB950]"
+                            : isMostExpensive
+                            ? "text-[#F85149]"
+                            : "text-[#8B949E]"
+                        )}
+                      >
+                        {ex.label}
+                      </span>
+                      <div className="flex items-center gap-0.5">
+                        <span className="font-mono text-xs tabular-nums text-[#E6EDF3]">
+                          {formatPrice(ex.mid)}
+                        </span>
+                        {ex.direction === "up" && (
+                          <span className="text-[#3FB950] text-[8px]">▲</span>
+                        )}
+                        {ex.direction === "down" && (
+                          <span className="text-[#F85149] text-[8px]">▼</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+            })()}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
-      {/* Sidebar */}
+      {/* Desktop sidebar */}
       <aside
         className={clsx(
           "relative flex-shrink-0 h-screen bg-[#161B22] border-r border-[#21262D] flex flex-col transition-all duration-300 ease-in-out overflow-hidden",
-          "hidden md:flex", // hidden on mobile, flex on md+
+          "hidden md:flex",
           isOpen ? "w-[220px]" : "w-10"
         )}
         aria-label="Price sidebar"
@@ -175,7 +296,7 @@ export default function PriceSidebar({ market }: Props) {
         {/* Toggle button */}
         <button
           onClick={() => setIsOpen((v) => !v)}
-          className="flex items-center justify-center h-9 w-full border-b border-[#21262D] text-[#388BFD] hover:text-[#388BFD] hover:bg-[#1C2128] transition-colors flex-shrink-0"
+          className="flex items-center justify-center h-9 w-full border-b border-[#21262D] text-[#388BFD] hover:bg-[#1C2128] transition-colors flex-shrink-0"
           title={isOpen ? "Collapse sidebar" : "Expand sidebar"}
           aria-expanded={isOpen}
         >
@@ -188,139 +309,30 @@ export default function PriceSidebar({ market }: Props) {
 
         {/* Coin list */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#21262D] [&::-webkit-scrollbar-track]:bg-transparent">
-          {filtered.map((data) => {
-            const isExpanded = expandedSymbol === data.symbol;
-            const hasData = data.exchanges.length > 0;
-
-            return (
-              <div
-                key={data.symbol}
-                className={clsx(
-                  "border-b border-[#21262D]/60 transition-colors",
-                  isExpanded && "border-l-2 border-l-[#388BFD] bg-[#388BFD]/5"
-                )}
-              >
-                {/* Coin row */}
-                <button
-                  onClick={() => hasData && handleCoinClick(data.symbol)}
-                  disabled={!hasData}
-                  className={clsx(
-                    "w-full flex items-center px-2 py-0.5 text-left transition-colors",
-                      hasData
-                        ? "hover:bg-[#1C2128] cursor-pointer"
-                      : "cursor-default opacity-40"
-                  )}
-                >
-                  {isOpen ? (
-                    <>
-                      <span className="text-[#E6EDF3] font-mono font-semibold text-[11px] flex-1 truncate">
-                        {displaySymbol(data.symbol)}
-                      </span>
-                      <span
-                        className={clsx(
-                          "font-mono text-[11px] tabular-nums ml-1",
-                          data.direction === "up"
-                            ? "text-[#3FB950]"
-                            : data.direction === "down"
-                            ? "text-[#F85149]"
-                            : "text-[#E6EDF3]"
-                        )}
-                      >
-                        {hasData ? formatPrice(data.cheapestPrice) : "—"}
-                      </span>
-                      <span className="text-[#484F58] text-[10px] font-mono bg-[#1C2128] px-1 rounded ml-1">
-                        {market}
-                      </span>
-                      {data.direction === "up" && (
-                        <span className="text-[#3FB950] text-[9px] ml-0.5">
-                          ▲
-                        </span>
-                      )}
-                      {data.direction === "down" && (
-                        <span className="text-[#F85149] text-[9px] ml-0.5">
-                          ▼
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                      <span className="text-[#8B949E] font-mono text-[9px] font-semibold tracking-wide w-full text-center leading-none">
-                      {displaySymbol(data.symbol).slice(0, 3)}
-                    </span>
-                  )}
-                </button>
-
-                {/* Expanded exchange breakdown */}
-                {isOpen && isExpanded && hasData && (
-                  <div className="pb-1.5 px-2 space-y-0.5 bg-[#0D1117]">
-                    {/* Spread badge */}
-                    <div className="flex justify-end mb-1">
-                      <span className="text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/20 text-[10px] font-mono px-1.5 rounded py-0.5">
-                        {data.spread.toFixed(3)}% gross spread
-                      </span>
-                    </div>
-
-                    {/* Per-exchange rows */}
-                    {(() => {
-                      const prices = data.exchanges.map((e) => e.mid);
-                      const minPrice = Math.min(...prices);
-                      const maxPrice = Math.max(...prices);
-
-                      return data.exchanges
-                        .slice()
-                        .sort((a, b) => a.mid - b.mid)
-                        .map((ex) => {
-                          const isCheapest = ex.mid === minPrice;
-                          const isMostExpensive =
-                            ex.mid === maxPrice && maxPrice !== minPrice;
-
-                          return (
-                            <div
-                              key={ex.id}
-                              className={clsx(
-                                "flex items-center justify-between rounded px-1.5 py-0.5",
-                                isCheapest && "bg-[#3FB950]/15",
-                                isMostExpensive && "bg-[#F85149]/10"
-                              )}
-                            >
-                              <span
-                                className={clsx(
-                                  "font-mono text-xs truncate",
-                                  isCheapest
-                                    ? "text-[#3FB950]"
-                                    : isMostExpensive
-                                    ? "text-[#F85149]"
-                                    : "text-[#8B949E]"
-                                )}
-                              >
-                                {ex.label}
-                              </span>
-                              <span className="font-mono text-[10px] text-[#484F58] mx-1">
-                                {data.symbol}
-                              </span>
-                              <div className="flex items-center gap-0.5">
-                                <span className="font-mono text-xs tabular-nums text-[#E6EDF3]">
-                                  {formatPrice(ex.mid)}
-                                </span>
-                                {ex.direction === "up" && (
-                                  <span className="text-[#3FB950] text-[8px]">
-                                    ▲
-                                  </span>
-                                )}
-                                {ex.direction === "down" && (
-                                  <span className="text-[#F85149] text-[8px]">
-                                    ▼
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        });
-                    })()}
-                  </div>
-                )}
+          {isOpen ? (
+            filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-[#484F58] text-[10px] font-mono">
+                {ticks.length === 0 ? "Loading prices…" : "No prices available"}
               </div>
-            );
-          })}
+            ) : (
+              filtered.map((data) => <CoinRow key={data.symbol} data={data} />)
+            )
+          ) : (
+            filtered.map((data) => (
+              <button
+                key={data.symbol}
+                onClick={() => {
+                  setIsOpen(true);
+                  handleCoinClick(data.symbol);
+                }}
+                className="w-full flex items-center justify-center py-1 hover:bg-[#1C2128] transition-colors"
+              >
+                <span className="text-[#8B949E] font-mono text-[9px] font-semibold tracking-wide [writing-mode:vertical-rl] rotate-180 leading-none">
+                  {displaySymbol(data.symbol).slice(0, 3)}
+                </span>
+              </button>
+            ))
+          )}
         </div>
 
         {/* Collapsed label */}
@@ -333,10 +345,10 @@ export default function PriceSidebar({ market }: Props) {
         )}
       </aside>
 
-      {/* Mobile toggle button — visible only on small screens */}
+      {/* Mobile toggle button */}
       <button
         onClick={() => setIsOpen((v) => !v)}
-        className="md:hidden fixed bottom-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-full bg-[#1C2128] border border-[#21262D] text-[#388BFD] hover:text-[#388BFD] shadow-lg"
+        className="md:hidden fixed bottom-4 left-4 z-50 flex items-center justify-center h-9 w-9 rounded-full bg-[#1C2128] border border-[#21262D] text-[#388BFD] shadow-lg"
         aria-label="Toggle price sidebar"
       >
         {isOpen ? (
@@ -356,108 +368,16 @@ export default function PriceSidebar({ market }: Props) {
               </span>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-[#388BFD] hover:text-[#388BFD]"
+                className="text-[#388BFD]"
               >
                 <ChevronLeftIcon className="h-3.5 w-3.5" />
               </button>
             </div>
-            {filtered.map((data) => {
-              const isExpanded = expandedSymbol === data.symbol;
-              const hasData = data.exchanges.length > 0;
-              return (
-                <div
-                  key={data.symbol}
-                  className={clsx(
-                  "border-b border-[#21262D]/60",
-                  isExpanded && "border-l-2 border-l-[#388BFD] bg-[#388BFD]/5"
-                  )}
-                >
-                  <button
-                    onClick={() => hasData && handleCoinClick(data.symbol)}
-                    disabled={!hasData}
-                    className={clsx(
-                      "w-full flex items-center px-3 py-2 text-left",
-                      hasData ? "hover:bg-[#1C2128]" : "opacity-40"
-                    )}
-                  >
-                    <span className="text-[#E6EDF3] font-mono text-sm font-semibold flex-1">
-                      {displaySymbol(data.symbol)}
-                    </span>
-                    <span
-                        className={clsx(
-                          "font-mono text-sm tabular-nums",
-                          data.direction === "up"
-                            ? "text-[#3FB950]"
-                            : data.direction === "down"
-                            ? "text-[#F85149]"
-                            : "text-[#E6EDF3]"
-                        )}
-                    >
-                      {hasData ? formatPrice(data.cheapestPrice) : "—"}
-                    </span>
-                    <span className="text-[#484F58] text-[10px] font-mono bg-[#1C2128] px-1 rounded ml-1">
-                      {market}
-                    </span>
-                  </button>
-                  {isExpanded && hasData && (
-                    <div className="pb-2 px-3 space-y-1">
-                      <div className="flex justify-end">
-                        <span className="text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/20 text-[10px] font-mono px-1.5 rounded py-0.5">
-                          {data.spread.toFixed(3)}% gross spread
-                        </span>
-                      </div>
-                      {(() => {
-                        const prices = data.exchanges.map((e) => e.mid);
-                        const minPrice = Math.min(...prices);
-                        const maxPrice = Math.max(...prices);
-                        return data.exchanges
-                          .slice()
-                          .sort((a, b) => a.mid - b.mid)
-                          .map((ex) => {
-                            const isCheapest = ex.mid === minPrice;
-                            const isMostExpensive =
-                              ex.mid === maxPrice && maxPrice !== minPrice;
-                            return (
-                              <div
-                                key={ex.id}
-                                className={clsx(
-                                  "flex items-center justify-between rounded px-2 py-1",
-                                  isCheapest && "bg-[#3FB950]/15",
-                                  isMostExpensive && "bg-[#F85149]/10"
-                                )}
-                              >
-                                <span
-                                  className={clsx(
-                                    "font-mono text-xs",
-                                    isCheapest
-                                      ? "text-[#3FB950]"
-                                      : isMostExpensive
-                                      ? "text-[#F85149]"
-                                      : "text-[#8B949E]"
-                                  )}
-                                >
-                                  {ex.label}
-                                </span>
-                                <span className="font-mono text-xs text-[#484F58] mx-1">
-                                  {data.symbol}
-                                </span>
-                                <span className="font-mono text-xs tabular-nums text-[#E6EDF3]">
-                                  {formatPrice(ex.mid)}
-                                </span>
-                              </div>
-                            );
-                          });
-                      })()}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {filtered.map((data) => (
+              <CoinRow key={data.symbol} data={data} compact />
+            ))}
           </aside>
-          <div
-            className="flex-1 bg-black/40"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="flex-1 bg-black/40" onClick={() => setIsOpen(false)} />
         </div>
       )}
     </>
