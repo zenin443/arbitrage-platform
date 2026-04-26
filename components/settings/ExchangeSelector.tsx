@@ -15,7 +15,7 @@ type Exchange = {
   color: string;
   initial: string;
   tier: Tier;
-  status: "active" | "coming-soon";
+  status: "active" | "coming-soon" | "disabled";
 };
 
 const EXCHANGES: Exchange[] = [
@@ -33,20 +33,20 @@ const EXCHANGES: Exchange[] = [
   { id: "bingx",     name: "BingX",      fee: 0.10,  color: "bg-blue-400",    initial: "B", tier: 2, status: "active" },
   { id: "kraken",    name: "Kraken",     fee: 0.16,  color: "bg-indigo-500",  initial: "K", tier: 2, status: "active" },
   { id: "coinbase",  name: "Coinbase",   fee: 0.40,  color: "bg-blue-600",    initial: "C", tier: 2, status: "active" },
-  // Tier 3 — Direct REST (5–10s polling)
+  // Tier 3 — Direct REST (5–10s polling) — 8 active, 7 disabled (bad data)
   { id: "cryptocom", name: "Crypto.com", fee: 0.075, color: "bg-blue-800",    initial: "C", tier: 3, status: "active" },
-  { id: "bitstamp",  name: "Bitstamp",   fee: 0.50,  color: "bg-orange-600",  initial: "B", tier: 3, status: "active" },
+  { id: "bitstamp",  name: "Bitstamp",   fee: 0.50,  color: "bg-orange-600",  initial: "B", tier: 3, status: "disabled" },
   { id: "upbit",     name: "Upbit",      fee: 0.25,  color: "bg-blue-400",    initial: "U", tier: 3, status: "active" },
   { id: "phemex",    name: "Phemex",     fee: 0.10,  color: "bg-purple-600",  initial: "P", tier: 3, status: "active" },
   { id: "whitebit",  name: "WhiteBit",   fee: 0.10,  color: "bg-gray-600",    initial: "W", tier: 3, status: "active" },
-  { id: "lbank",     name: "LBank",      fee: 0.10,  color: "bg-pink-600",    initial: "L", tier: 3, status: "active" },
+  { id: "lbank",     name: "LBank",      fee: 0.10,  color: "bg-pink-600",    initial: "L", tier: 3, status: "disabled" },
   { id: "coinex",    name: "CoinEx",     fee: 0.20,  color: "bg-yellow-600",  initial: "C", tier: 3, status: "active" },
   { id: "bitmart",   name: "BitMart",    fee: 0.25,  color: "bg-emerald-600", initial: "B", tier: 3, status: "active" },
-  { id: "ascendex",  name: "AscendEX",   fee: 0.10,  color: "bg-violet-600",  initial: "A", tier: 3, status: "active" },
-  { id: "probit",    name: "ProBit",     fee: 0.20,  color: "bg-red-600",     initial: "P", tier: 3, status: "active" },
-  { id: "btse",      name: "BTSE",       fee: 0.10,  color: "bg-sky-600",     initial: "B", tier: 3, status: "active" },
-  { id: "deribit",   name: "Deribit",    fee: 0.05,  color: "bg-amber-600",   initial: "D", tier: 3, status: "active" },
-  { id: "coinw",     name: "CoinW",      fee: 0.20,  color: "bg-lime-600",    initial: "C", tier: 3, status: "active" },
+  { id: "ascendex",  name: "AscendEX",   fee: 0.10,  color: "bg-violet-600",  initial: "A", tier: 3, status: "disabled" },
+  { id: "probit",    name: "ProBit",     fee: 0.20,  color: "bg-red-600",     initial: "P", tier: 3, status: "disabled" },
+  { id: "btse",      name: "BTSE",       fee: 0.10,  color: "bg-sky-600",     initial: "B", tier: 3, status: "disabled" },
+  { id: "deribit",   name: "Deribit",    fee: 0.05,  color: "bg-amber-600",   initial: "D", tier: 3, status: "disabled" },
+  { id: "coinw",     name: "CoinW",      fee: 0.20,  color: "bg-lime-600",    initial: "C", tier: 3, status: "disabled" },
 ];
 
 const TIER_LABELS: Record<Tier, { label: string; sub: string; badge: string }> = {
@@ -71,6 +71,7 @@ export default function ExchangeSelector() {
 
   const activeTotal = selectedExchanges.length;
   const totalActive = EXCHANGES.filter((e) => e.status === "active").length;
+  const totalDisabled = EXCHANGES.filter((e) => e.status === "disabled").length;
 
   return (
     <div>
@@ -121,15 +122,19 @@ export default function ExchangeSelector() {
                 {tierExchanges.map((ex) => {
                   const isSelected = selectedExchanges.includes(ex.id);
                   const isComingSoon = ex.status === "coming-soon";
+                  const isDisabled = ex.status === "disabled";
+                  const isBlocked = isComingSoon || isDisabled;
 
                   return (
                     <button
                       key={ex.id}
-                      onClick={() => !isComingSoon && handleToggle(ex.id)}
-                      disabled={isComingSoon}
+                      onClick={() => !isBlocked && handleToggle(ex.id)}
+                      disabled={isBlocked}
                       className={clsx(
                         "flex flex-col items-start gap-2.5 p-3 rounded-lg border transition-all text-left",
-                        isComingSoon
+                        isDisabled
+                          ? "opacity-40 cursor-not-allowed border-th-border bg-th-surface"
+                          : isComingSoon
                           ? "opacity-50 cursor-not-allowed border-th-border bg-th-surface"
                           : isSelected
                           ? "border-th-green bg-th-green/10 shadow-[0_0_12px_rgba(63,185,80,0.08)]"
@@ -141,12 +146,12 @@ export default function ExchangeSelector() {
                         <div
                           className={clsx(
                             "h-7 w-7 rounded-md flex items-center justify-center text-white text-xs font-bold font-mono",
-                            ex.color
+                            isDisabled ? "bg-[#30363D]" : ex.color
                           )}
                         >
                           {ex.initial}
                         </div>
-                        {isSelected && !isComingSoon && (
+                        {isSelected && !isBlocked && (
                           <div className="h-4 w-4 rounded-full bg-th-green flex items-center justify-center">
                             <CheckIcon className="h-2.5 w-2.5 text-white" />
                           </div>
@@ -164,7 +169,9 @@ export default function ExchangeSelector() {
                       </div>
 
                       {/* Status badge */}
-                      {isComingSoon ? (
+                      {isDisabled ? (
+                        <Badge variant="danger">Data Quality</Badge>
+                      ) : isComingSoon ? (
                         <Badge variant="warning">Coming Soon</Badge>
                       ) : (
                         <Badge variant={isSelected ? "success" : "default"}>
@@ -182,6 +189,7 @@ export default function ExchangeSelector() {
 
       <p className="mt-5 text-xs text-th-dim font-mono">
         {activeTotal} of {totalActive} exchanges active
+        <span className="ml-2 text-[#6E7681]">· {totalDisabled} disabled (bad data)</span>
       </p>
     </div>
   );

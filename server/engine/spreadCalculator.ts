@@ -23,6 +23,8 @@ export interface ArbitrageOpportunity {
 
 const TRADE_SIZE_USD = 1000
 const MIN_NET_SPREAD_PCT = 0.05
+// Spreads above this threshold are data errors, not real opportunities
+const MAX_REASONABLE_SPREAD = 5.0
 
 /** Minutes per network for transfer time estimates */
 const NETWORK_TRANSFER_TIMES: Record<string, number> = {
@@ -108,6 +110,11 @@ export function calculateSpread(
 
   const grossSpread = ((sellTick.bid - buyTick.ask) / buyTick.ask) * 100
   if (grossSpread <= 0) return null
+  if (grossSpread > MAX_REASONABLE_SPREAD) return null
+
+  // Reject if prices differ by more than 10x (data corruption, not arbitrage)
+  const priceRatio = Math.max(buyTick.ask, sellTick.bid) / Math.min(buyTick.ask, sellTick.bid)
+  if (priceRatio > 1.1) return null
 
   const buyExchange = EXCHANGE_REGISTRY[buyTick.exchangeId]
   const sellExchange = EXCHANGE_REGISTRY[sellTick.exchangeId]

@@ -181,7 +181,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20'],
     restUrl: 'https://www.bitstamp.net',
-    active: true
+    active: false // DISABLED — stale prices: FTM $0.046 vs real $0.70, ENJ wrong
   },
   upbit: {
     id: 'upbit', name: 'Upbit', tier: 3,
@@ -229,7 +229,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
     restUrl: 'https://api.lbank.info',
-    active: true
+    active: false // DISABLED — inflated MATIC price: $0.377 vs real $0.198
   },
   coinex: {
     id: 'coinex', name: 'CoinEx', tier: 3,
@@ -265,7 +265,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
     restUrl: 'https://ascendex.com',
-    active: true
+    active: false // DISABLED — wrong MATIC price: $0.091 vs real $0.198
   },
   probit: {
     id: 'probit', name: 'ProBit', tier: 3,
@@ -277,7 +277,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
     restUrl: 'https://api.probit.com',
-    active: true
+    active: false // DISABLED — low volume, stale orderbooks
   },
   btse: {
     id: 'btse', name: 'BTSE', tier: 3,
@@ -289,7 +289,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
     restUrl: 'https://api.btse.com',
-    active: true
+    active: false // DISABLED — low volume, limited coin support
   },
   deribit: {
     id: 'deribit', name: 'Deribit', tier: 3,
@@ -301,7 +301,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20'],
     restUrl: 'https://www.deribit.com',
-    active: true
+    active: false // DISABLED — derivatives exchange, perpetual prices ≠ spot
   },
   coinw: {
     id: 'coinw', name: 'CoinW', tier: 3,
@@ -313,7 +313,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     },
     supportedNetworks: ['BTC', 'ERC20', 'TRC20'],
     restUrl: 'https://api.coinw.com',
-    active: true
+    active: false // DISABLED — low volume, unreliable data quality
   },
 }
 

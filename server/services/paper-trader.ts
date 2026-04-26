@@ -2427,11 +2427,13 @@ class MagnusAlphaBot extends PaperBot {
   }
 
   override evaluateTrade(gap: GapRecord): void {
+    // v0.4.1 CRITICAL: Minimum profitable spread - reject trades below fee threshold
     const MIN_PROFITABLE_SPREAD = 0.25
     if (gap.spreadPercent < MIN_PROFITABLE_SPREAD) {
-      this.recordVoid(gap, `Spread below min (${gap.spreadPercent.toFixed(3)}% < 0.25%)`, 'tooSmall')
+      this.recordVoid(gap, `Spread below min (${gap.spreadPercent.toFixed(3)}% < ${MIN_PROFITABLE_SPREAD}%)`, 'tooSmall')
       return
     }
+    // v0.4.1 CRITICAL: Block spot-futures for Alpha (CEX-CEX only)
     if (gap.type === 'spot_futures') {
       this.recordVoid(gap, 'Spot-futures disabled (CEX-CEX only)', 'tooSmall')
       return

@@ -97,6 +97,7 @@ function getBridgeCost(fromChain: string, toChain: string): number {
 }
 
 const MAX_OPPORTUNITIES = 100
+const MAX_PRICE_DIFF_PERCENT = 5.0 // reject bad exchange data above this threshold
 
 // ── Calculation ───────────────────────────────────────────────────────────────
 
@@ -136,6 +137,7 @@ function computeCrossChainOpportunities(): CrossChainOpportunity[] {
 
         const priceDiffPercent = ((sell.price - buy.price) / buy.price) * 100
         if (priceDiffPercent <= 0) continue
+        if (priceDiffPercent > MAX_PRICE_DIFF_PERCENT) continue
 
         // Estimate bridge cost as % of $1K trade
         const bridgeCostUsd = getBridgeCost(buy.chain, sell.chain)

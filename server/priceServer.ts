@@ -500,23 +500,31 @@ async function start(): Promise<void> {
     )
   }
 
-  // 4b. Tier 3 native REST adapters (15 new exchanges)
+  // 4b. Tier 3 native REST adapters (8 active exchanges)
+  // DISABLED — unreliable price data, creates false arbitrage signals (50-1400% fake spreads)
+  // bitstamp  — stale prices: FTM $0.046 vs real $0.70, ENJ wrong
+  // ascendex  — wrong MATIC price: $0.091 vs real $0.198
+  // lbank     — inflated MATIC price: $0.377 vs real $0.198
+  // coinw     — low volume, unreliable data quality
+  // btse      — low volume, limited coin support
+  // deribit   — derivatives exchange, perpetual prices don't match spot
+  // probit    — low volume, stale orderbooks
   const tier3 = [
     new CoinbaseAdapter(),
     new CryptoComAdapter(),
     new BitfinexAdapter(),
-    new BitstampAdapter(),
+    // new BitstampAdapter(),   // DISABLED — stale prices (FTM, ENJ)
     new UpbitAdapter(),
     new PhemexAdapter(),
     new WhiteBitAdapter(),
-    new LBankAdapter(),
+    // new LBankAdapter(),      // DISABLED — inflated MATIC price
     new CoinExAdapter(),
     new BitMartAdapter(),
-    new AscendExAdapter(),
-    new ProbitAdapter(),
-    new BtseAdapter(),
-    new DeribitAdapter(),
-    new CoinWAdapter(),
+    // new AscendExAdapter(),   // DISABLED — wrong MATIC price
+    // new ProbitAdapter(),     // DISABLED — low volume, stale orderbooks
+    // new BtseAdapter(),       // DISABLED — low volume, limited coin support
+    // new DeribitAdapter(),    // DISABLED — derivatives, perpetual ≠ spot prices
+    // new CoinWAdapter(),      // DISABLED — low volume, unreliable data
   ]
 
   for (const adapter of tier3) {
@@ -564,7 +572,7 @@ async function start(): Promise<void> {
   }
 
   const totalExchanges = tier1.length + tier2.length + tier3.length
-  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot (${tier1.length} tier1 WS + ${tier2.length} tier2 CCXT + ${tier3.length} tier3 native) + ${futuresAdapters.length} futures + ${dexAdapters.length} DEX exchanges`)
+  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot active (${tier1.length} tier1 WS + ${tier2.length} tier2 CCXT + ${tier3.length} tier3 native) + ${futuresAdapters.length} futures + ${dexAdapters.length} DEX exchanges [7 tier3 disabled: bad data]`)
 
   // 8. New listing scanner
   startNewListingScanner()

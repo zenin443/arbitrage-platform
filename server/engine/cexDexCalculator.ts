@@ -3,6 +3,7 @@ import { dexTickStore } from './dexTickStore'
 import { CexDexOpportunity } from '../adapters/dex/base'
 
 const MIN_NET_PROFIT_PERCENT = 0.1
+const MAX_PRICE_DIFF_PERCENT = 5.0 // reject bad exchange data above this threshold
 
 // Per-chain gas cost estimates in USD (one-way execution cost)
 const CHAIN_GAS_COSTS: Record<string, number> = {
@@ -51,6 +52,7 @@ export function calculateCexDexOpportunities(): CexDexOpportunity[] {
       if (cexMid <= 0) continue
 
       const rawDiffPercent = ((dexPrice.price - cexMid) / cexMid) * 100
+      if (Math.abs(rawDiffPercent) > MAX_PRICE_DIFF_PERCENT) continue
 
       // Gas fee based on the DEX's chain; expressed as % of actual trade size
       const gasFeeUSD    = gasFeeForChain(dexPrice.chain)

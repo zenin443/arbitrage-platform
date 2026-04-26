@@ -17,6 +17,7 @@ const TRACKED_FUTURES_SYMBOLS = [
 const TRADE_SIZE = 1000        // USD notional per estimate
 const PERIODS_PER_YEAR = 365 * 3  // 8h funding periods in a year
 const MIN_YIELD_PERCENT = 5    // minimum combined annualized yield to include
+const MAX_PRICE_DIFF_PERCENT = 5.0 // reject bad exchange data above this threshold
 
 function annualizePercent(priceDiffPercent: number): number {
   // Annualize an 8h price-difference yield
@@ -52,6 +53,7 @@ export function calculateSpotFuturesOpportunities(): SpotFuturesOpportunity[] {
 
         const priceDiff = futuresPrice - spotPrice
         const priceDiffPercent = (priceDiff / spotPrice) * 100
+        if (Math.abs(priceDiffPercent) > MAX_PRICE_DIFF_PERCENT) continue
         const fundingRate = futuresTick.fundingRate
         const fundingRateAnnualized = fundingRate * 3 * 365 * 100
 

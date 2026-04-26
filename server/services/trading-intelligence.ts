@@ -82,6 +82,8 @@ const TAKER_FEE_PER_SIDE = 0.001   // 0.1%
 const ROUNDTRIP_FEE = 0.002        // 0.2%
 const BREAK_EVEN_SPREAD = 0.2      // % — minimum spread to cover fees
 const MAX_PROFITABLE_CAP = 50_000  // USD cap for maxProfitableSize
+// Spreads above this threshold are bad exchange data, not real opportunities
+const MAX_REASONABLE_SPREAD = 5.0
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -163,6 +165,7 @@ function evaluateCexCex(now: number): void {
 
           const spread = ((sell.bid - buy.ask) / buy.ask) * 100
           if (spread <= 0) continue
+          if (spread > MAX_REASONABLE_SPREAD) continue
 
           const key = gapKey('cex_cex', symbol, buy.exchangeId, sell.exchangeId)
           seenKeys.add(key)
@@ -242,6 +245,7 @@ function evaluateSpotFutures(now: number): void {
     for (const opp of opps) {
       const spreadPercent = Math.abs(opp.priceDiffPercent ?? 0)
       if (spreadPercent <= 0) continue
+      if (spreadPercent > MAX_REASONABLE_SPREAD) continue
 
       const key = gapKey('spot_futures', opp.symbol, opp.spotExchange, opp.futuresExchange)
       seenKeys.add(key)
@@ -304,6 +308,7 @@ function evaluateCexDex(now: number): void {
     for (const opp of opps) {
       const spreadPercent = Math.abs(opp.priceDiffPercent ?? 0)
       if (spreadPercent <= 0) continue
+      if (spreadPercent > MAX_REASONABLE_SPREAD) continue
 
       const buyEx = opp.direction === 'buy_cex_sell_dex' ? opp.cexExchange : opp.dexId
       const sellEx = opp.direction === 'buy_cex_sell_dex' ? opp.dexId : opp.cexExchange
@@ -371,6 +376,7 @@ function evaluateTriangular(now: number): void {
 
     for (const route of routes) {
       if (route.netProfitPercent <= 0) continue
+      if (route.netProfitPercent > MAX_REASONABLE_SPREAD) continue
 
       const key = gapKey('triangular', route.crossSymbol, route.exchange, route.direction)
       seenKeys.add(key)
@@ -429,6 +435,7 @@ function evaluateCrossChain(now: number): void {
 
     for (const opp of opps) {
       if (opp.netProfitPercent <= 0) continue
+      if (opp.netProfitPercent > MAX_REASONABLE_SPREAD) continue
 
       const key = gapKey('cross_chain', opp.symbol, opp.buyChain, opp.sellChain)
       seenKeys.add(key)

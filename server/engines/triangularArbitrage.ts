@@ -46,6 +46,7 @@ interface CrossPairPrice {
 const TAKER_FEE = 0.001   // 0.1% per trade, 3 trades = 0.3%
 const ROUNDTRIP_FEE_PCT = 0.3
 const MAX_ROUTES = 50
+const MAX_NET_PROFIT_PERCENT = 5.0 // reject bad price data above this threshold
 
 // Only the 8 most liquid cross-pairs
 const CROSS_PAIRS = [
@@ -200,7 +201,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
         const netProfitPercent = profitPercent - ROUNDTRIP_FEE_PCT
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
 
-        if (netProfitPercent > 0) {
+        if (netProfitPercent > 0 && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
           routes.push({
             id: `tri-${exchange}-fwd-${alt}-${now}`,
             exchange,
@@ -234,7 +235,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
         const netProfitPercent = profitPercent - ROUNDTRIP_FEE_PCT
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
 
-        if (netProfitPercent > 0) {
+        if (netProfitPercent > 0 && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
           routes.push({
             id: `tri-${exchange}-rev-${alt}-${now}`,
             exchange,
