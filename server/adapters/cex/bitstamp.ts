@@ -1,18 +1,17 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-// Bitstamp: lowercase, no separator (btcusd)
-const SYMBOL_MAP: Record<string, string> = {
-  'BTC/USDT': 'btcusd', 'ETH/USDT': 'ethusd', 'SOL/USDT': 'solusd',
-  'XRP/USDT': 'xrpusd', 'ADA/USDT': 'adausd', 'AVAX/USDT': 'avaxusd',
-  'LINK/USDT': 'linkusd', 'DOT/USDT': 'dotusd', 'DOGE/USDT': 'dogeusd',
-  'MATIC/USDT': 'maticusd', 'NEAR/USDT': 'nearusd', 'UNI/USDT': 'uniusd',
-  'ATOM/USDT': 'atomusd', 'LDO/USDT': 'ldousd', 'ARB/USDT': 'arbusd',
-  'OP/USDT': 'opusd', 'INJ/USDT': 'injusd', 'PEPE/USDT': 'pepeusd',
-  'SHIB/USDT': 'shibusd',
+// Bitstamp: lowercase, no separator (btcusd). USD pairs only — unsupported symbols return non-200 (silently skipped).
+function toBitstampSymbol(sym: string): string {
+  return `${sym.split('/')[0].toLowerCase()}usd`
 }
 
-const SYMBOLS = Object.keys(SYMBOL_MAP)
+const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
+  SYMBOLS.map(s => [s, toBitstampSymbol(s)])
+)
+
+const BATCH_SIZE = 25
 
 type BitstampTicker = { ask?: string; bid?: string }
 
@@ -24,6 +23,7 @@ export class BitstampAdapter extends BaseExchangeAdapter {
   private lastTicks = new Map<string, PriceTick>()
   private tickCount = 0
   private statusTimer: ReturnType<typeof setInterval> | null = null
+  private pollCursor = 0
 
   async connect(onTick: (tick: PriceTick) => void): Promise<void> {
     this.onTick = onTick
@@ -39,7 +39,9 @@ export class BitstampAdapter extends BaseExchangeAdapter {
     let backoffMs = 2000
     while (this.active) {
       try {
-        await Promise.allSettled(SYMBOLS.map(sym => this.fetchAndEmit(sym)))
+        const batch = SYMBOLS.slice(this.pollCursor, this.pollCursor + BATCH_SIZE)
+        await Promise.allSettled(batch.map(sym => this.fetchAndEmit(sym)))
+        this.pollCursor = (this.pollCursor + BATCH_SIZE) % SYMBOLS.length
         backoffMs = 2000
         await this.delay(5_000)
       } catch (err: unknown) {

@@ -1,40 +1,12 @@
 import WebSocket from 'ws'
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-const SYMBOLS = [
-  // Tier 1 — Majors
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
-  // Tier 2 — Large caps
-  'ADA/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT',
-  // Tier 3 — Mid caps
-  'MATIC/USDT', 'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT',
-  'APE/USDT', 'SAND/USDT', 'MANA/USDT', 'LDO/USDT', 'ARB/USDT',
-  'OP/USDT', 'SUI/USDT', 'SEI/USDT', 'INJ/USDT', 'TIA/USDT',
-  // Tier 4 — Small caps / memes
-  'PEPE/USDT', 'WIF/USDT', 'BONK/USDT', 'FLOKI/USDT', 'SHIB/USDT',
-  '1000SATS/USDT', 'ORDI/USDT', 'WLD/USDT', 'JUP/USDT', 'RENDER/USDT',
-]
-
-const SYMBOL_MAP: Record<string, string> = {
-  // Tier 1
-  BTCUSDT: 'BTC/USDT', ETHUSDT: 'ETH/USDT', SOLUSDT: 'SOL/USDT',
-  BNBUSDT: 'BNB/USDT', XRPUSDT: 'XRP/USDT',
-  // Tier 2
-  ADAUSDT: 'ADA/USDT', AVAXUSDT: 'AVAX/USDT', LINKUSDT: 'LINK/USDT',
-  DOTUSDT: 'DOT/USDT', DOGEUSDT: 'DOGE/USDT',
-  // Tier 3
-  MATICUSDT: 'MATIC/USDT', NEARUSDT: 'NEAR/USDT', UNIUSDT: 'UNI/USDT',
-  ATOMUSDT: 'ATOM/USDT', FTMUSDT: 'FTM/USDT', APEUSDT: 'APE/USDT',
-  SANDUSDT: 'SAND/USDT', MANAUSDT: 'MANA/USDT', LDOUSDT: 'LDO/USDT',
-  ARBUSDT: 'ARB/USDT', OPUSDT: 'OP/USDT', SUIUSDT: 'SUI/USDT',
-  SEIUSDT: 'SEI/USDT', INJUSDT: 'INJ/USDT', TIAUSDT: 'TIA/USDT',
-  // Tier 4
-  PEPEUSDT: 'PEPE/USDT', WIFUSDT: 'WIF/USDT', BONKUSDT: 'BONK/USDT',
-  FLOKIUSDT: 'FLOKI/USDT', SHIBUSDT: 'SHIB/USDT', '1000SATSUSDT': '1000SATS/USDT',
-  ORDIUSDT: 'ORDI/USDT', WLDUSDT: 'WLD/USDT', JUPUSDT: 'JUP/USDT',
-  RENDERUSDT: 'RENDER/USDT',
-}
+// Reverse map: BTCUSDT → BTC/USDT (auto-generated from master symbol list)
+const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
+  SYMBOLS.map(s => [s.replace('/', ''), s])
+)
 
 type BinanceBookTickerMsg = {
   s?: string; b?: string; B?: string; a?: string; A?: string

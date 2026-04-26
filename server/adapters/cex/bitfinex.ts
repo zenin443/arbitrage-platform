@@ -1,20 +1,25 @@
 import WebSocket from 'ws'
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
 // Bitfinex uses "t" prefix + no separator: tBTCUSD
-const SYMBOL_MAP: Record<string, string> = {
-  'tBTCUSD':  'BTC/USDT',  'tETHUSD':  'ETH/USDT',  'tSOLUSD':  'SOL/USDT',
-  'tXRPUSD':  'XRP/USDT',  'tADAUSD':  'ADA/USDT',  'tAVAXUSD': 'AVAX/USDT',
-  'tLINKUSD': 'LINK/USDT', 'tDOTUSD':  'DOT/USDT',  'tDOGEUSD': 'DOGE/USDT',
-  'tMATICUSD':'MATIC/USDT','tNEARUSD': 'NEAR/USDT', 'tUNIUSD':  'UNI/USDT',
-  'tATOMUSD': 'ATOM/USDT', 'tFTMUSD':  'FTM/USDT',  'tSANDUSD': 'SAND/USDT',
-  'tMANAUSD': 'MANA/USDT', 'tARBUSD':  'ARB/USDT',  'tOPUSD':   'OP/USDT',
-  'tSUIUSD':  'SUI/USDT',  'tINJUSD':  'INJ/USDT',  'tSHIBUSD': 'SHIB/USDT',
-  'tPEPEUSD': 'PEPE/USDT', 'tWLDUSD':  'WLD/USDT',  'tRNDRUSD': 'RENDER/USDT',
+// Map from our format to Bitfinex format. Some coins use alternate tickers on BFX.
+const BFX_OVERRIDE: Record<string, string> = {
+  'RENDER/USDT': 'tRNDRUSD',
+  'MATIC/USDT':  'tMATICUSD',
+}
+function toBfxSymbol(sym: string): string {
+  if (BFX_OVERRIDE[sym]) return BFX_OVERRIDE[sym]
+  const base = sym.split('/')[0]
+  return `t${base}USD`
 }
 
-const BFX_SYMBOLS = Object.keys(SYMBOL_MAP)
+// Auto-generate both directions from the master symbol list
+const BFX_SYMBOLS = SYMBOLS.map(toBfxSymbol)
+const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
+  SYMBOLS.map(s => [toBfxSymbol(s), s])
+)
 
 type BfxMsg = unknown[]
 

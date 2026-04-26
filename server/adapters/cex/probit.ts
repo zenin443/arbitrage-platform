@@ -1,12 +1,6 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
-
-const SYMBOLS = [
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT',
-  'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT', 'MATIC/USDT',
-  'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT', 'ARB/USDT',
-  'OP/USDT', 'SUI/USDT', 'INJ/USDT', 'PEPE/USDT', 'SHIB/USDT',
-]
+import { SYMBOLS } from '../../config/symbols'
 
 function toProbitMarket(sym: string): string {
   return sym.replace('/', '-')

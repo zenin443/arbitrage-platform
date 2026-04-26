@@ -5,39 +5,55 @@ import { clsx } from "clsx";
 import { CheckIcon } from "lucide-react";
 import { useSettingsStore } from "@/store/useSettingsStore";
 
-type Category = "major" | "midcap" | "meme";
+type Tier = "tier1" | "tier2" | "tier3" | "tier4";
 
-const COINS: Record<Category, string[]> = {
-  major: [
+const COINS: Record<Tier, string[]> = {
+  tier1: [
     "BTC", "ETH", "SOL", "BNB", "XRP",
-    "ADA", "AVAX", "LINK", "DOT", "DOGE",
+    "ADA", "DOGE", "AVAX", "DOT", "LINK",
   ],
-  midcap: [
-    "MATIC", "NEAR", "UNI", "ATOM", "FTM",
-    "APE", "SAND", "MANA", "LDO", "ARB",
-    "OP", "SUI", "SEI", "INJ", "TIA",
+  tier2: [
+    "TRX", "MATIC", "UNI", "NEAR", "LTC",
+    "BCH", "APT", "FIL", "ATOM", "ARB",
+    "OP", "IMX", "INJ", "SUI", "SEI",
+    "STX", "RENDER", "FTM", "ALGO", "HBAR",
   ],
-  meme: [
-    "PEPE", "WIF", "BONK", "FLOKI", "SHIB",
-    "1000SATS", "ORDI", "WLD", "JUP", "RENDER",
+  tier3: [
+    "VET", "AAVE", "GRT", "SAND", "MANA",
+    "AXS", "THETA", "EOS", "IOTA", "XTZ",
+    "FLOW", "CRV", "EGLD", "KAVA", "ROSE",
+    "ZIL", "ONE", "ENJ", "CHZ", "LRC",
+    "COMP", "SNX", "BAL", "SUSHI", "YFI",
+    "DYDX", "GMX", "MKR", "RPL", "SSV",
+  ],
+  tier4: [
+    "PEPE", "SHIB", "WIF", "BONK", "FLOKI",
+    "ORDI", "TIA", "WLD", "JUP", "PYTH",
+    "W", "STRK", "MEME", "BLUR", "ACE",
+    "PIXEL", "PORTAL", "DYM", "ALT", "ONDO",
+    "PENDLE", "ENA", "ETHFI", "BOME", "SLERF",
+    "MEW", "POPCAT", "TURBO", "NEIRO", "APE",
   ],
 };
 
-const CATEGORY_CONFIG: Record<Category, { label: string; description: string }> = {
-  major:  { label: "Major",      description: "Top market cap assets"        },
-  midcap: { label: "Mid Cap",    description: "Mid-tier assets by liquidity"  },
-  meme:   { label: "Meme / DEX", description: "High-volatility meme tokens"   },
+const TIER_CONFIG: Record<Tier, { label: string; description: string; badge: string }> = {
+  tier1: { label: "Top 10",      description: "Majors by market cap (Free)",        badge: "bg-th-green/20 text-th-green" },
+  tier2: { label: "Top 11–30",   description: "Large caps (Basic tier)",             badge: "bg-th-accent/20 text-th-accent" },
+  tier3: { label: "Top 31–60",   description: "Mid caps & DeFi (Pro tier)",          badge: "bg-th-yellow/20 text-th-yellow" },
+  tier4: { label: "Trending",    description: "Memes & new launches (Pro tier)",     badge: "bg-purple-500/20 text-purple-400" },
 };
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export default function CoinSelector() {
-  const [activeCategory, setActiveCategory] = useState<Category>("major");
+  const [activeTier, setActiveTier] = useState<Tier>("tier1");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const { selectedCoins, toggleCoin, setSelectedCoins } = useSettingsStore();
 
-  const coins = COINS[activeCategory];
-  const selectedInCategory = coins.filter((c) => selectedCoins.includes(c));
+  const coins = COINS[activeTier];
+  const selectedInTier = coins.filter((c) => selectedCoins.includes(c));
+  const totalSelected = Object.values(COINS).flat().filter(c => selectedCoins.includes(c)).length;
+  const totalCoins = Object.values(COINS).flat().length;
 
   function handleSelectAll() {
     const toAdd = coins.filter((c) => !selectedCoins.includes(c));
@@ -76,23 +92,23 @@ export default function CoinSelector() {
           Tracked Coins
         </h2>
         <p className="text-xs text-th-dim mt-1 font-mono">
-          Select which coins to trigger alerts for. The price engine tracks all
-          coins regardless — alerts filter by your selection below.
+          Select which coins to trigger alerts for. The price engine tracks all{" "}
+          {totalCoins} coins regardless — alerts filter by your selection below.
         </p>
       </div>
 
-      {/* Category tabs */}
-      <div className="flex gap-0.5 border-b border-th-border mb-5">
-        {(Object.keys(COINS) as Category[]).map((cat) => {
-          const cfg = CATEGORY_CONFIG[cat];
-          const selCount = COINS[cat].filter((c) => selectedCoins.includes(c)).length;
+      {/* Tier tabs */}
+      <div className="flex gap-0.5 border-b border-th-border mb-5 overflow-x-auto">
+        {(Object.keys(COINS) as Tier[]).map((tier) => {
+          const cfg = TIER_CONFIG[tier];
+          const selCount = COINS[tier].filter((c) => selectedCoins.includes(c)).length;
           return (
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
+              key={tier}
+              onClick={() => setActiveTier(tier)}
               className={clsx(
-                "flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold tracking-wider uppercase transition-colors border-b-2 -mb-px",
-                activeCategory === cat
+                "flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold tracking-wider uppercase transition-colors border-b-2 -mb-px whitespace-nowrap",
+                activeTier === tier
                   ? "border-th-accent text-th-accent"
                   : "border-transparent text-th-secondary hover:text-th-primary"
               )}
@@ -101,7 +117,7 @@ export default function CoinSelector() {
               {selCount > 0 && (
                 <span className={clsx(
                   "text-[10px] px-1 rounded font-mono",
-                  activeCategory === cat
+                  activeTier === tier
                     ? "bg-th-accent/20 text-th-accent"
                     : "bg-th-hover text-th-dim"
                 )}>
@@ -112,6 +128,11 @@ export default function CoinSelector() {
           );
         })}
       </div>
+
+      {/* Tier description */}
+      <p className="text-xs text-th-dim font-mono mb-4">
+        {TIER_CONFIG[activeTier].description} · {coins.length} coins
+      </p>
 
       {/* Select / Deselect all */}
       <div className="flex items-center gap-2 mb-4">
@@ -128,7 +149,7 @@ export default function CoinSelector() {
           Deselect All
         </button>
         <span className="ml-auto text-xs text-th-dim font-mono">
-          {selectedInCategory.length} / {coins.length} selected
+          {selectedInTier.length} / {coins.length} selected
         </span>
       </div>
 
@@ -157,9 +178,9 @@ export default function CoinSelector() {
       <div className="mt-6 flex items-center justify-between">
         <p className="text-xs text-th-dim font-mono">
           {selectedCoins.length} coin{selectedCoins.length !== 1 ? "s" : ""} selected
-          across all categories
+          across all tiers
           {selectedCoins.length === 0 && (
-            <span className="ml-1 text-th-yellow"> — alerts will fire on ALL coins</span>
+            <span className="ml-1 text-th-yellow"> — alerts will fire on ALL {totalCoins} coins</span>
           )}
         </p>
         <button

@@ -57,6 +57,7 @@ import { startTradingIntelligence, getActiveGaps, getGapHistory, getTradingStats
 import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider } from './services/orderbook-fetcher'
 import { startTriangularEngine, getTriangularRoutes, getCrossPairCount } from './engines/triangularArbitrage'
 import { startCrossChainEngine, getCrossChainOpportunities } from './engines/crossChainArbitrage'
+import { SYMBOLS } from './config/symbols'
 import {
   startPaperTraders,
   getAllBotStates,
@@ -84,22 +85,8 @@ const WS_PORT = 3002
 const HTTP_PORT = 3001
 const RECALC_INTERVAL_MS = 500
 
-export const TRACKED_SYMBOLS = [
-  // Tier 1 — Majors
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
-  // Tier 2 — Large caps
-  'ADA/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT',
-  // Tier 3 — Mid caps (wider spreads expected)
-  'MATIC/USDT', 'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT',
-  'APE/USDT', 'SAND/USDT', 'MANA/USDT', 'LDO/USDT', 'ARB/USDT',
-  'OP/USDT', 'SUI/USDT', 'SEI/USDT', 'INJ/USDT', 'TIA/USDT',
-  // Tier 4 — Small caps / memes (widest spreads)
-  'PEPE/USDT', 'WIF/USDT', 'BONK/USDT', 'FLOKI/USDT', 'SHIB/USDT',
-  '1000SATS/USDT', 'ORDI/USDT', 'WLD/USDT', 'JUP/USDT', 'RENDER/USDT',
-  // USDC pairs — Tier 1 & 2
-  'BTC/USDC', 'ETH/USDC', 'SOL/USDC', 'XRP/USDC', 'BNB/USDC',
-  'DOGE/USDC', 'AVAX/USDC', 'LINK/USDC', 'ADA/USDC', 'DOT/USDC',
-]
+/** All tracked symbols — imported from shared config (90 USDT pairs across 4 tiers) */
+export const TRACKED_SYMBOLS = SYMBOLS
 
 // ── State ─────────────────────────────────────────────────────────────────────
 

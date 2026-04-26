@@ -1,15 +1,8 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-// WhiteBit bulk fetch returns all tickers at once (BTC_USDT format)
-const SYMBOLS = [
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
-  'ADA/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT',
-  'MATIC/USDT', 'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT',
-  'APE/USDT', 'SAND/USDT', 'MANA/USDT', 'LDO/USDT', 'ARB/USDT',
-  'OP/USDT', 'SUI/USDT', 'INJ/USDT', 'PEPE/USDT', 'WIF/USDT',
-  'BONK/USDT', 'SHIB/USDT', 'ORDI/USDT', 'WLD/USDT', 'RENDER/USDT',
-]
+// WhiteBit bulk fetch returns all tickers at once (BTC_USDT format); filter against master list
 
 function toWhiteBitKey(sym: string): string {
   return sym.replace('/', '_')

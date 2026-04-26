@@ -1,23 +1,44 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-// Deribit: perpetual futures used as spot price proxy
+// Deribit: perpetual futures used as spot price proxy.
+// Not all coins have USDT-settled perps on Deribit; unsupported instruments are silently skipped.
 const SYMBOL_MAP: Record<string, string> = {
-  'BTC/USDT':  'BTC-PERPETUAL',
-  'ETH/USDT':  'ETH-PERPETUAL',
-  'SOL/USDT':  'SOL-PERPETUAL',
-  'XRP/USDT':  'XRP-PERPETUAL',
-  'ADA/USDT':  'ADA-PERPETUAL',
-  'AVAX/USDT': 'AVAX-PERPETUAL',
-  'LINK/USDT': 'LINK-PERPETUAL',
-  'DOT/USDT':  'DOT-PERPETUAL',
-  'DOGE/USDT': 'DOGE-PERPETUAL',
-  'NEAR/USDT': 'NEAR-PERPETUAL',
-  'MATIC/USDT':'MATIC-PERPETUAL',
-  'INJ/USDT':  'INJ-PERPETUAL',
+  'BTC/USDT':   'BTC_USDC-PERPETUAL',
+  'ETH/USDT':   'ETH_USDC-PERPETUAL',
+  'SOL/USDT':   'SOL_USDC-PERPETUAL',
+  'XRP/USDT':   'XRP_USDC-PERPETUAL',
+  'ADA/USDT':   'ADA_USDC-PERPETUAL',
+  'AVAX/USDT':  'AVAX_USDC-PERPETUAL',
+  'LINK/USDT':  'LINK_USDC-PERPETUAL',
+  'DOT/USDT':   'DOT_USDC-PERPETUAL',
+  'DOGE/USDT':  'DOGE_USDC-PERPETUAL',
+  'NEAR/USDT':  'NEAR_USDC-PERPETUAL',
+  'MATIC/USDT': 'MATIC_USDC-PERPETUAL',
+  'INJ/USDT':   'INJ_USDC-PERPETUAL',
+  'BNB/USDT':   'BNB_USDC-PERPETUAL',
+  'TRX/USDT':   'TRX_USDC-PERPETUAL',
+  'UNI/USDT':   'UNI_USDC-PERPETUAL',
+  'ARB/USDT':   'ARB_USDC-PERPETUAL',
+  'OP/USDT':    'OP_USDC-PERPETUAL',
+  'SUI/USDT':   'SUI_USDC-PERPETUAL',
+  'APT/USDT':   'APT_USDC-PERPETUAL',
+  'ATOM/USDT':  'ATOM_USDC-PERPETUAL',
+  'LTC/USDT':   'LTC_USDC-PERPETUAL',
+  'PEPE/USDT':  'PEPE_USDC-PERPETUAL',
+  'WIF/USDT':   'WIF_USDC-PERPETUAL',
+  'WLD/USDT':   'WLD_USDC-PERPETUAL',
+  'SHIB/USDT':  'SHIB_USDC-PERPETUAL',
+  'ORDI/USDT':  'ORDI_USDC-PERPETUAL',
+  'RENDER/USDT':'RENDER_USDC-PERPETUAL',
+  'TIA/USDT':   'TIA_USDC-PERPETUAL',
+  'SEI/USDT':   'SEI_USDC-PERPETUAL',
+  'FTM/USDT':   'FTM_USDC-PERPETUAL',
 }
 
-const SYMBOLS = Object.keys(SYMBOL_MAP)
+const DERIBIT_SYMBOLS = Object.keys(SYMBOL_MAP)
+const BATCH_SIZE = 15 // Deribit is a derivatives exchange; be conservative with rate limits
 
 type DeribitResult = {
   best_bid_price?: number; best_ask_price?: number
@@ -33,6 +54,7 @@ export class DeribitAdapter extends BaseExchangeAdapter {
   private lastTicks = new Map<string, PriceTick>()
   private tickCount = 0
   private statusTimer: ReturnType<typeof setInterval> | null = null
+  private pollCursor = 0
 
   async connect(onTick: (tick: PriceTick) => void): Promise<void> {
     this.onTick = onTick
@@ -48,7 +70,9 @@ export class DeribitAdapter extends BaseExchangeAdapter {
     let backoffMs = 2000
     while (this.active) {
       try {
-        await Promise.allSettled(SYMBOLS.map(sym => this.fetchAndEmit(sym)))
+        const batch = DERIBIT_SYMBOLS.slice(this.pollCursor, this.pollCursor + BATCH_SIZE)
+        await Promise.allSettled(batch.map(sym => this.fetchAndEmit(sym)))
+        this.pollCursor = (this.pollCursor + BATCH_SIZE) % DERIBIT_SYMBOLS.length
         backoffMs = 2000
         await this.delay(5_000)
       } catch (err: unknown) {

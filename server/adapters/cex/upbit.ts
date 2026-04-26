@@ -1,19 +1,19 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
 // Upbit: quote-base reversed with dash (USDT-BTC). No separate bid/ask — uses trade_price.
-const SYMBOL_MAP: Record<string, string> = {
-  'BTC/USDT': 'USDT-BTC', 'ETH/USDT': 'USDT-ETH', 'SOL/USDT': 'USDT-SOL',
-  'XRP/USDT': 'USDT-XRP', 'ADA/USDT': 'USDT-ADA', 'AVAX/USDT': 'USDT-AVAX',
-  'LINK/USDT': 'USDT-LINK', 'DOT/USDT': 'USDT-DOT', 'DOGE/USDT': 'USDT-DOGE',
-  'MATIC/USDT': 'USDT-MATIC', 'NEAR/USDT': 'USDT-NEAR', 'UNI/USDT': 'USDT-UNI',
-  'ATOM/USDT': 'USDT-ATOM', 'SUI/USDT': 'USDT-SUI', 'INJ/USDT': 'USDT-INJ',
-  'PEPE/USDT': 'USDT-PEPE', 'SHIB/USDT': 'USDT-SHIB',
+// Auto-generate from master list; Upbit silently omits markets it doesn't list.
+function toUpbitMarket(sym: string): string {
+  return `USDT-${sym.split('/')[0]}`
 }
 
+const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
+  SYMBOLS.map(s => [s, toUpbitMarket(s)])
+)
 const UPBIT_MARKETS = Object.values(SYMBOL_MAP)
 const REVERSE_MAP = Object.fromEntries(
-  Object.entries(SYMBOL_MAP).map(([norm, upbit]) => [upbit, norm])
+  SYMBOLS.map(s => [toUpbitMarket(s), s])
 )
 
 type UpbitTicker = {

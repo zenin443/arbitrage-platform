@@ -1,21 +1,23 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-// Coinbase Exchange uses USD pairs. We map to /USDT for cross-exchange comparison.
-const SYMBOL_MAP: Record<string, string> = {
-  'BTC/USDT': 'BTC-USD', 'ETH/USDT': 'ETH-USD', 'SOL/USDT': 'SOL-USD',
-  'XRP/USDT': 'XRP-USD', 'ADA/USDT': 'ADA-USD', 'AVAX/USDT': 'AVAX-USD',
-  'LINK/USDT': 'LINK-USD', 'DOT/USDT': 'DOT-USD', 'DOGE/USDT': 'DOGE-USD',
-  'MATIC/USDT': 'MATIC-USD', 'NEAR/USDT': 'NEAR-USD', 'UNI/USDT': 'UNI-USD',
-  'ATOM/USDT': 'ATOM-USD', 'APE/USDT': 'APE-USD', 'SAND/USDT': 'SAND-USD',
-  'MANA/USDT': 'MANA-USD', 'LDO/USDT': 'LDO-USD', 'ARB/USDT': 'ARB-USD',
-  'OP/USDT': 'OP-USD', 'SUI/USDT': 'SUI-USD', 'SEI/USDT': 'SEI-USD',
-  'INJ/USDT': 'INJ-USD', 'PEPE/USDT': 'PEPE-USD', 'WIF/USDT': 'WIF-USD',
-  'BONK/USDT': 'BONK-USD', 'SHIB/USDT': 'SHIB-USD', 'FLOKI/USDT': 'FLOKI-USD',
-  'WLD/USDT': 'WLD-USD', 'RENDER/USDT': 'RENDER-USD',
+// Coinbase Exchange uses USD pairs. Map our BTC/USDT → BTC-USD.
+// Unsupported symbols return non-200 and are silently skipped.
+// A few coins use alternate tickers on Coinbase.
+const CB_OVERRIDE: Record<string, string> = {
+  'RENDER/USDT': 'RNDR-USD',
+}
+function toCoinbaseProduct(sym: string): string {
+  if (CB_OVERRIDE[sym]) return CB_OVERRIDE[sym]
+  return `${sym.split('/')[0]}-USD`
 }
 
-const SYMBOLS = Object.keys(SYMBOL_MAP)
+const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
+  SYMBOLS.map(s => [s, toCoinbaseProduct(s)])
+)
+
+const BATCH_SIZE = 25 // poll 25 symbols per 5s cycle → all 90 covered in ~18s
 
 type CoinbaseTicker = { ask: string; bid: string }
 
@@ -27,6 +29,7 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   private lastTicks = new Map<string, PriceTick>()
   private tickCount = 0
   private statusTimer: ReturnType<typeof setInterval> | null = null
+  private pollCursor = 0
 
   async connect(onTick: (tick: PriceTick) => void): Promise<void> {
     this.onTick = onTick
@@ -60,7 +63,9 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   }
 
   private async doPoll(): Promise<void> {
-    await Promise.allSettled(SYMBOLS.map(sym => this.fetchAndEmit(sym)))
+    const batch = SYMBOLS.slice(this.pollCursor, this.pollCursor + BATCH_SIZE)
+    await Promise.allSettled(batch.map(sym => this.fetchAndEmit(sym)))
+    this.pollCursor = (this.pollCursor + BATCH_SIZE) % SYMBOLS.length
   }
 
   private async fetchAndEmit(symbol: string): Promise<void> {

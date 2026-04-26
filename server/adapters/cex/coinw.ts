@@ -1,14 +1,8 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-// CoinW bulk fetch: all tickers in one call (btc_usdt format)
-const SYMBOLS = [
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT',
-  'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT', 'MATIC/USDT',
-  'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT', 'APE/USDT',
-  'SAND/USDT', 'MANA/USDT', 'LDO/USDT', 'ARB/USDT', 'OP/USDT',
-  'SUI/USDT', 'INJ/USDT', 'PEPE/USDT', 'SHIB/USDT', 'ORDI/USDT',
-]
+// CoinW bulk fetch: all tickers in one call (btc_usdt format); filter against master list
 
 function toCoinWKey(sym: string): string {
   return sym.replace('/', '_').toLowerCase()

@@ -1,15 +1,8 @@
 import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from './base'
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
+import { SYMBOLS } from '../../config/symbols'
 
-const SYMBOLS = [
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
-  'ADA/USDT', 'AVAX/USDT', 'LINK/USDT', 'DOT/USDT', 'DOGE/USDT',
-  'MATIC/USDT', 'NEAR/USDT', 'UNI/USDT', 'ATOM/USDT', 'FTM/USDT',
-  'APE/USDT', 'SAND/USDT', 'MANA/USDT', 'LDO/USDT', 'ARB/USDT',
-  'OP/USDT', 'SUI/USDT', 'SEI/USDT', 'INJ/USDT', 'TIA/USDT',
-  'PEPE/USDT', 'WIF/USDT', 'BONK/USDT', 'FLOKI/USDT', 'SHIB/USDT',
-  'ORDI/USDT', 'WLD/USDT', 'JUP/USDT', 'RENDER/USDT',
-]
+const BATCH_SIZE = 25
 
 function toInstrument(sym: string): string {
   const [base, quote] = sym.split('/')
@@ -31,6 +24,7 @@ export class CryptoComAdapter extends BaseExchangeAdapter {
   private lastTicks = new Map<string, PriceTick>()
   private tickCount = 0
   private statusTimer: ReturnType<typeof setInterval> | null = null
+  private pollCursor = 0
 
   async connect(onTick: (tick: PriceTick) => void): Promise<void> {
     this.onTick = onTick
@@ -46,7 +40,9 @@ export class CryptoComAdapter extends BaseExchangeAdapter {
     let backoffMs = 2000
     while (this.active) {
       try {
-        await Promise.allSettled(SYMBOLS.map(sym => this.fetchAndEmit(sym)))
+        const batch = SYMBOLS.slice(this.pollCursor, this.pollCursor + BATCH_SIZE)
+        await Promise.allSettled(batch.map(sym => this.fetchAndEmit(sym)))
+        this.pollCursor = (this.pollCursor + BATCH_SIZE) % SYMBOLS.length
         backoffMs = 2000
         await this.delay(5_000)
       } catch (err: unknown) {
