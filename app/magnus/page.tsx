@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { formatNumber, formatPnl, formatUsd } from "@/lib/utils";
 
 const EX_COLS = [
   { id: "okx", label: "OKX" },
@@ -286,13 +287,13 @@ function FuturesPanel({ state }: { state: FuturesState | null }) {
     },
     {
       label: "TOTAL P&L",
-      value: `${state.totalPnl >= 0 ? "+" : ""}$${Math.abs(state.totalPnl).toFixed(2)}`,
+      value: formatPnl(state.totalPnl),
       sub: `${state.totalPnlPercent >= 0 ? "+" : ""}${state.totalPnlPercent.toFixed(3)}%`,
       color: state.totalPnl >= 0 ? "text-[#3FB950]" : "text-[#F85149]",
     },
     {
       label: "TRADES",
-      value: String(state.totalTrades),
+      value: formatNumber(state.totalTrades),
       sub: state.totalTrades > 0
         ? `${state.winRate.toFixed(0)}% win · ${state.winningTrades}W/${state.losingTrades}L`
         : "—",
@@ -544,7 +545,7 @@ export default function MagnusPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.5.2</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.5.4</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -609,7 +610,7 @@ export default function MagnusPage() {
             Inventory model · ROI-driven rebalancing · predictive pre-balancing
           </p>
         </div>
-        <span className="text-[10px] text-[#484F58] font-mono">v0.5.2 · Last updated: {now}</span>
+        <span className="text-[10px] text-[#484F58] font-mono">v0.5.4 · Last updated: {now}</span>
       </div>
 
       <div className="px-6 pt-3 flex gap-1">
@@ -663,9 +664,9 @@ export default function MagnusPage() {
               {[
                 {
                   label: "PORTFOLIO",
-                  value: alphaState ? `$${alphaState.totalPortfolioValueUsd.toLocaleString()}` : "—",
+                  value: alphaState ? formatUsd(alphaState.totalPortfolioValueUsd) : "—",
                   sub: alphaState
-                    ? `${alphaState.totalPortfolioValueUsd >= alphaState.startingCapital ? "+" : ""}$${(alphaState.totalPortfolioValueUsd - alphaState.startingCapital).toFixed(0)} vs start`
+                    ? `${alphaState.totalPortfolioValueUsd >= alphaState.startingCapital ? "+" : ""}${formatUsd(Math.abs(alphaState.totalPortfolioValueUsd - alphaState.startingCapital), 0)} vs start`
                     : "",
                   color:
                     alphaState && alphaState.totalPortfolioValueUsd >= alphaState.startingCapital
@@ -674,13 +675,11 @@ export default function MagnusPage() {
                 },
                 {
                   label: "TOTAL P&L",
-                  value: alphaState
-                    ? `${alphaState.totalPnl >= 0 ? "+" : ""}$${Math.abs(alphaState.totalPnl).toFixed(2)}`
-                    : "—",
+                  value: alphaState ? formatPnl(alphaState.totalPnl) : "—",
                   sub: alphaState ? `${alphaState.totalPnlPercent >= 0 ? "+" : ""}${alphaState.totalPnlPercent.toFixed(2)}%` : "",
                   color: alphaState && alphaState.totalPnl >= 0 ? "text-[#3FB950]" : "text-[#F85149]",
                 },
-                { label: "TRADES", value: String(alphaState?.totalTrades ?? 0), sub: winStr, color: "text-[#E6EDF3]" },
+                { label: "TRADES", value: formatNumber(alphaState?.totalTrades ?? 0), sub: winStr, color: "text-[#E6EDF3]" },
                 {
                   label: "VOID RATE",
                   value: `${voidTotal.toFixed(0)}%`,

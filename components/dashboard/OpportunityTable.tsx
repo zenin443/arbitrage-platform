@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { clsx } from "clsx";
 import { formatTimestamp } from "@/lib/utils/formatters";
+import { formatUsd } from "@/lib/utils";
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance: "Binance",
@@ -131,9 +132,9 @@ export default function OpportunityTable() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[500px]">
         <table className="w-full text-xs font-mono">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="bg-[#1C2128] text-[#484F58] uppercase tracking-widest text-[10px] font-mono">
               <th className="px-3 py-1 text-left font-medium">Symbol</th>
               <th className="px-3 py-1 text-left font-medium">Buy</th>
@@ -211,7 +212,7 @@ export default function OpportunityTable() {
                       {netSpread.toFixed(3)}%
                     </td>
                     <td className="px-3 py-1 text-right text-[#388BFD] font-mono text-[11px] font-semibold tabular-nums">
-                      ${estimatedProfit.toFixed(2)}
+                      {formatUsd(estimatedProfit)}
                     </td>
                     <td className="px-3 py-1 text-right tabular-nums">
                       <LiquidityBar score={liquidityScore} label={formatLiquidity(gap.maxTradeableUsd)} />

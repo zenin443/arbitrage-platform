@@ -14,8 +14,6 @@ import LiveStats from "@/components/dashboard/LiveStats";
 import PriceSidebar from "@/components/dashboard/PriceSidebar";
 import OpportunityTable from "@/components/dashboard/OpportunityTable";
 
-const SYMBOLS_PREVIEW = "BTC · ETH · SOL · BNB · XRP · ADA · DOGE · AVAX · DOT · LINK · UNI · MATIC";
-
 interface StatsResponse {
   total: number;
   byExchange: Record<string, number>;
@@ -73,7 +71,7 @@ export default function DashboardPage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.5.3</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.5.4</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -180,7 +178,7 @@ export default function DashboardPage() {
             <StatsCard
               title="Symbols Tracked"
               value={90}
-              subtitle={SYMBOLS_PREVIEW + " · +78 more"}
+              subtitle="across 4 tiers"
               icon={<LayersIcon className="h-4 w-4" />}
             />
             {/* Dynamic stats fetched client-side */}

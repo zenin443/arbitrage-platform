@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ZapIcon, SettingsIcon, BrainCircuitIcon, TrendingUpIcon, ChevronDownIcon, ChevronRightIcon, RotateCcwIcon } from "lucide-react";
+import { formatNumber, formatUsd, formatPnl } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -385,7 +386,8 @@ function fmtBalance(val: number): string {
 
 function fmtPnl(val: number, pct: number): string {
   const sign = val >= 0 ? "+" : "";
-  return `${sign}$${Math.abs(val).toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+  const absStr = Math.abs(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${sign}$${absStr} (${sign}${pct.toFixed(2)}%)`;
 }
 
 function fmtTime(ts: number): string {
@@ -863,7 +865,7 @@ export default function IntelligencePage() {
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.5.2</span>
+          <span className="text-xs text-[#484F58] font-mono">v0.5.4</span>
         </div>
         <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
           <div className="flex items-center gap-1 mr-1">
@@ -957,12 +959,12 @@ export default function IntelligencePage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           <StatCard
             label="Gaps Detected"
-            value={String(stats?.totalGapsLast1h ?? 0)}
+            value={formatNumber(stats?.totalGapsLast1h ?? 0)}
             sub="last hour"
           />
           <StatCard
             label="Profitable"
-            value={`${stats?.profitableGapsCount ?? 0} / ${stats?.totalGapsLast1h ?? 0}`}
+            value={`${formatNumber(stats?.profitableGapsCount ?? 0)} / ${formatNumber(stats?.totalGapsLast1h ?? 0)}`}
             sub={`${stats?.profitableGapsPercent ?? 0}%`}
             valueColor="text-[#3FB950]"
           />
@@ -1003,11 +1005,7 @@ export default function IntelligencePage() {
           />
           <StatCard
             label={`P&L · ${simLabel}`}
-            value={
-              activeBot
-                ? `${activeBot.totalPnl >= 0 ? "+" : ""}$${Math.abs(activeBot.totalPnl).toFixed(2)}`
-                : "—"
-            }
+            value={activeBot ? formatPnl(activeBot.totalPnl) : "—"}
             sub={
               activeBot
                 ? `${activeBot.totalPnlPercent >= 0 ? "+" : ""}${activeBot.totalPnlPercent.toFixed(2)}%`
@@ -1021,13 +1019,13 @@ export default function IntelligencePage() {
           />
           <StatCard
             label={`TRADES · ${simLabel}`}
-            value={String(activeBot?.totalTrades ?? 0)}
+            value={formatNumber(activeBot?.totalTrades ?? 0)}
             sub={activeBot?.totalTrades ? `${activeBot.winRate.toFixed(0)}% win rate` : "no trades yet"}
             valueColor="text-[#E6EDF3]"
           />
           <StatCard
             label={`VOIDED · ${simLabel}`}
-            value={String(activeBot?.voidedSignals ?? 0)}
+            value={formatNumber(activeBot?.voidedSignals ?? 0)}
             valueColor="text-[#D29922]"
             sub={
               activeBot && (activeBot.totalTrades + activeBot.voidedSignals) > 0
@@ -1357,10 +1355,10 @@ export default function IntelligencePage() {
                   {/* Trade Stats */}
                   <div className="border-t border-[#21262D] pt-1.5 mb-1.5 space-y-0.5 text-[10px] font-mono">
                     {[
-                      { label: "Trades executed:", value: String(activeBot.totalTrades), color: "text-[#E6EDF3]" },
+                      { label: "Trades executed:", value: formatNumber(activeBot.totalTrades), color: "text-[#E6EDF3]" },
                       {
                         label: "Signals voided:",
-                        value: `${activeBot.voidedSignals}${activeBot.totalTrades + activeBot.voidedSignals > 0 ? ` (${Math.round((activeBot.voidedSignals / (activeBot.totalTrades + activeBot.voidedSignals)) * 100)}%)` : ""}`,
+                        value: `${formatNumber(activeBot.voidedSignals)}${activeBot.totalTrades + activeBot.voidedSignals > 0 ? ` (${Math.round((activeBot.voidedSignals / (activeBot.totalTrades + activeBot.voidedSignals)) * 100)}%)` : ""}`,
                         color: "text-[#D29922]",
                       },
                       {
@@ -1638,8 +1636,8 @@ export default function IntelligencePage() {
 
         {/* ── Footer ── */}
         <div className="text-[10px] text-[#484F58] font-mono text-right pb-2">
-          v0.5.2 · Inventory bots (9 CEX · 15 coins) · hourly liquidation cycle · speed-priority USDT (Solana 1min) ·
-          0.1% taker fee · T1:2m · T2:5m · T3:10m · Gap history: last {stats?.totalGapsDetected ?? 0} total
+          v0.5.4 · Inventory bots (9 CEX · 15 coins) · hourly liquidation cycle · speed-priority USDT (Solana 1min) ·
+          0.1% taker fee · T1:2m · T2:5m · T3:10m · Gap history: last {formatNumber(stats?.totalGapsDetected ?? 0)} total
         </div>
         </div>
       </main>
