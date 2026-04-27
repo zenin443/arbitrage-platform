@@ -25,24 +25,24 @@ export async function POST(req: NextRequest) {
 
   const { email, password, name } = body;
 
-  if (typeof email !== 'string' || !EMAIL_REGEX.test(email)) {
+  if (typeof email !== 'string' || !EMAIL_REGEX.test(email) || email.length > 254) {
     return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
   }
-  if (typeof password !== 'string' || password.length < 8) {
-    return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+    return NextResponse.json({ error: 'Password must be 8–128 characters' }, { status: 400 });
   }
-  if (typeof name !== 'string' || name.trim().length === 0) {
-    return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  if (typeof name !== 'string' || name.trim().length === 0 || name.trim().length > 100) {
+    return NextResponse.json({ error: 'Name must be 1–100 characters' }, { status: 400 });
   }
 
   let client;
   try {
     client = await pool.connect();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Register DB connect error:', err);
     return NextResponse.json(
-      { error: 'Database connection failed', details: err.message },
-      { status: 500 }
+      { error: 'Service temporarily unavailable' },
+      { status: 503 }
     );
   }
 
@@ -107,11 +107,11 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Register error:', err);
     return NextResponse.json(
-      { error: 'Internal server error', details: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   } finally {

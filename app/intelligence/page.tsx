@@ -8,6 +8,7 @@ import { formatPercent, formatPrice, formatDuration } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
 import AdZone from "@/components/ui/AdZone";
 import MagnusAICard from "@/components/intelligence/MagnusAICard";
+import NavAuthButton from "@/components/NavAuthButton";
 import InfoCorner from "@/components/ui/InfoCorner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -897,6 +898,7 @@ export default function IntelligencePage() {
           <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
           </Link>
+          <NavAuthButton />
         </div>
       </header>
 

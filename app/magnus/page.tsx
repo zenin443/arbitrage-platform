@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { formatNumber, formatPnl, formatUsd } from "@/lib/utils";
+import NavAuthButton from "@/components/NavAuthButton";
 
 const EX_COLS = [
   { id: "okx", label: "OKX" },
@@ -571,6 +572,7 @@ export default function MagnusPage() {
           <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
           </Link>
+          <NavAuthButton />
         </div>
       </header>
 

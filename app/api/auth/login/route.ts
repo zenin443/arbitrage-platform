@@ -23,21 +23,21 @@ export async function POST(req: NextRequest) {
 
   const { email, password } = body;
 
-  if (typeof email !== 'string' || email.trim().length === 0) {
-    return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+  if (typeof email !== 'string' || email.trim().length === 0 || email.length > 254) {
+    return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
   }
-  if (typeof password !== 'string' || password.length === 0) {
+  if (typeof password !== 'string' || password.length === 0 || password.length > 128) {
     return NextResponse.json({ error: 'Password is required' }, { status: 400 });
   }
 
   let client;
   try {
     client = await pool.connect();
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login DB connect error:', err);
     return NextResponse.json(
-      { error: 'Database connection failed', details: err.message },
-      { status: 500 }
+      { error: 'Service temporarily unavailable' },
+      { status: 503 }
     );
   }
 
@@ -93,10 +93,10 @@ export async function POST(req: NextRequest) {
     });
 
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login error:', err);
     return NextResponse.json(
-      { error: 'Internal server error', details: err.message },
+      { error: 'Internal server error' },
       { status: 500 }
     );
   } finally {

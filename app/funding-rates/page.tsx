@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ZapIcon, SettingsIcon, TrendingUpIcon, TrendingDownIcon } from "lucide-react";
+import NavAuthButton from "@/components/NavAuthButton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -222,6 +223,7 @@ export default function FundingRatesPage() {
           <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
           </Link>
+          <NavAuthButton />
         </div>
       </header>
 
