@@ -3,7 +3,23 @@ import pool from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
 import { paymentConfirmSchema, formatZodError } from '@/lib/validation';
 
+// Crypto payment confirmation is DISABLED until on-chain transaction verification
+// is implemented (viem for EVM chains, @solana/kit for Solana).
+// Without verification, any user can submit a fake txHash and receive a free subscription.
+// Set CRYPTO_PAYMENTS_ENABLED=true in .env only after on-chain verification is live.
+const CRYPTO_PAYMENTS_ENABLED = process.env.CRYPTO_PAYMENTS_ENABLED === 'true';
+
 export async function POST(req: NextRequest) {
+  if (!CRYPTO_PAYMENTS_ENABLED) {
+    return NextResponse.json(
+      {
+        error: 'Crypto payment confirmation is currently unavailable.',
+        message: 'On-chain verification is required before this feature can be enabled. Please use Stripe for card payments, or contact support@arbitrance.com.',
+      },
+      { status: 503 }
+    );
+  }
+
   const authResult = requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
   const { userId } = authResult;
@@ -108,8 +124,7 @@ export async function POST(req: NextRequest) {
       client.release();
     }
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Payment confirm error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

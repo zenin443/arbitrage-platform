@@ -4,10 +4,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ZapIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { WalletLoginButton } from '@/components/WalletLoginButton';
 
 export default function SignupPage() {
-  const { signup, walletLogin, isAuthenticated, isLoading } = useAuth();
+  const { signup, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -119,21 +118,6 @@ export default function SignupPage() {
               {submitting ? 'Creating account…' : 'Create account'}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-4">
-            <div className="flex-1 h-px bg-[#21262D]" />
-            <span className="text-[11px] font-mono text-[#484F58] uppercase">or</span>
-            <div className="flex-1 h-px bg-[#21262D]" />
-          </div>
-
-          {/* Wallet Connect */}
-          <WalletLoginButton
-            onSuccess={(user, token) => {
-              walletLogin(user, token);
-              router.push('/intelligence');
-            }}
-          />
 
           <p className="text-center text-[11px] font-mono text-[#484F58] mt-4">
             Start free. Upgrade anytime.

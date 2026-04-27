@@ -6,6 +6,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.001, makerFee: 0.001,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8, SOL: 1 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8, SOL: 1 },
       BTC:  { BTC: 0.0005 },
       ETH:  { ERC20: 0.005, ARB: 0.001 },
       BNB:  { BEP20: 0.0005 },
@@ -39,6 +40,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.001, makerFee: 0.0008,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8, SOL: 1 },
       BTC:  { BTC: 0.0004 },
       ETH:  { ERC20: 0.004 },
       SOL:  { SOL: 0.01 },
@@ -53,6 +55,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.001, makerFee: 0.001,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8, SOL: 1 },
       BTC:  { BTC: 0.0005 },
       ETH:  { ERC20: 0.005 },
       SOL:  { SOL: 0.01 },
@@ -67,6 +70,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.002, makerFee: 0.002,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
       ETH:  { ERC20: 0.005 },
     },
@@ -76,9 +80,10 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
   },
   mexc: {
     id: 'mexc', name: 'MEXC', tier: 2,
-    takerFee: 0.001, makerFee: 0.0, // maker-free; taker 0.10%
+    takerFee: 0.001, makerFee: 0.0,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
       ETH:  { ERC20: 0.005 },
       SOL:  { SOL: 0.01 },
@@ -92,6 +97,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.001, makerFee: 0.001,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
       ETH:  { ERC20: 0.005 },
     },
@@ -104,6 +110,7 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.002, makerFee: 0.002,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
       ETH:  { ERC20: 0.005 },
     },
@@ -113,9 +120,10 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
   },
   bingx: {
     id: 'bingx', name: 'BingX', tier: 2,
-    takerFee: 0.001, makerFee: 0.001, // 0.10% / 0.10%
+    takerFee: 0.001, makerFee: 0.001,
     withdrawalFees: {
       USDT: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
+      USDC: { TRC20: 1, ERC20: 10, BEP20: 0.8 },
       BTC:  { BTC: 0.0005 },
     },
     supportedNetworks: ['BTC', 'ERC20', 'TRC20', 'BEP20'],
@@ -139,10 +147,12 @@ export const EXCHANGE_REGISTRY: Record<string, ExchangeConfig> = {
     takerFee: 0.006, makerFee: 0.004,
     withdrawalFees: {
       USDT: { ERC20: 10 },
+      USDC: { ERC20: 0, BASE: 0 },  // free USDC withdrawal on Base network
       BTC:  { BTC: 0 },
       ETH:  { ERC20: 0 },
+      SOL:  { SOL: 0 },
     },
-    supportedNetworks: ['BTC', 'ERC20'],
+    supportedNetworks: ['BTC', 'ERC20', 'SOL', 'BASE'],
     restUrl: 'https://api.exchange.coinbase.com',
     active: true
   },

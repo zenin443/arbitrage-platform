@@ -2,16 +2,56 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth/tokens';
 import { serialize } from 'cookie';
+import { consumeWalletNonce } from '@/lib/auth/wallet-nonces';
+
+// Expected message format (built by WalletLoginButton):
+//   Sign in to Arbitrance Terminal
+//
+//   Wallet: 0x...
+//   Nonce: <hex>
+//   Timestamp: <unix-ms>
+//
+// The nonce is server-issued (GET /api/auth/wallet/nonce?address=...) and
+// single-use — consuming it prevents signature replay attacks.
+const NONCE_REGEX = /^Nonce: ([a-f0-9]{32})$/m;
 
 export async function POST(req: NextRequest) {
   try {
-    const { address, signature, message } = await req.json();
-
-    if (!address || !signature || !message) {
-      return NextResponse.json({ error: 'Missing address, signature, or message' }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    // Verify the signature matches the address
+    const { address, signature, message } = body as Record<string, unknown>;
+
+    if (typeof address !== 'string' || typeof signature !== 'string' || typeof message !== 'string') {
+      return NextResponse.json({ error: 'address, signature, and message are required' }, { status: 400 });
+    }
+
+    // Validate address format
+    if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+      return NextResponse.json({ error: 'Invalid wallet address format' }, { status: 400 });
+    }
+
+    // Extract and consume nonce — must happen before signature verification
+    // so a valid-looking message with a wrong nonce fails fast
+    const nonceMatch = message.match(NONCE_REGEX);
+    if (!nonceMatch) {
+      return NextResponse.json(
+        { error: 'Message must include a server-issued nonce (Nonce: <hex>)' },
+        { status: 400 }
+      );
+    }
+    const nonce = nonceMatch[1];
+    const nonceValid = consumeWalletNonce(address, nonce);
+    if (!nonceValid) {
+      return NextResponse.json(
+        { error: 'Nonce is invalid or expired. Request a fresh nonce and sign again.' },
+        { status: 401 }
+      );
+    }
+
+    // Verify the signature recovers to the claimed address
     const { recoverMessageAddress } = await import('viem');
     const recoveredAddress = await recoverMessageAddress({
       message,
@@ -19,7 +59,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (recoveredAddress.toLowerCase() !== address.toLowerCase()) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      return NextResponse.json({ error: 'Signature does not match address' }, { status: 401 });
     }
 
     const client = await pool.connect();
@@ -79,12 +119,20 @@ export async function POST(req: NextRequest) {
         [user.id, refreshToken, expiresAt, ip === 'unknown' ? null : ip, userAgent]
       );
 
-      const cookie = serialize('refresh_token', refreshToken, {
+      const refreshCookie = serialize('refresh_token', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         path: '/',
         maxAge: 7 * 24 * 60 * 60,
+      });
+
+      const accessCookie = serialize('access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: '/',
+        maxAge: 15 * 60,
       });
 
       const response = NextResponse.json({
@@ -98,7 +146,8 @@ export async function POST(req: NextRequest) {
         accessToken,
       });
 
-      response.headers.set('Set-Cookie', cookie);
+      response.headers.append('Set-Cookie', refreshCookie);
+      response.headers.append('Set-Cookie', accessCookie);
       return response;
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
@@ -107,11 +156,7 @@ export async function POST(req: NextRequest) {
       client.release();
     }
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
     console.error('Wallet auth error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: msg },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

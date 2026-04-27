@@ -42,8 +42,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ payments: result.rows });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Payment status error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: msg }, { status: 500 });
+    console.error('[api/payments/status] Failed to fetch payment status:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

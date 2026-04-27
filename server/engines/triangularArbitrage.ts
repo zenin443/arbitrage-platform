@@ -43,12 +43,25 @@ interface CrossPairPrice {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const TAKER_FEE = 0.001   // 0.1% per trade, 3 trades = 0.3%
-const ROUNDTRIP_FEE_PCT = 0.3
 const MAX_ROUTES = 50
-const MAX_NET_PROFIT_PERCENT = 5.0 // reject bad price data above this threshold
+const MAX_NET_PROFIT_PERCENT = 5.0
 
-// Only the 8 most liquid cross-pairs
+// Taker fees per exchange for accurate 3-leg cost calculation
+const EXCHANGE_TAKER_FEES: Record<string, number> = {
+  binance:  0.001,
+  bybit:    0.001,
+  okx:      0.001,
+  kucoin:   0.001,
+  gateio:   0.002,
+  mexc:     0.001,
+}
+
+function getRoundtripFee(exchange: string): number {
+  const fee = EXCHANGE_TAKER_FEES[exchange] ?? 0.001
+  return fee * 3 * 100  // 3 legs, expressed as %
+}
+
+// Cross-pairs: BTC as intermediate (most liquid), plus USDC loops
 const CROSS_PAIRS = [
   { alt: 'ETH',  intermediate: 'BTC' },
   { alt: 'SOL',  intermediate: 'BTC' },
@@ -58,10 +71,18 @@ const CROSS_PAIRS = [
   { alt: 'AVAX', intermediate: 'BTC' },
   { alt: 'LINK', intermediate: 'BTC' },
   { alt: 'DOT',  intermediate: 'BTC' },
+  { alt: 'BNB',  intermediate: 'BTC' },
+  { alt: 'LTC',  intermediate: 'BTC' },
+  { alt: 'BCH',  intermediate: 'BTC' },
+  { alt: 'ATOM', intermediate: 'BTC' },
+  // ETH as intermediate — second triangular tier
+  { alt: 'SOL',  intermediate: 'ETH' },
+  { alt: 'BNB',  intermediate: 'ETH' },
+  { alt: 'LINK', intermediate: 'ETH' },
 ]
 
-// Only 3 exchanges to limit concurrency
-const ACTIVE_EXCHANGES = ['binance', 'bybit', 'okx']
+// Expanded to 5 active exchanges
+const ACTIVE_EXCHANGES = ['binance', 'bybit', 'okx', 'kucoin', 'gateio']
 
 // Exchange-specific symbol formatting
 function formatSymbol(alt: string, intermediate: string, exchange: string): string {
@@ -198,7 +219,8 @@ function computeTriangularRoutes(): TriangularRoute[] {
         // 1 USDT → (1/step1) BTC → (1/step1/step2) ALT → (step3/(step1*step2)) USDT
         const grossReturn = step3 / (step1 * step2)
         const profitPercent = (grossReturn - 1) * 100
-        const netProfitPercent = profitPercent - ROUNDTRIP_FEE_PCT
+        const feesPercent = getRoundtripFee(exchange)
+        const netProfitPercent = profitPercent - feesPercent
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
 
         if (netProfitPercent > 0 && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
@@ -212,7 +234,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
             profitPercent: parseFloat(profitPercent.toFixed(4)),
             direction: 'forward',
             prices: { step1, step2, step3 },
-            feesPercent: ROUNDTRIP_FEE_PCT,
+            feesPercent: parseFloat(feesPercent.toFixed(4)),
             netProfitPercent: parseFloat(netProfitPercent.toFixed(4)),
             estimatedProfit1k: parseFloat(estimatedProfit1k.toFixed(2)),
             detectedAt: now,
@@ -221,18 +243,15 @@ function computeTriangularRoutes(): TriangularRoute[] {
       }
 
       // ── Reverse: USDT → ALT → BTC → USDT
-      // Step 1: buy ALT with USDT at altTick.ask
-      // Step 2: sell ALT for BTC at cp.bid
-      // Step 3: sell BTC for USDT at baseTick.bid
       {
-        const step1 = altTick.ask    // USDT per ALT
-        const step2 = cp.bid          // BTC per ALT (we receive this when selling ALT)
-        const step3 = baseTick.bid    // USDT per BTC (we receive this)
+        const step1 = altTick.ask
+        const step2 = cp.bid
+        const step3 = baseTick.bid
 
-        // 1 USDT → (1/step1) ALT → (step2/step1) BTC → (step2*step3/step1) USDT
         const grossReturn = (step2 * step3) / step1
         const profitPercent = (grossReturn - 1) * 100
-        const netProfitPercent = profitPercent - ROUNDTRIP_FEE_PCT
+        const feesPercent = getRoundtripFee(exchange)
+        const netProfitPercent = profitPercent - feesPercent
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
 
         if (netProfitPercent > 0 && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
@@ -246,7 +265,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
             profitPercent: parseFloat(profitPercent.toFixed(4)),
             direction: 'reverse',
             prices: { step1, step2, step3 },
-            feesPercent: ROUNDTRIP_FEE_PCT,
+            feesPercent: parseFloat(feesPercent.toFixed(4)),
             netProfitPercent: parseFloat(netProfitPercent.toFixed(4)),
             estimatedProfit1k: parseFloat(estimatedProfit1k.toFixed(2)),
             detectedAt: now,

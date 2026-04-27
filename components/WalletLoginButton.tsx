@@ -26,7 +26,6 @@ export function WalletLoginButton({ onSuccess }: WalletLoginButtonProps) {
 
   useEffect(() => {
     if (isConnected && address && !isAuthenticating) {
-      // Prevent duplicate auth calls for the same address
       if (authAttemptRef.current === address) return;
       authAttemptRef.current = address;
       authenticateWithWallet(address);
@@ -42,9 +41,26 @@ export function WalletLoginButton({ onSuccess }: WalletLoginButtonProps) {
     setError('');
 
     try {
-      const message = `Sign in to Arbitrance Terminal\n\nWallet: ${addr}\nTimestamp: ${Date.now()}`;
+      // Step 1: Get a server-issued nonce to prevent signature replay attacks
+      const nonceRes = await fetch(`/api/auth/wallet/nonce?address=${encodeURIComponent(addr)}`);
+      if (!nonceRes.ok) {
+        throw new Error('Failed to retrieve authentication nonce. Please try again.');
+      }
+      const { nonce } = await nonceRes.json() as { nonce: string };
+
+      // Step 2: Build the message with the nonce embedded
+      const message = [
+        'Sign in to Arbitrance Terminal',
+        '',
+        `Wallet: ${addr}`,
+        `Nonce: ${nonce}`,
+        `Timestamp: ${Date.now()}`,
+      ].join('\n');
+
+      // Step 3: Sign the message
       const signature = await signMessageAsync({ message });
 
+      // Step 4: Authenticate with the server
       const res = await fetch('/api/auth/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,7 +77,6 @@ export function WalletLoginButton({ onSuccess }: WalletLoginButtonProps) {
     } catch (err: unknown) {
       authAttemptRef.current = null;
       const msg = err instanceof Error ? err.message : 'Failed to authenticate';
-      // Don't show error if user rejected the signature request
       if (!msg.toLowerCase().includes('user rejected') && !msg.toLowerCase().includes('user denied')) {
         setError(msg);
       }
@@ -84,7 +99,6 @@ export function WalletLoginButton({ onSuccess }: WalletLoginButtonProps) {
         <ConnectButton.Custom>
           {({ openConnectModal, account, mounted }) => {
             if (!mounted) return null;
-            // If wallet is already connected, useEffect handles auth — show a waiting state
             if (account) return (
               <div className="w-full py-2.5 text-center text-[11px] font-mono text-[#484F58] animate-pulse">
                 Connecting...

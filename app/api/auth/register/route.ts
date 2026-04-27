@@ -103,6 +103,14 @@ export async function POST(req: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
     });
 
+    response.cookies.set('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 15 * 60,
+    });
+
     return response;
   } catch (err: unknown) {
     await client.query('ROLLBACK').catch(() => {});

@@ -6,7 +6,6 @@ interface User {
   email: string | null;
   name: string;
   plan: string;
-  walletAddress?: string | null;
   createdAt?: string;
 }
 
@@ -17,7 +16,6 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
-  walletLogin: (user: User, accessToken: string) => void;
   checkAuth: () => Promise<void>;
   accessToken: string | null;
 }
@@ -104,14 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
   }, []);
 
-  const walletLogin = useCallback((walletUser: User, token: string) => {
-    setUser(walletUser);
-    setAccessToken(token);
-  }, []);
-
   return (
     <AuthContext.Provider value={{
-      user, isLoading, isAuthenticated: !!user, login, signup, logout, walletLogin, checkAuth, accessToken
+      user, isLoading, isAuthenticated: !!user, login, signup, logout, checkAuth, accessToken
     }}>
       {children}
     </AuthContext.Provider>

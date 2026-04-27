@@ -76,14 +76,35 @@ export interface TradingStats {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MAX_GAP_HISTORY = 5000
+const MAX_GAP_HISTORY = 10_000      // increased from 5000 for better analytics
 const EVAL_INTERVAL_MS = 2000
-const TAKER_FEE_PER_SIDE = 0.001   // 0.1%
-const ROUNDTRIP_FEE = 0.002        // 0.2%
-const BREAK_EVEN_SPREAD = 0.2      // % — minimum spread to cover fees
-const MAX_PROFITABLE_CAP = 50_000  // USD cap for maxProfitableSize
-// Spreads above this threshold are bad exchange data, not real opportunities
+const DEFAULT_TAKER_FEE = 0.001    // fallback only
+const MAX_PROFITABLE_CAP = 50_000
 const MAX_REASONABLE_SPREAD = 5.0
+
+/** Per-exchange taker fee lookup — mirrors exchangeRegistry for intel calculations */
+const INTEL_TAKER_FEES: Record<string, number> = {
+  binance:     0.001,
+  okx:         0.001,
+  bybit:       0.001,
+  kucoin:      0.001,
+  bitget:      0.001,
+  mexc:        0.001,
+  gateio:      0.002,
+  htx:         0.002,
+  bingx:       0.001,
+  coinbase:    0.006,
+  hyperliquid: 0.0005,
+  jupiter:     0.0,
+}
+
+function getRoundtripFee(buy: string, sell: string): number {
+  return (INTEL_TAKER_FEES[buy] ?? DEFAULT_TAKER_FEE) + (INTEL_TAKER_FEES[sell] ?? DEFAULT_TAKER_FEE)
+}
+
+function getBreakEvenSpread(buy: string, sell: string): number {
+  return getRoundtripFee(buy, sell) * 100  // convert to %
+}
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -97,15 +118,22 @@ function gapKey(type: string, symbol: string, buy: string, sell: string): string
   return `${type}-${symbol}-${buy}-${sell}`
 }
 
-function computeProfitSim(spreadPercent: number, maxTradeableUsd: number): ProfitSim {
+function computeProfitSim(
+  spreadPercent: number,
+  maxTradeableUsd: number,
+  buyExchange = 'binance',
+  sellExchange = 'binance',
+): ProfitSim {
   const SIZES = [100, 1_000, 5_000, 10_000]
   const cap = Math.min(maxTradeableUsd, MAX_PROFITABLE_CAP)
+  const roundtripFee = getRoundtripFee(buyExchange, sellExchange)
+  const breakEven = getBreakEvenSpread(buyExchange, sellExchange)
 
   function netAt(size: number): number {
     const effective = Math.min(size, cap)
     if (effective <= 0) return 0
     const gross = effective * (spreadPercent / 100)
-    const fees = effective * ROUNDTRIP_FEE
+    const fees = effective * roundtripFee
     return gross - fees
   }
 
@@ -114,8 +142,8 @@ function computeProfitSim(spreadPercent: number, maxTradeableUsd: number): Profi
     at1k: parseFloat(netAt(SIZES[1]!).toFixed(4)),
     at5k: parseFloat(netAt(SIZES[2]!).toFixed(4)),
     at10k: parseFloat(netAt(SIZES[3]!).toFixed(4)),
-    breakEvenSpread: BREAK_EVEN_SPREAD,
-    isProfitable: spreadPercent > BREAK_EVEN_SPREAD,
+    breakEvenSpread: parseFloat(breakEven.toFixed(4)),
+    isProfitable: spreadPercent > breakEven,
     maxProfitableSize: cap,
   }
 }
@@ -177,7 +205,7 @@ function evaluateCexCex(now: number): void {
             sellSize * sell.bid
           )
 
-          const profitSim = computeProfitSim(spread, maxTradeableUsd)
+          const profitSim = computeProfitSim(spread, maxTradeableUsd, buy.exchangeId, sell.exchangeId)
 
           const depth = getCachedDepthAnalysis(symbol, buy.exchangeId, sell.exchangeId)
           const effectiveSize = depth ? depth.profitableSize : maxTradeableUsd
@@ -250,8 +278,8 @@ function evaluateSpotFutures(now: number): void {
       const key = gapKey('spot_futures', opp.symbol, opp.spotExchange, opp.futuresExchange)
       seenKeys.add(key)
 
-      const maxTradeableUsd = 10_000 // spot-futures don't have direct order book depth here
-      const profitSim = computeProfitSim(spreadPercent, maxTradeableUsd)
+      const maxTradeableUsd = 10_000
+      const profitSim = computeProfitSim(spreadPercent, maxTradeableUsd, opp.spotExchange, opp.futuresExchange)
 
       const existing = activeGaps.get(key)
       if (existing) {
@@ -319,7 +347,7 @@ function evaluateCexDex(now: number): void {
       seenKeys.add(key)
 
       const maxTradeableUsd = opp.maxTradeSize ?? 5_000
-      const profitSim = computeProfitSim(spreadPercent, maxTradeableUsd)
+      const profitSim = computeProfitSim(spreadPercent, maxTradeableUsd, buyEx, sellEx)
 
       const existing = activeGaps.get(key)
       if (existing) {

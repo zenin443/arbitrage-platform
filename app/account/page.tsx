@@ -199,14 +199,6 @@ export default function AccountPage() {
           <div className="px-4 py-3 space-y-3">
             <Row label="Name" value={user.name} />
             {user.email && <Row label="Email" value={user.email} />}
-            {user.walletAddress && (
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono text-[#8B949E]">Wallet</span>
-                <span className="text-[12px] font-mono text-[#C9D1D9]">
-                  {user.walletAddress.substring(0, 6)}...{user.walletAddress.substring(38)}
-                </span>
-              </div>
-            )}
             <Row label="Member since" value={formatDate(user.createdAt)} />
           </div>
         </section>

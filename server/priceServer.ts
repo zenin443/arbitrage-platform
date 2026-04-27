@@ -216,6 +216,33 @@ setInterval(() => {
   })
 }, 10000)
 
+// ── Internal API authentication ───────────────────────────────────────────────
+// Protects mutation endpoints (POST) from unauthenticated access.
+// In production, INTERNAL_API_SECRET must be set and the caller must supply it
+// in the x-internal-api-key request header. In development, absence of the env
+// var produces a loud warning but does not block (to ease local setup).
+
+function requireInternalAuth(req: http.IncomingMessage, res: http.ServerResponse): boolean {
+  const secret = process.env.INTERNAL_API_SECRET
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SECURITY] INTERNAL_API_SECRET is not set — blocking all mutations in production')
+      json(res, 503, { error: 'Internal API not configured' })
+      return false
+    }
+    console.warn('[SECURITY] INTERNAL_API_SECRET not set — mutation endpoints are unprotected (dev only)')
+    return true
+  }
+  const provided = req.headers['x-internal-api-key']
+  if (provided !== secret) {
+    const ip = req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? 'unknown'
+    console.warn(`[SECURITY] Blocked unauthenticated mutation: ${req.method} ${req.url} from ${ip}`)
+    json(res, 403, { error: 'Forbidden' })
+    return false
+  }
+  return true
+}
+
 // ── CORS configuration ────────────────────────────────────────────────────────
 
 const ALLOWED_ORIGINS = [
@@ -287,6 +314,7 @@ const httpServer = http.createServer(async (req, res) => {
       return
     }
     if (method === 'POST') {
+      if (!requireInternalAuth(req, res)) return
       try {
         const raw = await readBody(req)
         const partial = JSON.parse(raw)
@@ -343,6 +371,7 @@ const httpServer = http.createServer(async (req, res) => {
         return
       }
       if (action === 'reset' && method === 'POST') {
+        if (!requireInternalAuth(req, res)) return
         const state = resetBot(botId)
         if (!state) { json(res, 404, { error: 'Bot not found' }); return }
         json(res, 200, state)
@@ -365,6 +394,7 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
   if (url.pathname === '/magnus/alpha/config' && method === 'POST') {
+    if (!requireInternalAuth(req, res)) return
     try {
       const raw = await readBody(req)
       const partial = raw ? (JSON.parse(raw) as object) : {}
@@ -390,6 +420,7 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
   if (url.pathname === '/magnus/alpha/reset' && method === 'POST') {
+    if (!requireInternalAuth(req, res)) return
     json(res, 200, resetMagnusAlpha())
     return
   }
@@ -416,6 +447,7 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
   if (url.pathname === '/magnus/futures/reset' && method === 'POST') {
+    if (!requireInternalAuth(req, res)) return
     json(res, 200, resetMagnusFutures())
     return
   }

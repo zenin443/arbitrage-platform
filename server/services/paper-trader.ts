@@ -3,6 +3,7 @@ import path from 'path'
 import { getProfitableGaps, getTradingStats, GapRecord } from './trading-intelligence'
 import { getAlertConfig } from './alert-engine'
 import { tickStore } from '../engine/tickStore'
+import { EXCHANGE_REGISTRY } from '../registry/exchangeRegistry'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -133,10 +134,13 @@ export interface BotState {
   bestTrade: SimTrade | null
   worstTrade: SimTrade | null
   totalFeesPaid: number
+  totalSlippageCost: number
   totalRebalanceFees: number
   rebalanceCount: number
   maxDrawdown: number
   peakValue: number
+  dailyOpenValue: number
+  dailyOpenDate: string
   inventoryCoins: string[]
   activeExchanges: string[]
   recentTrades: SimTrade[]
@@ -145,12 +149,15 @@ export interface BotState {
   startedAt: number
   lastTradeAt: number | null
   isRunning: boolean
+  circuitBreakerActive: boolean
+  circuitBreakerReason: string
   voidByCategory: {
     dex: number
     exchangeMissing: number
     noInventory: number
     noUsdt: number
     tooSmall: number
+    circuitBreaker: number
   }
   rebalanceStats: RebalanceStats
   inTransitFunds: InTransitFund[]
@@ -241,19 +248,40 @@ const REBALANCE_TIER1_INTERVAL_MS = 2 * 60_000
 const REBALANCE_TIER2_INTERVAL_MS = 5 * 60_000
 const REBALANCE_TIER3_INTERVAL_MS = 10 * 60_000
 const COIN_REFRESH_INTERVAL_MS = 60 * 60_000
-const SYMBOL_COOLDOWN_MS = 30_000
+const SYMBOL_COOLDOWN_MS = 10_000       // reduced: 10s cooldown (was 30s)
 const MAX_RECENT_TRADES = 50
 const MAX_RECENT_VOIDED = 30
 const MAX_RECENT_REBALANCES = 20
-const FEE_RATE = 0.001
+const DEFAULT_FEE_RATE = 0.001          // fallback only — per-exchange rates used in trades
 const COIN_TRANSFER_FEE = 0.5
 const MIN_SPREAD_THRESHOLD = 0.15
-const CYCLE_INTERVAL_MS = 60 * 60_000   // 1 hour
-const MAX_CYCLE_HISTORY = 24             // keep last 24 cycles
+const CYCLE_INTERVAL_MS = 60 * 60_000
+const MAX_CYCLE_HISTORY = 24
 const MAGNUS_ALPHA_PREDICTIVE_MS = 2 * 60_000
 const TRADE_FLOW_RESET_MS = 15 * 60_000
 const REBALANCE_ATTRIBUTION_MS = 30 * 60_000
 const MAGNUS_ALPHA_CONFIG_FILE = 'magnus-alpha-config.json'
+
+// Circuit breaker thresholds
+const MAX_DRAWDOWN_PAUSE_PCT  = 0.15   // pause if portfolio falls 15% from peak
+const MAX_DAILY_LOSS_PCT      = 0.05   // pause if single-day loss exceeds 5%
+
+// Slippage model: slippage% = SLIPPAGE_K * sqrt(tradeSize / estimatedBookDepth)
+const SLIPPAGE_K = 0.10
+// Estimated book depth by exchange tier (USD). Used when live depth unavailable.
+const EXCHANGE_BOOK_DEPTH_USD: Record<string, number> = {
+  binance:     5_000_000,
+  okx:         3_000_000,
+  bybit:       2_500_000,
+  kucoin:      1_000_000,
+  bitget:        800_000,
+  mexc:          500_000,
+  gateio:        400_000,
+  htx:           400_000,
+  bingx:         300_000,
+  hyperliquid: 2_000_000,
+  jupiter:       500_000,
+}
 
 // Thresholds
 const TIER1_MAX_ACTIONS = 5
@@ -290,28 +318,50 @@ const COIN_WEIGHT: Record<string, number> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** Returns per-exchange taker fee rate, falling back to default. */
+function getTakerFee(exchangeId: string): number {
+  return EXCHANGE_REGISTRY[exchangeId]?.takerFee ?? DEFAULT_FEE_RATE
+}
+
+/** Median of a sorted array — resistant to outlier exchange prices. */
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? ((sorted[mid - 1]! + sorted[mid]!) / 2)
+    : sorted[mid]!
+}
+
+/** Estimated slippage % for a given trade size on an exchange.
+ *  Uses live order book depth (USD) when available, falls back to exchange estimate. */
+function estimateSlippagePct(exchangeId: string, tradeSizeUsd: number, liveBookDepthUsd?: number): number {
+  const bookDepth = (liveBookDepthUsd && liveBookDepthUsd > 0)
+    ? liveBookDepthUsd
+    : (EXCHANGE_BOOK_DEPTH_USD[exchangeId] ?? 500_000)
+  const participation = tradeSizeUsd / bookDepth
+  return parseFloat((SLIPPAGE_K * Math.sqrt(participation) * 100).toFixed(6))
+}
+
 function getCurrentPrice(baseAsset: string): number {
   const ticks = tickStore.getBySymbol(`${baseAsset}/USDT`)
   if (ticks.length === 0) return 0
   const prices = ticks.map(t => (t.bid + t.ask) / 2).filter(p => p > 0)
-  if (prices.length === 0) return 0
-  return prices.reduce((a, b) => a + b, 0) / prices.length
+  return median(prices)
 }
 
 function getCurrentBidPrice(baseAsset: string): number {
   const ticks = tickStore.getBySymbol(`${baseAsset}/USDT`)
   if (ticks.length === 0) return getCurrentPrice(baseAsset)
   const bids = ticks.map(t => t.bid).filter(p => p > 0)
-  if (bids.length === 0) return getCurrentPrice(baseAsset)
-  return bids.reduce((a, b) => a + b, 0) / bids.length
+  return bids.length > 0 ? median(bids) : getCurrentPrice(baseAsset)
 }
 
 function getCurrentAskPrice(baseAsset: string): number {
   const ticks = tickStore.getBySymbol(`${baseAsset}/USDT`)
   if (ticks.length === 0) return getCurrentPrice(baseAsset)
   const asks = ticks.map(t => t.ask).filter(p => p > 0)
-  if (asks.length === 0) return getCurrentPrice(baseAsset)
-  return asks.reduce((a, b) => a + b, 0) / asks.length
+  return asks.length > 0 ? median(asks) : getCurrentPrice(baseAsset)
 }
 
 function makeRebalanceStats(): RebalanceStats {
@@ -358,7 +408,8 @@ class PaperBot {
       this.state = saved
       this.state.isRunning = true
       // backwards compat migrations
-      this.state.voidByCategory ??= { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0 }
+      this.state.voidByCategory ??= { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0, circuitBreaker: 0 }
+      this.state.voidByCategory.circuitBreaker ??= 0
       this.state.rebalanceStats ??= makeRebalanceStats()
       this.state.inTransitFunds ??= []
       this.state.rescuedVoids ??= 0
@@ -370,6 +421,12 @@ class PaperBot {
       this.state.cycleHistory ??= []
       this.state.currentCycle ??= makeFreshCycle(1)
       this.state.nextCycleAt ??= Date.now() + CYCLE_INTERVAL_MS
+      // v0.4.0 migration — circuit breaker + slippage tracking + daily PnL
+      this.state.totalSlippageCost ??= 0
+      this.state.circuitBreakerActive ??= false
+      this.state.circuitBreakerReason ??= ''
+      this.state.dailyOpenValue ??= this.state.totalPortfolioValueUsd
+      this.state.dailyOpenDate ??= new Date().toISOString().slice(0, 10)
 
       // If server restarted mid-cycle, force completion on next evaluate()
       if (this.state.currentCycle.phase !== 'trading') {
@@ -389,6 +446,7 @@ class PaperBot {
   }
 
   protected createInitialState(): BotState {
+    const today = new Date().toISOString().slice(0, 10)
     return {
       id: this.botId,
       name: this.botName,
@@ -407,10 +465,13 @@ class PaperBot {
       bestTrade: null,
       worstTrade: null,
       totalFeesPaid: 0,
+      totalSlippageCost: 0,
       totalRebalanceFees: 0,
       rebalanceCount: 0,
       maxDrawdown: 0,
       peakValue: this.startingCapital,
+      dailyOpenValue: this.startingCapital,
+      dailyOpenDate: today,
       inventoryCoins: [...DEFAULT_INVENTORY_COINS],
       activeExchanges: [...ACTIVE_EXCHANGES],
       recentTrades: [],
@@ -419,7 +480,9 @@ class PaperBot {
       startedAt: Date.now(),
       lastTradeAt: null,
       isRunning: true,
-      voidByCategory: { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0 },
+      circuitBreakerActive: false,
+      circuitBreakerReason: '',
+      voidByCategory: { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0, circuitBreaker: 0 },
       rebalanceStats: makeRebalanceStats(),
       inTransitFunds: [],
       rescuedVoids: 0,
@@ -629,7 +692,7 @@ class PaperBot {
     const buyAmount = parseFloat(Math.min(50, usdt * 0.3).toFixed(8))
     if (buyAmount < 10) return false
 
-    const fee = parseFloat((buyAmount * FEE_RATE).toFixed(8))
+    const fee = parseFloat((buyAmount * DEFAULT_FEE_RATE).toFixed(8))
     const coinBought = parseFloat(((buyAmount - fee) / price).toFixed(8))
     const now = Date.now()
     const usdtBefore = usdt
@@ -677,7 +740,7 @@ class PaperBot {
       const sellRevenue = parseFloat((sellQty * price).toFixed(8))
       if (sellRevenue < 5) continue
 
-      const fee = parseFloat((sellRevenue * FEE_RATE).toFixed(8))
+      const fee = parseFloat((sellRevenue * DEFAULT_FEE_RATE).toFixed(8))
       const now = Date.now()
       const usdtBefore = wallet.USDT ?? 0
       const coinBefore = coinBalance
@@ -774,7 +837,7 @@ class PaperBot {
             const buyAmount = parseFloat(Math.min(50, usdtSurplus / 3).toFixed(8))
             if (buyAmount < TIER1_MIN_DEFICIT_USD) continue
 
-            const fee = parseFloat((buyAmount * FEE_RATE).toFixed(8))
+            const fee = parseFloat((buyAmount * DEFAULT_FEE_RATE).toFixed(8))
             const coinBought = parseFloat(((buyAmount - fee) / price).toFixed(8))
             const usdtBefore = wallet.USDT ?? 0
             const coinBefore = coinBalance
@@ -826,7 +889,7 @@ class PaperBot {
             const sellRevenue = parseFloat((sellQty * price).toFixed(8))
             if (sellRevenue < TIER1_MIN_SURPLUS_USD) continue
 
-            const fee = parseFloat((sellRevenue * FEE_RATE).toFixed(8))
+            const fee = parseFloat((sellRevenue * DEFAULT_FEE_RATE).toFixed(8))
             const coinBefore = coinBalance
             const usdtBefore = wallet.USDT ?? 0
 
@@ -1067,7 +1130,7 @@ class PaperBot {
         }
 
         const usdtGross = parseFloat((balance * bidPrice).toFixed(8))
-        const fee = parseFloat((usdtGross * FEE_RATE).toFixed(8))
+        const fee = parseFloat((usdtGross * DEFAULT_FEE_RATE).toFixed(8))
         const usdtNet = parseFloat((usdtGross - fee).toFixed(8))
 
         const buyPrice = this.state.restockPrices[asset] ?? bidPrice
@@ -1157,10 +1220,10 @@ class PaperBot {
         const askPrice = getCurrentAskPrice(coin) || getCurrentPrice(coin)
         if (askPrice <= 0) continue
 
-        const totalCost = parseFloat((allocation * (1 + FEE_RATE)).toFixed(8))
+        const totalCost = parseFloat((allocation * (1 + DEFAULT_FEE_RATE)).toFixed(8))
         if (spent + allocation > (wallet.USDT ?? 0) - 1) continue  // leave $1 buffer
 
-        const fee = parseFloat((allocation * FEE_RATE).toFixed(8))
+        const fee = parseFloat((allocation * DEFAULT_FEE_RATE).toFixed(8))
         const coinBought = parseFloat(((allocation - fee) / askPrice).toFixed(8))
         if (coinBought <= 0) continue
 
@@ -1236,6 +1299,40 @@ class PaperBot {
     const lastSymbolTrade = this.symbolCooldown.get(gap.symbol)
     if (lastSymbolTrade && now - lastSymbolTrade < SYMBOL_COOLDOWN_MS) return
 
+    // ── Circuit breaker checks ────────────────────────────────────────────────
+    const today = new Date().toISOString().slice(0, 10)
+    if (this.state.dailyOpenDate !== today) {
+      this.state.dailyOpenDate = today
+      this.state.dailyOpenValue = this.state.totalPortfolioValueUsd
+      this.state.circuitBreakerActive = false
+      this.state.circuitBreakerReason = ''
+    }
+
+    const drawdownPct = this.state.peakValue > 0
+      ? (this.state.peakValue - this.state.totalPortfolioValueUsd) / this.state.peakValue
+      : 0
+    const dailyLossPct = this.state.dailyOpenValue > 0
+      ? (this.state.dailyOpenValue - this.state.totalPortfolioValueUsd) / this.state.dailyOpenValue
+      : 0
+
+    if (drawdownPct >= MAX_DRAWDOWN_PAUSE_PCT) {
+      this.state.circuitBreakerActive = true
+      this.state.circuitBreakerReason = `Drawdown ${(drawdownPct * 100).toFixed(1)}% exceeds ${MAX_DRAWDOWN_PAUSE_PCT * 100}% limit`
+    } else if (dailyLossPct >= MAX_DAILY_LOSS_PCT) {
+      this.state.circuitBreakerActive = true
+      this.state.circuitBreakerReason = `Daily loss ${(dailyLossPct * 100).toFixed(1)}% exceeds ${MAX_DAILY_LOSS_PCT * 100}% limit`
+    } else {
+      this.state.circuitBreakerActive = false
+      this.state.circuitBreakerReason = ''
+    }
+
+    if (this.state.circuitBreakerActive) {
+      this.state.voidedSignals++
+      this.state.voidByCategory.circuitBreaker++
+      this.tradedGaps.add(gap.id)
+      return
+    }
+
     // Block trading during liquidation / restock phases
     if (this.state.currentCycle.phase !== 'trading') {
       this.recordVoid(gap, 'Cycle in progress', 'tooSmall')
@@ -1246,9 +1343,17 @@ class PaperBot {
     const [baseAsset, quoteAsset = 'USDT'] = gap.symbol.split('/')
     if (!baseAsset) return
 
-    if (DEX_EXCHANGES.has(gap.buyExchange) || DEX_EXCHANGES.has(gap.sellExchange)) {
-      this.recordVoid(gap, 'DEX not supported', 'dex')
+    // DEX gaps allowed for cex_dex, triangular, and cross_chain gap types
+    const isDexGap = gap.type === 'dex_cex' || gap.type === 'triangular' || gap.type === 'cross_chain'
+    if (!isDexGap && (DEX_EXCHANGES.has(gap.buyExchange) || DEX_EXCHANGES.has(gap.sellExchange))) {
+      this.recordVoid(gap, 'DEX not supported for this gap type', 'dex')
       this.tradedGaps.add(gap.id)
+      return
+    }
+
+    // Triangular and cross-chain gaps use a different execution path (single-exchange or bridge)
+    if (gap.type === 'triangular' || gap.type === 'cross_chain') {
+      this.evaluateMultiLegGap(gap, now)
       return
     }
 
@@ -1302,7 +1407,7 @@ class PaperBot {
 
     const maxSellUsdt = availableAsset * gap.sellPrice
     const depthLimit  = gap.depthAnalysis?.profitableSize ?? gap.maxTradeableUsd ?? 10_000
-    const maxPerTrade = this.startingCapital * 0.20
+    const maxPerTrade = this.startingCapital * 0.03   // 3% Kelly-based cap (was 20%)
     let tradeSizeUsd  = Math.min(availableUsdt, maxSellUsdt, depthLimit, maxPerTrade)
     const depthLimited = depthLimit < Math.min(availableUsdt, maxSellUsdt, maxPerTrade)
 
@@ -1323,10 +1428,26 @@ class PaperBot {
       return
     }
 
-    const buyCost    = parseFloat((quantity * gap.buyPrice).toFixed(8))
-    const buyFee     = parseFloat((buyCost * FEE_RATE).toFixed(8))
-    const sellRevenue = parseFloat((quantity * gap.sellPrice).toFixed(8))
-    const sellFee    = parseFloat((sellRevenue * FEE_RATE).toFixed(8))
+    // ── Per-exchange taker fees (not flat rate) ───────────────────────────────
+    const buyTakerFee  = getTakerFee(gap.buyExchange)
+    const sellTakerFee = getTakerFee(gap.sellExchange)
+
+    // ── Slippage model: sqrt market-impact ───────────────────────────────────
+    // Use live order book depth from depth analysis when available
+    const buyBookDepth  = gap.depthAnalysis?.buyBookDepthUsd
+    const sellBookDepth = gap.depthAnalysis?.sellBookDepthUsd
+    const buySlippagePct  = estimateSlippagePct(gap.buyExchange,  tradeSizeUsd, buyBookDepth)
+    const sellSlippagePct = estimateSlippagePct(gap.sellExchange, tradeSizeUsd, sellBookDepth)
+    const effectiveBuyPrice  = parseFloat((gap.buyPrice  * (1 + buySlippagePct  / 100)).toFixed(8))
+    const effectiveSellPrice = parseFloat((gap.sellPrice * (1 - sellSlippagePct / 100)).toFixed(8))
+
+    const buyCost     = parseFloat((quantity * effectiveBuyPrice).toFixed(8))
+    const buyFee      = parseFloat((buyCost * buyTakerFee).toFixed(8))
+    const sellRevenue = parseFloat((quantity * effectiveSellPrice).toFixed(8))
+    const sellFee     = parseFloat((sellRevenue * sellTakerFee).toFixed(8))
+    const slippageCost = parseFloat(
+      ((gap.buyPrice - effectiveBuyPrice) * quantity + (gap.sellPrice - effectiveSellPrice) * quantity).toFixed(8)
+    )
 
     buyWallet.USDT = parseFloat(((buyWallet.USDT ?? 0) - buyCost - buyFee).toFixed(8))
     buyWallet[baseAsset] = parseFloat(((buyWallet[baseAsset] ?? 0) + quantity).toFixed(8))
@@ -1364,9 +1485,10 @@ class PaperBot {
     }
 
     this.state.totalTrades++
-    this.state.totalFeesPaid = parseFloat((this.state.totalFeesPaid + totalFees).toFixed(8))
-    this.state.tradingPnl    = parseFloat((this.state.tradingPnl + netProfit).toFixed(8))
-    this.state.lastTradeAt   = now
+    this.state.totalFeesPaid    = parseFloat((this.state.totalFeesPaid    + totalFees).toFixed(8))
+    this.state.totalSlippageCost = parseFloat(((this.state.totalSlippageCost ?? 0) + Math.abs(slippageCost)).toFixed(8))
+    this.state.tradingPnl       = parseFloat((this.state.tradingPnl + netProfit).toFixed(8))
+    this.state.lastTradeAt      = now
 
     if (netProfit > 0) this.state.winningTrades++
     else this.state.losingTrades++
@@ -1387,6 +1509,81 @@ class PaperBot {
         `Portfolio: $${this.state.totalPortfolioValueUsd.toFixed(2)} | Trades: ${this.state.totalTrades}`
       )
     }
+  }
+
+  /**
+   * Simulates multi-leg gaps (triangular, cross-chain) as a single synthetic trade.
+   * Uses the net profit from the gap record directly — the calculators already
+   * model gas, bridge fees, and round-trip costs. We apply slippage on top.
+   */
+  protected evaluateMultiLegGap(gap: GapRecord, now: number): void {
+    const [baseAsset, quoteAsset = 'USDT'] = gap.symbol.split('/')
+    if (!baseAsset) return
+
+    const tradeExchange = ACTIVE_EXCHANGES.includes(gap.buyExchange) ? gap.buyExchange : ACTIVE_EXCHANGES[0]!
+    const wallet = this.state.portfolio[tradeExchange]
+    if (!wallet) { this.tradedGaps.add(gap.id); return }
+
+    const maxPerTrade = this.startingCapital * 0.03   // 3% cap on multi-leg too
+    const availableUsdt = wallet.USDT ?? 0
+    const tradeSizeUsd = Math.min(availableUsdt, maxPerTrade, gap.maxTradeableUsd || maxPerTrade)
+    if (tradeSizeUsd < 5) {
+      this.recordVoid(gap, `Multi-leg trade too small ($${tradeSizeUsd.toFixed(2)})`, 'tooSmall')
+      this.tradedGaps.add(gap.id)
+      return
+    }
+
+    // Net profit rate already accounts for gas/bridge; add slippage on top
+    const slippagePct = estimateSlippagePct(tradeExchange, tradeSizeUsd)
+    const netProfitRate = (gap.spreadPercent / 100) - (slippagePct / 100)
+    const grossProfit   = parseFloat((tradeSizeUsd * (gap.spreadPercent / 100)).toFixed(8))
+    const feeRate       = getTakerFee(tradeExchange)
+    const totalFees     = parseFloat((tradeSizeUsd * feeRate * 2).toFixed(8))
+    const slippageCost  = parseFloat((tradeSizeUsd * slippagePct / 100).toFixed(8))
+    const netProfit     = parseFloat((tradeSizeUsd * netProfitRate - totalFees).toFixed(8))
+
+    wallet.USDT = parseFloat(((wallet.USDT ?? 0) + netProfit).toFixed(8))
+
+    const trade: SimTrade = {
+      id: `trade-${now}-${Math.random().toString(36).slice(2, 6)}`,
+      botId: this.botId,
+      timestamp: now,
+      symbol: gap.symbol,
+      baseAsset,
+      quoteAsset,
+      type: gap.type,
+      buyExchange: gap.buyExchange,
+      sellExchange: gap.sellExchange,
+      buyPrice: gap.buyPrice,
+      sellPrice: gap.sellPrice,
+      spreadPercent: gap.spreadPercent,
+      quantity: tradeSizeUsd / (gap.buyPrice || 1),
+      tradeSizeUsd,
+      grossProfit,
+      buyFee: totalFees / 2,
+      sellFee: totalFees / 2,
+      totalFees,
+      netProfit,
+      depthLimited: false,
+      inventoryLimited: false,
+    }
+
+    this.state.totalTrades++
+    this.state.totalFeesPaid     = parseFloat((this.state.totalFeesPaid     + totalFees).toFixed(8))
+    this.state.totalSlippageCost = parseFloat(((this.state.totalSlippageCost ?? 0) + slippageCost).toFixed(8))
+    this.state.tradingPnl        = parseFloat((this.state.tradingPnl        + netProfit).toFixed(8))
+    this.state.lastTradeAt       = now
+
+    if (netProfit > 0) this.state.winningTrades++
+    else               this.state.losingTrades++
+    this.state.winRate = (this.state.winningTrades / this.state.totalTrades) * 100
+
+    if (!this.state.bestTrade  || netProfit > this.state.bestTrade.netProfit)  this.state.bestTrade  = trade
+    if (!this.state.worstTrade || netProfit < this.state.worstTrade.netProfit) this.state.worstTrade = trade
+
+    this.state.recentTrades = [trade, ...this.state.recentTrades].slice(0, MAX_RECENT_TRADES)
+    this.tradedGaps.add(gap.id)
+    this.symbolCooldown.set(gap.symbol, now)
   }
 
   protected loadFromDisk(): BotState | null {
@@ -1489,12 +1686,15 @@ function defaultMagnusAlphaConfig(): MagnusAlphaConfig {
 
 function clampMagnusConfig(p: Partial<MagnusAlphaConfig> & MagnusAlphaConfig): MagnusAlphaConfig {
   const base = defaultMagnusAlphaConfig()
-  const totalCapital = Math.min(50_000, Math.max(10_000, p.totalCapital ?? base.totalCapital))
-  const maxReserve = Math.min(2_000, totalCapital * 0.2)
-  const reservePerExchange = Math.min(maxReserve, Math.max(100, p.reservePerExchange ?? base.reservePerExchange))
-  const maxPositionPercent = Math.min(50, Math.max(1, p.maxPositionPercent ?? base.maxPositionPercent))
+  // Capital: $1K minimum, $10M maximum (supports all user tiers including institutional)
+  const totalCapital = Math.min(10_000_000, Math.max(1_000, p.totalCapital ?? base.totalCapital))
+  const maxReserve = Math.min(totalCapital * 0.1, totalCapital * 0.2)
+  const reservePerExchange = Math.min(maxReserve, Math.max(10, p.reservePerExchange ?? base.reservePerExchange))
+  // Max position: 1%-10% (enforces Kelly sizing — no longer allows 50%)
+  const maxPositionPercent = Math.min(10, Math.max(1, p.maxPositionPercent ?? base.maxPositionPercent))
   const cycleIntervalMs = Math.max(60_000, p.cycleIntervalMs ?? base.cycleIntervalMs)
-  const exchanges = (p.exchanges?.length === 9 ? p.exchanges : base.exchanges) as string[]
+  // Accept any valid non-empty exchange list (removed hardcoded === 9 check)
+  const exchanges = (p.exchanges?.length ?? 0) > 0 ? p.exchanges! : base.exchanges
   const inventoryCoins = (p.inventoryCoins?.length ? p.inventoryCoins : base.inventoryCoins) as string[]
   return {
     totalCapital,
@@ -1791,8 +1991,8 @@ class MagnusAlphaBot extends PaperBot {
         if (price <= 0) continue
         const buyAmt = parseFloat(Math.min(45, avail * 0.25).toFixed(8))
         if (buyAmt < 12) continue
-        if (!this.shouldRebalance(coin, ex, buyAmt * FEE_RATE)) continue
-        const fee = parseFloat((buyAmt * FEE_RATE).toFixed(8))
+        if (!this.shouldRebalance(coin, ex, buyAmt * DEFAULT_FEE_RATE)) continue
+        const fee = parseFloat((buyAmt * DEFAULT_FEE_RATE).toFixed(8))
         const qty = parseFloat(((buyAmt - fee) / price).toFixed(8))
         const now = Date.now()
         const ub = w.USDT ?? 0
@@ -1940,7 +2140,7 @@ class MagnusAlphaBot extends PaperBot {
     if (buyBudget < 10) return false
 
     const buyAmount = parseFloat(buyBudget.toFixed(8))
-    const fee = parseFloat((buyAmount * FEE_RATE).toFixed(8))
+    const fee = parseFloat((buyAmount * DEFAULT_FEE_RATE).toFixed(8))
     const coinBought = parseFloat(((buyAmount - fee) / price).toFixed(8))
     const now = Date.now()
     const usdtBefore = wallet.USDT ?? 0
@@ -1998,10 +2198,10 @@ class MagnusAlphaBot extends PaperBot {
 
             const buyAmount = parseFloat(Math.min(50, usdtSurplus / 3).toFixed(8))
             if (buyAmount < TIER1_MIN_DEFICIT_USD) continue
-            const estCost = buyAmount * FEE_RATE
+            const estCost = buyAmount * DEFAULT_FEE_RATE
             if (!this.shouldRebalance(coin, exchange, estCost)) continue
 
-            const fee = parseFloat((buyAmount * FEE_RATE).toFixed(8))
+            const fee = parseFloat((buyAmount * DEFAULT_FEE_RATE).toFixed(8))
             const coinBought = parseFloat(((buyAmount - fee) / price).toFixed(8))
             const usdtBefore = wallet.USDT ?? 0
             const coinBefore = coinBalance
@@ -2051,10 +2251,10 @@ class MagnusAlphaBot extends PaperBot {
             const sellQty = parseFloat((coinBalance - avgBalance).toFixed(8))
             const sellRevenue = parseFloat((sellQty * price).toFixed(8))
             if (sellRevenue < TIER1_MIN_SURPLUS_USD) continue
-            const estCost = sellRevenue * FEE_RATE
+            const estCost = sellRevenue * DEFAULT_FEE_RATE
             if (!this.shouldRebalance(coin, exchange, estCost)) continue
 
-            const fee = parseFloat((sellRevenue * FEE_RATE).toFixed(8))
+            const fee = parseFloat((sellRevenue * DEFAULT_FEE_RATE).toFixed(8))
             const coinBefore = coinBalance
             const usdtBefore = wallet.USDT ?? 0
 
@@ -2289,7 +2489,7 @@ class MagnusAlphaBot extends PaperBot {
         }
 
         const usdtGross = parseFloat((balance * bidPrice).toFixed(8))
-        const fee = parseFloat((usdtGross * FEE_RATE).toFixed(8))
+        const fee = parseFloat((usdtGross * DEFAULT_FEE_RATE).toFixed(8))
         const usdtNet = parseFloat((usdtGross - fee).toFixed(8))
 
         const buyPrice = this.state.restockPrices[asset] ?? bidPrice
@@ -2384,10 +2584,10 @@ class MagnusAlphaBot extends PaperBot {
         const askPrice = getCurrentAskPrice(coin) || getCurrentPrice(coin)
         if (askPrice <= 0) continue
 
-        const totalCost = parseFloat((allocation * (1 + FEE_RATE)).toFixed(8))
+        const totalCost = parseFloat((allocation * (1 + DEFAULT_FEE_RATE)).toFixed(8))
         if (spent + allocation > tradable - 1) continue
 
-        const fee = parseFloat((allocation * FEE_RATE).toFixed(8))
+        const fee = parseFloat((allocation * DEFAULT_FEE_RATE).toFixed(8))
         const coinBought = parseFloat(((allocation - fee) / askPrice).toFixed(8))
         if (coinBought <= 0) continue
 
@@ -2545,9 +2745,9 @@ class MagnusAlphaBot extends PaperBot {
     }
 
     const buyCost = parseFloat((quantity * gap.buyPrice).toFixed(8))
-    const buyFee = parseFloat((buyCost * FEE_RATE).toFixed(8))
+    const buyFee = parseFloat((buyCost * DEFAULT_FEE_RATE).toFixed(8))
     const sellRevenue = parseFloat((quantity * gap.sellPrice).toFixed(8))
-    const sellFee = parseFloat((sellRevenue * FEE_RATE).toFixed(8))
+    const sellFee = parseFloat((sellRevenue * DEFAULT_FEE_RATE).toFixed(8))
 
     buyWallet.USDT = parseFloat(((buyWallet.USDT ?? 0) - buyCost - buyFee).toFixed(8))
     buyWallet[baseAsset] = parseFloat(((buyWallet[baseAsset] ?? 0) + quantity).toFixed(8))

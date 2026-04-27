@@ -1,3 +1,21 @@
 {
-  "extends": ["next/core-web-vitals", "next/typescript"]
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "no-restricted-imports": ["error", {
+      "patterns": [
+        {
+          "group": ["**/lib/engine*", "@/lib/engine*"],
+          "message": "SECURITY (P2-001): lib/engine/ contains proprietary algorithm logic (spread calculation, scoring, fee models) and MUST NOT be imported in client-side code. Use API routes (/api/opportunities, /api/prices) or the WebSocket feed to access this data. See SECURITY_AUDIT_ENGINE.md."
+        }
+      ]
+    }]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**/*", "server/**/*", "lib/engine/**/*"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ]
 }

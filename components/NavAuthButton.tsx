@@ -18,8 +18,8 @@ export default function NavAuthButton() {
     );
   }
 
-  const initial = (user.name || user.email || user.walletAddress || '?').charAt(0).toUpperCase();
-  const titleText = user.email ?? user.walletAddress ?? undefined;
+  const initial = (user.name || user.email || '?').charAt(0).toUpperCase();
+  const titleText = user.email ?? undefined;
 
   return (
     <Link

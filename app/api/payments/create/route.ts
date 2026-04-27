@@ -70,8 +70,7 @@ export async function POST(req: NextRequest) {
       expiresAt: payment.expires_at,
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Payment create error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: msg }, { status: 500 });
+    console.error('[api/payments/create] Failed to create payment record:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

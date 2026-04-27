@@ -94,6 +94,17 @@ export async function POST(req: NextRequest) {
       maxAge: 7 * 24 * 60 * 60,
     });
 
+    // Also deliver access token as an httpOnly cookie so it is inaccessible to
+    // JavaScript and cannot be exfiltrated by XSS. The cookie is read by
+    // lib/auth/middleware.ts as a fallback to the Authorization Bearer header.
+    response.cookies.set('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      maxAge: 15 * 60, // matches JWT_EXPIRY (15m)
+    });
+
     return response;
   } catch (err: unknown) {
     console.error('Login error:', err);
