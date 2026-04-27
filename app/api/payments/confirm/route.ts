@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
+import { paymentConfirmSchema, formatZodError } from '@/lib/validation';
 
 export async function POST(req: NextRequest) {
   const authResult = requireAuth(req);
@@ -8,16 +9,22 @@ export async function POST(req: NextRequest) {
   const { userId } = authResult;
 
   try {
-    const body = await req.json();
-    const { paymentId, txHash, fromAddress } = body as {
-      paymentId: string;
-      txHash: string;
-      fromAddress?: string;
-    };
-
-    if (!paymentId || !txHash) {
-      return NextResponse.json({ error: 'Missing paymentId or txHash' }, { status: 400 });
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
+
+    const parsed = paymentConfirmSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation error', details: formatZodError(parsed.error) },
+        { status: 400 }
+      );
+    }
+
+    const { paymentId, txHash, fromAddress } = parsed.data;
 
     const client = await pool.connect();
     try {

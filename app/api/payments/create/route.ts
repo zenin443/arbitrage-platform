@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
 import { CHAINS, PLAN_PRICES, SERVER_PAYMENT_WALLET, SERVER_SOLANA_WALLET } from '@/lib/payments/config';
-
-const VALID_PLANS = ['trader', 'pro', 'institutional'] as const;
-const VALID_CURRENCIES = ['USDC', 'USDT'] as const;
-const VALID_CHAINS = Object.keys(CHAINS);
+import { paymentCreateSchema, formatZodError } from '@/lib/validation';
 
 export async function POST(req: NextRequest) {
   const authResult = requireAuth(req);
@@ -13,23 +10,22 @@ export async function POST(req: NextRequest) {
   const { userId } = authResult;
 
   try {
-    const body = await req.json();
-    const { plan, chain, currency, paymentMethod = 'wallet' } = body as {
-      plan: string;
-      chain: string;
-      currency: string;
-      paymentMethod?: string;
-    };
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
 
-    if (!VALID_PLANS.includes(plan as typeof VALID_PLANS[number])) {
-      return NextResponse.json({ error: 'Invalid plan. Must be trader, pro, or institutional.' }, { status: 400 });
+    const parsed = paymentCreateSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation error', details: formatZodError(parsed.error) },
+        { status: 400 }
+      );
     }
-    if (!VALID_CURRENCIES.includes(currency as typeof VALID_CURRENCIES[number])) {
-      return NextResponse.json({ error: 'Invalid currency. Must be USDC or USDT.' }, { status: 400 });
-    }
-    if (!VALID_CHAINS.includes(chain)) {
-      return NextResponse.json({ error: `Invalid chain. Must be one of: ${VALID_CHAINS.join(', ')}` }, { status: 400 });
-    }
+
+    const { plan, chain, currency, paymentMethod } = parsed.data;
 
     const chainConfig = CHAINS[chain];
 

@@ -216,13 +216,43 @@ setInterval(() => {
   })
 }, 10000)
 
+// ── CORS configuration ────────────────────────────────────────────────────────
+
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://arbitrance.com',
+  'https://www.arbitrance.com',
+  process.env.NEXT_PUBLIC_APP_URL,
+].filter(Boolean) as string[]
+
+function getCorsOrigin(requestOrigin: string | undefined): string {
+  // Allow requests with no origin (server-to-server, mobile apps, curl)
+  if (!requestOrigin) return '*'
+  if (ALLOWED_ORIGINS.includes(requestOrigin)) return requestOrigin
+  // In development, allow any localhost origin
+  if (process.env.NODE_ENV !== 'production' && requestOrigin.startsWith('http://localhost')) {
+    return requestOrigin
+  }
+  return 'null' // Reject other origins
+}
+
+function setCorsHeaders(req: http.IncomingMessage, res: http.ServerResponse): void {
+  const origin = req.headers.origin
+  const allowedOrigin = getCorsOrigin(origin)
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  if (allowedOrigin !== 'null' && allowedOrigin !== '*') {
+    res.setHeader('Vary', 'Origin')
+  }
+}
+
 // ── HTTP server ───────────────────────────────────────────────────────────────
 
 function json(res: http.ServerResponse, status: number, body: unknown): void {
-  res.writeHead(status, {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-  })
+  res.writeHead(status, { 'Content-Type': 'application/json' })
   res.end(JSON.stringify(body))
 }
 
@@ -236,9 +266,19 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 }
 
 const httpServer = http.createServer(async (req, res) => {
+  // Apply CORS headers to every response
+  setCorsHeaders(req, res)
+
   try {
   const url = new URL(req.url ?? '/', `http://localhost:${HTTP_PORT}`)
   const method = req.method ?? 'GET'
+
+  // Handle CORS preflight
+  if (method === 'OPTIONS') {
+    res.writeHead(204)
+    res.end()
+    return
+  }
 
   // ── Alert config ──────────────────────────────────────────────────────────
   if (url.pathname === '/alert-config') {

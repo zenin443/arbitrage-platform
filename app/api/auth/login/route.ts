@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { verifyPassword } from '@/lib/auth/password';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth/tokens';
 import { checkLoginRateLimit, getClientIp } from '@/lib/auth/rate-limit';
+import { loginSchema, formatZodError } from '@/lib/validation';
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -14,21 +15,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { email?: unknown; password?: unknown };
+  let rawBody: unknown;
   try {
-    body = await req.json();
+    rawBody = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  const { email, password } = body;
+  const parsed = loginSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Validation error', details: formatZodError(parsed.error) },
+      { status: 400 }
+    );
+  }
 
-  if (typeof email !== 'string' || email.trim().length === 0 || email.length > 254) {
-    return NextResponse.json({ error: 'Valid email is required' }, { status: 400 });
-  }
-  if (typeof password !== 'string' || password.length === 0 || password.length > 128) {
-    return NextResponse.json({ error: 'Password is required' }, { status: 400 });
-  }
+  const { email, password } = parsed.data;
 
   let client;
   try {
