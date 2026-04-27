@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import InfoCorner from '@/components/ui/InfoCorner'
+import { formatNumber } from '@/lib/formatters'
 
 const MAGNUS_TIP =
   'Autonomous paper trading bot that detects and executes arbitrage trades in simulation. Tracks win rate and trade count. View full details on the Magnus dashboard.'
@@ -17,50 +18,79 @@ function formatTimeAgo(timestamp: number): string {
   return `${diffH}h ago`
 }
 
-function fmtTrades(n: number): string {
-  return n.toLocaleString()
-}
-
 interface RecentTrade {
   symbol?: string;
   netProfit?: number;
   timestamp?: number;
 }
 
-interface SimulatorStats {
-  totalTrades?: number;
-  winRate?: number;
-  recentTrades?: RecentTrade[];
+interface MagnusStats {
+  trades: number;
+  winRate: number | string;
+  capital: number;
 }
 
-interface SimulatorsData {
-  alpha?: SimulatorStats;
+interface MagnusApiData {
   totalTrades?: number;
   winRate?: number;
+  totalPortfolioValueUsd?: number;
+  portfolioValue?: number;
+  capital?: number;
+  recentTrades?: RecentTrade[];
+  qualityMetrics?: {
+    totalTrades?: number;
+    winRate?: string | number;
+  };
 }
 
 export default function MagnusAICard() {
-  const [data, setData] = useState<SimulatorsData | null>(null)
+  const [magnusData, setMagnusData] = useState<MagnusStats | null>(null)
+  const [lastTrade, setLastTrade] = useState<RecentTrade | null>(null)
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch('/api/simulators')
-        if (res.ok) {
-          const d = await res.json()
-          setData(d)
-        }
-      } catch {}
+    const fetchData = () => {
+      fetch('/api/magnus/alpha')
+        .then(r => r.json())
+        .then((data: MagnusApiData) => {
+          if (!data) return
+          setMagnusData({
+            trades:  data.totalTrades ?? data.qualityMetrics?.totalTrades ?? 0,
+            winRate: data.winRate     ?? data.qualityMetrics?.winRate     ?? 0,
+            capital: data.capital     ?? data.totalPortfolioValueUsd      ?? data.portfolioValue ?? 19000,
+          })
+          setLastTrade(data.recentTrades?.[0] ?? null)
+        })
+        .catch(() => {})
     }
+
     fetchData()
-    const interval = setInterval(fetchData, 10000)
+    const interval = setInterval(fetchData, 10_000)
     return () => clearInterval(interval)
   }, [])
 
-  const trades    = data?.alpha?.totalTrades ?? data?.totalTrades ?? 0
-  const winRate   = data?.alpha?.winRate ?? data?.winRate ?? 0
-  const lastTrade = data?.alpha?.recentTrades?.[0] ?? null
-  const isLive    = trades > 0
+  const trades   = magnusData?.trades   ?? 0
+  const winRate  = magnusData?.winRate  ?? 0
+  const capital  = magnusData?.capital  ?? 0
+  const isLive   = trades > 0
+
+  // Format win rate consistently — stored value is a raw number like 98.69
+  const winRateDisplay = magnusData === null
+    ? '…'
+    : isLive
+      ? `${parseFloat(String(winRate)).toFixed(1)}%`
+      : '—'
+
+  const tradesDisplay = magnusData === null
+    ? '…'
+    : isLive
+      ? formatNumber(trades)
+      : '—'
+
+  const capitalDisplay = magnusData === null
+    ? '…'
+    : isLive
+      ? `$${formatNumber(Math.round(capital))}`
+      : '—'
 
   return (
     <div
@@ -129,7 +159,7 @@ export default function MagnusAICard() {
             className={`font-medium font-mono ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}
             style={{ fontSize: 'var(--fs-xl)' }}
           >
-            {data === null ? '…' : isLive ? fmtTrades(trades) : '—'}
+            {tradesDisplay}
           </div>
           <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>trades</div>
         </div>
@@ -138,12 +168,17 @@ export default function MagnusAICard() {
             className={`font-medium font-mono ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}
             style={{ fontSize: 'var(--fs-xl)' }}
           >
-            {data === null ? '…' : isLive ? `${winRate.toFixed(1)}%` : '—'}
+            {winRateDisplay}
           </div>
           <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>win rate</div>
         </div>
         <div className="bg-[#0D1117] rounded p-1.5 text-center">
-          <div className="font-medium font-mono text-[#D29922]" style={{ fontSize: 'var(--fs-xl)' }}>$19K</div>
+          <div
+            className={`font-medium font-mono ${magnusData === null ? 'text-[#484F58]' : 'text-[#D29922]'}`}
+            style={{ fontSize: 'var(--fs-xl)' }}
+          >
+            {capitalDisplay}
+          </div>
           <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>capital</div>
         </div>
       </div>
@@ -174,7 +209,7 @@ export default function MagnusAICard() {
         </div>
       ) : (
         <div className="bg-[#0D1117] rounded p-1.5 mb-3 text-center font-mono text-[#484F58]" style={{ fontSize: 'var(--fs-xs)' }}>
-          {data === null ? 'Initializing…' : 'No trades yet'}
+          {magnusData === null ? 'Initializing…' : 'No trades yet'}
         </div>
       )}
 
