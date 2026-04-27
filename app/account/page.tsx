@@ -2,9 +2,26 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ZapIcon, SettingsIcon } from 'lucide-react';
+import { ZapIcon, SettingsIcon, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import NavAuthButton from '@/components/NavAuthButton';
+import dynamic from 'next/dynamic';
+import { CHAINS } from '@/lib/payments/config';
+
+const PaymentModal = dynamic(() => import('@/components/PaymentModal'), { ssr: false });
+
+interface Payment {
+  id: string;
+  plan_tier: string;
+  amount: string;
+  currency: string;
+  chain: string;
+  payment_method: string;
+  tx_hash: string | null;
+  status: string;
+  created_at: string;
+  confirmed_at: string | null;
+}
 
 async function openBillingPortal(accessToken: string | null): Promise<string | null> {
   const res = await fetch('/api/stripe/portal', {
@@ -25,26 +42,67 @@ const PLAN_BADGE: Record<string, { label: string; color: string; bg: string; bor
   institutional: { label: 'INSTITUTIONAL', color: 'text-[#A371F7]', bg: 'bg-[#A371F7]/15',      border: 'border-[#A371F7]/40'    },
 };
 
+const STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  pending:    { label: 'PENDING',    color: 'text-[#D29922]' },
+  confirming: { label: 'CONFIRMING', color: 'text-[#388BFD]' },
+  confirmed:  { label: 'CONFIRMED',  color: 'text-[#3FB950]' },
+  failed:     { label: 'FAILED',     color: 'text-[#F85149]' },
+  expired:    { label: 'EXPIRED',    color: 'text-[#484F58]' },
+};
+
 function planBadge(plan: string) {
   return PLAN_BADGE[plan?.toLowerCase()] ?? PLAN_BADGE.free;
 }
 
-function formatDate(iso?: string): string {
+function formatDate(iso?: string | null): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function truncateTx(hash: string): string {
+  if (!hash) return '—';
+  return `${hash.slice(0, 8)}…${hash.slice(-6)}`;
 }
 
 export default function AccountPage() {
-  const { user, isLoading, logout, accessToken } = useAuth();
+  const { user, isLoading, logout, accessToken, checkAuth } = useAuth();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentPlan, setPaymentPlan] = useState<'trader' | 'pro' | 'institutional'>('pro');
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push('/login');
     }
   }, [user, isLoading, router]);
+
+  useEffect(() => {
+    if (user && accessToken) {
+      fetchPayments();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, accessToken]);
+
+  async function fetchPayments() {
+    setPaymentsLoading(true);
+    try {
+      const res = await fetch('/api/payments/status', {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPayments(data.payments || []);
+      }
+    } catch {
+      // Silently fail — history is non-critical
+    } finally {
+      setPaymentsLoading(false);
+    }
+  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -60,6 +118,18 @@ export default function AccountPage() {
     } finally {
       setPortalLoading(false);
     }
+  }
+
+  function openUpgradeModal(plan: 'trader' | 'pro' | 'institutional' = 'pro') {
+    setPaymentPlan(plan);
+    setShowPaymentModal(true);
+  }
+
+  async function handlePaymentSuccess() {
+    setShowPaymentModal(false);
+    // Refresh auth to pick up new plan tier
+    if (checkAuth) await checkAuth();
+    fetchPayments();
   }
 
   if (isLoading || !user) {
@@ -154,12 +224,12 @@ export default function AccountPage() {
               </span>
             </div>
             {user.plan === 'free' ? (
-              <Link
-                href="/pricing"
+              <button
+                onClick={() => openUpgradeModal('pro')}
                 className="text-[11px] font-mono text-[#388BFD] hover:text-[#58a6ff] border border-[#388BFD]/40 hover:border-[#388BFD] rounded px-3 py-1 transition-colors"
               >
                 Upgrade →
-              </Link>
+              </button>
             ) : (
               <button
                 onClick={handleManageSubscription}
@@ -170,6 +240,81 @@ export default function AccountPage() {
               </button>
             )}
           </div>
+          {/* Crypto upgrade options for free users */}
+          {user.plan === 'free' && (
+            <div className="px-4 pb-3 flex gap-2">
+              {(['trader', 'pro', 'institutional'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => openUpgradeModal(p)}
+                  className="flex-1 text-[10px] font-mono uppercase tracking-wider py-1.5 rounded border border-[#21262D] text-[#484F58] hover:border-[#238636]/50 hover:text-[#3FB950] transition-colors"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Payment History */}
+        <section className="bg-[#161B22] border border-[#21262D] rounded-lg overflow-hidden">
+          <div className="px-4 py-2 border-b border-[#21262D] flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-[#484F58]">Payment History</span>
+            {paymentsLoading && (
+              <span className="flex h-1.5 w-1.5 rounded-full bg-[#388BFD] animate-pulse" />
+            )}
+          </div>
+          {payments.length === 0 ? (
+            <div className="px-4 py-6 text-center">
+              <p className="text-[11px] font-mono text-[#484F58]">No payment history</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[11px] font-mono">
+                <thead>
+                  <tr className="border-b border-[#21262D]">
+                    <th className="px-4 py-2 text-left text-[#484F58] font-normal uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-2 text-left text-[#484F58] font-normal uppercase tracking-wider">Plan</th>
+                    <th className="px-4 py-2 text-left text-[#484F58] font-normal uppercase tracking-wider">Amount</th>
+                    <th className="px-4 py-2 text-left text-[#484F58] font-normal uppercase tracking-wider">Chain</th>
+                    <th className="px-4 py-2 text-left text-[#484F58] font-normal uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-2 text-left text-[#484F58] font-normal uppercase tracking-wider">Tx</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p) => {
+                    const statusBadge = STATUS_BADGE[p.status] ?? { label: p.status.toUpperCase(), color: 'text-[#8B949E]' };
+                    const chainCfg = CHAINS[p.chain];
+                    const explorerBase = chainCfg?.explorerUrl || '';
+                    return (
+                      <tr key={p.id} className="border-b border-[#21262D]/50 hover:bg-[#1C2128]/50 transition-colors">
+                        <td className="px-4 py-2 text-[#8B949E] whitespace-nowrap">{formatDate(p.created_at)}</td>
+                        <td className="px-4 py-2 text-[#C9D1D9] uppercase">{p.plan_tier}</td>
+                        <td className="px-4 py-2 text-[#C9D1D9]">${parseFloat(p.amount).toFixed(2)} {p.currency}</td>
+                        <td className="px-4 py-2 text-[#8B949E]">{chainCfg?.name || p.chain}</td>
+                        <td className={`px-4 py-2 font-semibold ${statusBadge.color}`}>{statusBadge.label}</td>
+                        <td className="px-4 py-2">
+                          {p.tx_hash && explorerBase ? (
+                            <a
+                              href={`${explorerBase}/tx/${p.tx_hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[#388BFD] hover:underline"
+                            >
+                              {truncateTx(p.tx_hash)}
+                              <ExternalLink className="h-2.5 w-2.5" />
+                            </a>
+                          ) : (
+                            <span className="text-[#484F58]">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
         {/* Active Sessions */}
@@ -210,6 +355,16 @@ export default function AccountPage() {
           </div>
         </section>
       </main>
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          plan={paymentPlan}
+          accessToken={accessToken}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
     </div>
   );
 }
