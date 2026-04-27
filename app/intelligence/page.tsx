@@ -247,14 +247,72 @@ function StatDeltaBadge({ history }: { history: number[] }) {
 // ─── DepthDetailPanel ─────────────────────────────────────────────────────────
 
 function DepthDetailPanel({ gap }: { gap: GapRecord }) {
+  const [orderbookData, setOrderbookData] = useState<any>(null);
+  const [orderbookLoading, setOrderbookLoading] = useState(false);
+  const [orderbookError, setOrderbookError] = useState(false);
+
+  useEffect(() => {
+    if (gap.depthAnalysis) return;
+    setOrderbookLoading(true);
+    setOrderbookData(null);
+    setOrderbookError(false);
+    fetch(
+      `/api/orderbook?symbol=${encodeURIComponent(gap.symbol)}&buyExchange=${encodeURIComponent(gap.buyExchange)}&sellExchange=${encodeURIComponent(gap.sellExchange)}`
+    )
+      .then(r => r.json())
+      .then(data => {
+        setOrderbookData(data);
+        setOrderbookLoading(false);
+      })
+      .catch(() => {
+        setOrderbookError(true);
+        setOrderbookLoading(false);
+      });
+  }, [gap.symbol, gap.buyExchange, gap.sellExchange, gap.depthAnalysis]);
+
   const d = gap.depthAnalysis;
   if (!d) {
     return (
       <tr>
         <td colSpan={7} className="px-3 py-2 bg-[#0D1117] border-t border-[#21262D]">
-          <span className="text-[11px] font-mono text-[#484F58] animate-pulse">
-            Fetching order book depth…
-          </span>
+          {orderbookLoading ? (
+            <span className="text-[11px] font-mono text-[#484F58] animate-pulse">
+              Fetching order book depth…
+            </span>
+          ) : orderbookError ? (
+            <span className="text-[11px] font-mono text-red-500/70">
+              Order book data unavailable
+            </span>
+          ) : orderbookData?.error ? (
+            <span className="text-[11px] font-mono text-[#484F58]">
+              {orderbookData.error}
+            </span>
+          ) : orderbookData ? (
+            <div className="grid grid-cols-2 gap-4 py-2">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-[#484F58] mb-1 font-mono">
+                  Bids — {orderbookData.buyExchange || shortEx(gap.buyExchange)}
+                </div>
+                {(orderbookData.bids || orderbookData.buy?.bids || []).slice(0, 5).map((bid: any, i: number) => (
+                  <div key={i} className="flex justify-between text-[11px] font-mono gap-4">
+                    <span className="text-green-400">{Number(bid[0] ?? bid.price).toFixed(6)}</span>
+                    <span className="text-[#484F58]">{Number(bid[1] ?? bid.amount).toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-[#484F58] mb-1 font-mono">
+                  Asks — {orderbookData.sellExchange || shortEx(gap.sellExchange)}
+                </div>
+                {(orderbookData.asks || orderbookData.sell?.asks || []).slice(0, 5).map((ask: any, i: number) => (
+                  <div key={i} className="flex justify-between text-[11px] font-mono gap-4">
+                    <span className="text-red-400">{Number(ask[0] ?? ask.price).toFixed(6)}</span>
+                    <span className="text-[#484F58]">{Number(ask[1] ?? ask.amount).toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </td>
       </tr>
     );

@@ -49,6 +49,7 @@ interface BotStateLike {
   losingTrades: number;
   winRate: number;
   totalRebalanceFees: number;
+  inventoryValueUsd?: number;
   rebalanceStats?: { totalRebalanceCost: number };
   voidByCategory?: { tooSmall: number; noUsdt: number; noInventory: number; dex: number; exchangeMissing: number };
   portfolio: Record<string, ExchangeWallet>;
@@ -430,7 +431,7 @@ function FuturesPanel({ state }: { state: FuturesState | null }) {
                   <tbody>
                     {state.recentTrades.map((t) => (
                       <tr key={t.id} className="border-b border-[#21262D]/60 h-6">
-                        <td className="px-2 text-[#8B949E]">{fmtTime(t.timestamp)}</td>
+                        <td suppressHydrationWarning className="px-2 text-[#8B949E]">{fmtTime(t.timestamp)}</td>
                         <td className="px-2 text-[#E6EDF3]">{t.symbol}</td>
                         <td className="px-2 text-[#8B949E]">
                           {shortEx(t.buyExchange)}→{shortEx(t.sellExchange)}
@@ -558,7 +559,7 @@ export default function MagnusPage() {
           <Link href="/magnus" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium whitespace-nowrap">
             Magnus
           </Link>
-          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
+          <Link href="/dex-markets" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
             DEX Markets
           </Link>
           <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
@@ -585,7 +586,7 @@ export default function MagnusPage() {
             Inventory model · ROI-driven rebalancing · predictive pre-balancing
           </p>
         </div>
-        <span className="text-[10px] text-[#484F58] font-mono">v0.7.4 · Last updated: {now}</span>
+        <span suppressHydrationWarning className="text-[10px] text-[#484F58] font-mono">v0.7.4 · Last updated: {now}</span>
       </div>
 
       <div className="px-6 pt-3 flex gap-1">
@@ -640,9 +641,11 @@ export default function MagnusPage() {
                 {
                   label: "PORTFOLIO",
                   value: alphaState ? formatUsd(alphaState.totalPortfolioValueUsd) : "—",
-                  sub: alphaState
-                    ? `${alphaState.totalPortfolioValueUsd >= alphaState.startingCapital ? "+" : ""}${formatUsd(Math.abs(alphaState.totalPortfolioValueUsd - alphaState.startingCapital), 0)} vs start`
-                    : "",
+                  sub: alphaState && alphaState.inventoryValueUsd != null
+                    ? `USDT: ${formatUsd(alphaState.totalPortfolioValueUsd - alphaState.inventoryValueUsd, 0)} + Inv: ${formatUsd(alphaState.inventoryValueUsd, 0)}`
+                    : alphaState
+                      ? `${alphaState.totalPortfolioValueUsd >= alphaState.startingCapital ? "+" : ""}${formatUsd(Math.abs(alphaState.totalPortfolioValueUsd - alphaState.startingCapital), 0)} vs start`
+                      : "",
                   color:
                     alphaState && alphaState.totalPortfolioValueUsd >= alphaState.startingCapital
                       ? "text-[#3FB950]"
@@ -750,7 +753,7 @@ export default function MagnusPage() {
                               : `${shortEx(ev.fromExchange)}→${shortEx(ev.toExchange)}`;
                           return (
                             <tr key={ev.id} className="border-b border-[#21262D]/80 h-6">
-                              <td className="px-1 text-[10px] text-[#8B949E]">{fmtTime(ev.timestamp)}</td>
+                              <td suppressHydrationWarning className="px-1 text-[10px] text-[#8B949E]">{fmtTime(ev.timestamp)}</td>
                               <td className="px-1">
                                 <span className={`px-1 rounded text-[9px] ${tierBadge}`}>
                                   {ev.tier === 4 ? "PRED" : `T${ev.tier}`}

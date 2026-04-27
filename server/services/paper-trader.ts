@@ -162,6 +162,7 @@ export interface BotState {
   totalCycleFees: number
   realizedInventoryPnl: number
   unrealizedInventoryPnl: number
+  inventoryValueUsd: number
   restockPrices: Record<string, number>
   /** Magnus Alpha: seeded target coin quantities per exchange (exchange → coin → qty) */
   targetAllocations?: Record<string, Record<string, number>>
@@ -429,6 +430,7 @@ class PaperBot {
       totalCycleFees: 0,
       realizedInventoryPnl: 0,
       unrealizedInventoryPnl: 0,
+      inventoryValueUsd: 0,
       restockPrices: {},
     }
   }
@@ -538,17 +540,22 @@ class PaperBot {
   }
 
   calculatePortfolioValue(): void {
-    let total = 0
+    let usdtValue = 0
+    let inventoryValue = 0
     let unrealizedInvPnl = 0
 
     for (const wallet of Object.values(this.state.portfolio)) {
       for (const [asset, amount] of Object.entries(wallet)) {
         if (asset === 'USDT') {
-          total += amount
+          usdtValue += amount
         } else {
-          const price = getCurrentPrice(asset)
+          // Use live price with fallback to last-known restock price so inventory
+          // is never zeroed out when tick data is temporarily unavailable
+          const livePrice = getCurrentPrice(asset)
+          const price = livePrice > 0 ? livePrice : (this.state.restockPrices[asset] ?? 0)
           if (price > 0) {
-            total += amount * price
+            const coinUsd = amount * price
+            inventoryValue += coinUsd
             const buyPrice = this.state.restockPrices[asset] ?? price
             unrealizedInvPnl += (price - buyPrice) * amount
           }
@@ -556,7 +563,9 @@ class PaperBot {
       }
     }
 
+    const total = usdtValue + inventoryValue
     this.state.totalPortfolioValueUsd = parseFloat(total.toFixed(8))
+    this.state.inventoryValueUsd = parseFloat(inventoryValue.toFixed(8))
     this.state.totalPnl = parseFloat((total - this.startingCapital).toFixed(8))
     this.state.totalPnlPercent = (this.state.totalPnl / this.startingCapital) * 100
     this.state.unrealizedInventoryPnl = parseFloat(unrealizedInvPnl.toFixed(8))
