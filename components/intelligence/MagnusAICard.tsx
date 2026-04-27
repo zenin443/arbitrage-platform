@@ -137,14 +137,13 @@ export default function MagnusAICard() {
           <line x1="30" y1="22" x2="36" y2="22" stroke="#3FB950" strokeWidth="0.5" opacity="0.4" />
         </svg>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-[#E6EDF3]" style={{ fontSize: 'var(--fs-md)' }}>Magnus AI</div>
-          <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>Arbitrage trader (paper)</div>
+          <div className="text-[12px] font-medium text-[#E6EDF3]">Magnus AI</div>
+          <div className="text-[10px] text-[#8B949E]">Arbitrage trader (paper)</div>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <div className={`w-[6px] h-[6px] rounded-full ${isLive ? 'bg-[#3FB950] animate-pulse' : 'bg-[#484F58]'}`} />
           <span
-            className={`font-mono ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}
-            style={{ fontSize: 'var(--fs-xs)' }}
+            className={`text-[10px] font-mono ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}
           >
             {isLive ? 'LIVE' : 'IDLE'}
           </span>
@@ -152,35 +151,16 @@ export default function MagnusAICard() {
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-1.5 mb-3">
-        <div className="bg-[#0D1117] rounded p-1.5 text-center">
-          <div
-            className={`font-medium font-mono ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}
-            style={{ fontSize: 'var(--fs-xl)' }}
-          >
-            {tradesDisplay}
-          </div>
-          <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>trades</div>
-        </div>
-        <div className="bg-[#0D1117] rounded p-1.5 text-center">
-          <div
-            className={`font-medium font-mono ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}
-            style={{ fontSize: 'var(--fs-xl)' }}
-          >
-            {winRateDisplay}
-          </div>
-          <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>win rate</div>
-        </div>
-        <div className="bg-[#0D1117] rounded p-1.5 text-center">
-          <div
-            className={`font-medium font-mono ${magnusData === null ? 'text-[#484F58]' : 'text-[#D29922]'}`}
-            style={{ fontSize: 'var(--fs-xl)' }}
-          >
-            {capitalDisplay}
-          </div>
-          <div className="text-[#8B949E]" style={{ fontSize: 'var(--fs-xs)' }}>capital</div>
-        </div>
+      {/* Stats: stacked inline text */}
+      <div className="font-mono text-[11px] mb-1">
+        <span className={`font-medium ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}>{tradesDisplay}</span>
+        <span className="text-[#484F58]"> trades · </span>
+        <span className={`font-medium ${isLive ? 'text-[#3FB950]' : 'text-[#484F58]'}`}>{winRateDisplay}</span>
+        <span className="text-[#484F58]"> win</span>
+      </div>
+      <div className="font-mono text-[11px] mb-2">
+        <span className={magnusData === null ? 'text-[#484F58]' : 'text-[#E6EDF3]'}>{capitalDisplay}</span>
+        <span className="text-[#484F58]"> capital</span>
       </div>
 
       {/* Activity waveform */}
@@ -199,7 +179,7 @@ export default function MagnusAICard() {
 
       {/* Last trade ticker */}
       {isLive && lastTrade ? (
-        <div className="bg-[#0D1117] rounded p-1.5 mb-3 flex justify-between items-center font-mono gap-1" style={{ fontSize: 'var(--fs-xs)' }}>
+        <div className="bg-[#0D1117] rounded p-1.5 mb-3 flex justify-between items-center font-mono gap-1 text-[10px]">
           <span className="text-[#484F58]">Last</span>
           <span className="text-[#E6EDF3] truncate">{lastTrade.symbol}</span>
           <span className="text-[#3FB950] flex-shrink-0">
@@ -208,7 +188,7 @@ export default function MagnusAICard() {
           <span className="text-[#484F58] flex-shrink-0">{formatTimeAgo(lastTrade.timestamp ?? 0)}</span>
         </div>
       ) : (
-        <div className="bg-[#0D1117] rounded p-1.5 mb-3 text-center font-mono text-[#484F58]" style={{ fontSize: 'var(--fs-xs)' }}>
+        <div className="bg-[#0D1117] rounded p-1.5 mb-3 text-center font-mono text-[10px] text-[#484F58]">
           {magnusData === null ? 'Initializing…' : 'No trades yet'}
         </div>
       )}
@@ -216,8 +196,7 @@ export default function MagnusAICard() {
       {/* CTA */}
       <Link
         href="/magnus"
-        className="block text-center text-[#388BFD] py-1.5 bg-[#388BFD]/8 border border-[#388BFD]/25 rounded hover:bg-[#388BFD]/15 transition-colors"
-        style={{ fontSize: 'var(--fs-sm)' }}
+        className="block text-center text-[11px] text-[#388BFD] py-1.5 bg-[#388BFD]/8 border border-[#388BFD]/25 rounded hover:bg-[#388BFD]/15 transition-colors"
       >
         View Magnus dashboard →
       </Link>

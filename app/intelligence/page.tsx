@@ -238,10 +238,7 @@ function StatDeltaBadge({ history }: { history: number[] }) {
   const deltaPct = ((curr - prev) / Math.abs(prev)) * 100;
   const isUp = curr >= prev;
   return (
-    <span
-      className={`px-1.5 py-0.5 rounded ${isUp ? "bg-[#3FB950]/12 text-[#3FB950]" : "bg-[#F85149]/12 text-[#F85149]"}`}
-      style={{ fontSize: "12px" }}
-    >
+    <span className={`text-[10px] font-mono ${isUp ? "text-[#3FB950]" : "text-[#F85149]"}`}>
       {isUp ? "+" : ""}{deltaPct.toFixed(1)}%
     </span>
   );
@@ -323,15 +320,15 @@ function GapRow({
   return (
     <>
       <tr
-        className={`border-b border-[#21262D]/50 hover:bg-[#161B22]/60 transition-colors cursor-pointer select-none ${
+        className={`border-b border-[#21262D]/50 hover:bg-[#161B22]/40 transition-colors cursor-pointer select-none ${
           rowIndex < 3
-            ? "border-l-[3px] border-l-[#3FB950] bg-[#3FB950]/[0.02]"
-            : "border-l-[3px] border-l-transparent"
+            ? "border-l-2 border-l-[#3FB950] bg-[#3FB950]/[0.02]"
+            : "border-l-2 border-l-transparent"
         }`}
         onClick={() => setExpanded((e) => !e)}
       >
         {/* Symbol */}
-        <td className="px-2 py-1 font-mono whitespace-nowrap" style={{ fontSize: "var(--fs-sm)" }}>
+        <td className="text-[11px] font-mono px-2 py-1 whitespace-nowrap">
           <span className="inline-flex items-center gap-1 text-[#E6EDF3]">
             {expanded
               ? <ChevronDownIcon className="h-3 w-3 text-[#484F58] flex-shrink-0" />
@@ -342,66 +339,59 @@ function GapRow({
         </td>
         {/* Type */}
         <td className="px-2 py-1">
-          <span className={`font-mono px-1.5 py-0 rounded ${tm.bg} ${tm.color}`} style={{ fontSize: "var(--fs-xs)" }}>
+          <span className={`text-[10px] font-mono px-1 py-0 rounded text-center w-[28px] inline-block ${tm.bg} ${tm.color}`}>
             {tm.label}
           </span>
         </td>
         {/* Spread */}
-        <td
-          className={`px-2 py-1 font-mono font-medium whitespace-nowrap ${spreadColor(gap.spreadPercent)}`}
-          style={{ fontSize: "var(--fs-sm)" }}
-        >
+        <td className={`text-[11px] font-mono px-2 py-1 font-medium whitespace-nowrap ${spreadColor(gap.spreadPercent)}`}>
           {formatPercent(gap.spreadPercent, 3)}
         </td>
         {/* Trend sparkline */}
-        <td className="px-2 py-1" style={{ width: "80px", textAlign: "center" }}>
+        <td className="px-2 py-1" style={{ width: "58px", textAlign: "center" }}>
           {history.length > 1 && (() => {
             const mn = Math.min(...history), mx = Math.max(...history);
             const rng = mx - mn || 1;
             const pts = history.map((v, i) => {
-              const x = 2 + (i / (history.length - 1)) * 76;
-              const y = 20 - ((v - mn) / rng) * 16;
+              const x = 2 + (i / (history.length - 1)) * 46;
+              const y = 12 - ((v - mn) / rng) * 10 + 2;
               return `${x},${y}`;
             });
             const lastPt = pts[pts.length - 1].split(",");
             const trending = history[history.length - 1] >= history[0];
             const col = trending ? "#3FB950" : "#D29922";
             return (
-              <svg viewBox="0 0 80 24" width="80" height="24">
+              <svg viewBox="0 0 50 16" width="50" height="16" className="align-middle">
                 <path d={`M${pts.join(" L")}`} fill="none" stroke={col} strokeWidth="1.5" strokeLinecap="round" />
-                <circle cx={lastPt[0]} cy={lastPt[1]} r="2" fill={col} />
+                <circle cx={lastPt[0]} cy={lastPt[1]} r="1.5" fill={col} />
               </svg>
             );
           })()}
         </td>
         {/* Route */}
-        <td className="px-2 py-1 font-mono whitespace-nowrap" style={{ fontSize: "var(--fs-xs)" }}>
-          <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD] underline decoration-dotted">
+        <td className="text-[10px] font-mono px-2 py-1 whitespace-nowrap">
+          <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
             {shortEx(gap.buyExchange)}
           </ExchangeLink>
           <span className="text-[#484F58]"> → </span>
-          <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149] underline decoration-dotted">
+          <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
             {shortEx(gap.sellExchange)}
           </ExchangeLink>
         </td>
         {/* Duration */}
-        <td
-          className={`px-2 py-1 font-mono whitespace-nowrap ${durationColor(gap.durationMs)}`}
-          style={{ fontSize: "var(--fs-xs)" }}
-        >
+        <td className={`text-[11px] font-mono px-2 py-1 whitespace-nowrap ${durationColor(gap.durationMs)}`}>
           {formatDuration(gap.durationMs)}
         </td>
         {/* Score */}
         <td className="px-2 py-1">
           <span
-            className={`px-1.5 py-0.5 rounded font-mono ${
-              score >= scoreThresholds.high ? "bg-[#3FB950]/15 text-[#3FB950]" :
-              score >= scoreThresholds.med  ? "bg-[#D29922]/12 text-[#D29922]" :
-              "bg-[#8B949E]/12 text-[#8B949E]"
+            className={`text-[10px] px-1 py-0 rounded-sm font-mono ${
+              score >= scoreThresholds.high ? "text-[#3FB950]" :
+              score >= scoreThresholds.med  ? "text-[#D29922]" :
+              "text-[#484F58]"
             }`}
-            style={{ fontSize: "var(--fs-xs)" }}
           >
-            {score >= scoreThresholds.high ? "HIGH" : score >= scoreThresholds.med ? "MED" : "LOW"} {score}
+            {score >= scoreThresholds.high ? "HIGH" : score >= scoreThresholds.med ? "MED" : "LOW"}
           </span>
         </td>
       </tr>
@@ -716,7 +706,7 @@ export default function IntelligencePage() {
     return Object.entries(bySymbol)
       .map(([coin, d]) => ({ coin, count: d.count, maxSpread: d.maxSpread }))
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+      .slice(0, 8);
   }, [profitableGaps]);
 
   // ── Score thresholds — dynamic percentile-based (FIX 6) ──
@@ -826,10 +816,10 @@ export default function IntelligencePage() {
             <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
           {connectionStatus === 'connecting' && (
-            <span className="text-[#D29922] font-mono mr-1" style={{ fontSize: 'var(--fs-xs, 11px)' }}>Connecting…</span>
+            <span className="text-[11px] text-[#D29922] font-mono mr-1">Connecting…</span>
           )}
           {connectionStatus === 'error' && (
-            <span className="text-[#F85149] font-mono mr-1" style={{ fontSize: 'var(--fs-xs, 11px)' }}>Backend unavailable</span>
+            <span className="text-[11px] text-[#F85149] font-mono mr-1">Backend unavailable</span>
           )}
           <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px]">
             Intelligence
@@ -855,11 +845,6 @@ export default function IntelligencePage() {
       {/* ── Ad pill ── */}
       <AdZone zone="pill" />
 
-      {/* ── Subtitle bar ── */}
-      <div className="text-center py-0.5 border-b border-[#21262D] flex-shrink-0 text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>
-        Trading Intelligence — live gap analysis · order book depth · profit simulation
-      </div>
-
       {/* ── 3-column layout ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
@@ -874,32 +859,32 @@ export default function IntelligencePage() {
           />
 
           {/* Market pulse */}
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Market pulse</span>
+          <div className="border-b border-[#21262D]" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Market pulse</span>
               <InfoCorner text={TIP.marketPulse} />
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="bg-[#161B22] rounded-md p-2 text-center">
-                <div className="text-[#3FB950] font-medium font-mono" style={{ fontSize: "var(--fs-xl)" }}>
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="bg-[#161B22] rounded-md text-center" style={{ padding: "4px" }}>
+                <div className="text-[16px] text-[#3FB950] font-medium font-mono">
                   {formatNumber(stats?.totalGapsLast1h ?? 0)}
                 </div>
-                <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>ticks/s</div>
+                <div className="text-[9px] text-[#484F58]">ticks/s</div>
               </div>
-              <div className="bg-[#161B22] rounded-md p-2 text-center">
-                <div className="text-[#E6EDF3] font-medium font-mono" style={{ fontSize: "var(--fs-xl)" }}>
+              <div className="bg-[#161B22] rounded-md text-center" style={{ padding: "4px" }}>
+                <div className="text-[16px] text-[#E6EDF3] font-medium font-mono">
                   {profitableGaps.length}
                 </div>
-                <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>tracked</div>
+                <div className="text-[9px] text-[#484F58]">tracked</div>
               </div>
             </div>
           </div>
 
           {/* Top routes */}
           <ErrorBoundary name="Top routes">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Top routes</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Top routes</span>
               <InfoCorner text={TIP.topRoutes} />
             </div>
             {!stats?.exchangePairRanking?.length ? (
@@ -909,14 +894,14 @@ export default function IntelligencePage() {
                 {stats.exchangePairRanking.slice(0, 4).map((pair, i) => (
                   <div
                     key={`${pair.buyExchange}-${pair.sellExchange}`}
-                    className="flex items-center py-[3px] border-b border-[#21262D]/30"
-                    style={{ fontSize: "var(--fs-xs)" }}
+                    className="flex items-center justify-between py-[1px] border-b border-[#21262D]/30"
+                    style={{ fontSize: "11px", height: "20px" }}
                   >
                     <span className="font-mono text-[#E6EDF3] flex-1 truncate">
                       {shortEx(pair.buyExchange)}→{shortEx(pair.sellExchange)}
                     </span>
                     <span className={`font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>
-                      {pair.gapCount} gaps
+                      {pair.gapCount}
                     </span>
                   </div>
                 ))}
@@ -927,26 +912,26 @@ export default function IntelligencePage() {
 
           {/* Gap types */}
           <ErrorBoundary name="Gap types">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Gap types</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Gap types</span>
               <InfoCorner text={TIP.gapTypes} />
             </div>
             {profitableGaps.length === 0 ? (
               <WidgetSkeleton type="list" rows={3} />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {[
                   { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#3FB950" },
                   { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#D29922" },
                   { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#388BFD" },
                 ].map(row => (
                   <div key={row.label}>
-                    <div className="flex justify-between mb-1" style={{ fontSize: "var(--fs-xs)" }}>
+                    <div className="flex justify-between text-[11px]" style={{ height: "20px", alignItems: "center" }}>
                       <span className="text-[#E6EDF3]">{row.label}</span>
                       <span className="font-mono" style={{ color: row.color }}>{row.count} ({row.pct}%)</span>
                     </div>
-                    <div className="w-full h-[6px] bg-[#21262D] rounded overflow-hidden">
+                    <div className="w-full h-[4px] bg-[#21262D] rounded overflow-hidden">
                       <div className="h-full rounded transition-all duration-500" style={{ width: `${row.pct}%`, background: row.color }} />
                     </div>
                   </div>
@@ -958,16 +943,16 @@ export default function IntelligencePage() {
 
           {/* Gap duration */}
           <ErrorBoundary name="Gap duration">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-2">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Gap duration</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Gap duration</span>
               <InfoCorner text={TIP.gapDuration} />
             </div>
             {!buckets ? (
               <WidgetSkeleton type="chart" />
             ) : (
               <>
-                <div className="flex h-[14px] rounded overflow-hidden mb-2">
+                <div className="flex h-[8px] rounded overflow-hidden mb-1.5">
                   <div className="bg-[#F85149] flex items-center justify-center" style={{ width: `${pctUnder5s}%` }}>
                     {pctUnder5s > 15 && <span className="text-[9px] text-[#0D1117] font-medium">{pctUnder5s}%</span>}
                   </div>
@@ -977,16 +962,16 @@ export default function IntelligencePage() {
                   <div className="bg-[#3FB950]" style={{ width: `${pctUnder1m}%` }} />
                   <div className="bg-[#388BFD]" style={{ width: `${pctOver1m}%` }} />
                 </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1" style={{ fontSize: "var(--fs-xs)" }}>
+                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                   {[
                     { bg: "#F85149", label: "<5s" },
                     { bg: "#D29922", label: "<30s" },
                     { bg: "#3FB950", label: "<1m" },
                     { bg: "#388BFD", label: ">1m" },
                   ].map(b => (
-                    <div key={b.label} className="flex items-center gap-1.5">
-                      <div className="w-[6px] h-[6px] rounded-sm" style={{ background: b.bg }} />
-                      <span className="text-[#8B949E]">{b.label}</span>
+                    <div key={b.label} className="flex items-center gap-1">
+                      <div className="w-[4px] h-[4px] rounded-sm" style={{ background: b.bg }} />
+                      <span className="text-[9px] text-[#8B949E]">{b.label}</span>
                     </div>
                   ))}
                 </div>
@@ -997,31 +982,30 @@ export default function IntelligencePage() {
 
           {/* Exchange pricing bias — moved here from center */}
           <ErrorBoundary name="Pricing bias">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Pricing bias</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Pricing bias</span>
               <InfoCorner text={TIP.pricingBias} />
             </div>
             {pricingBias.length === 0 ? (
               <EmptyState title="Calculating pricing patterns" subtitle="Requires price tick data" />
             ) : (
               <>
-                <div className="flex justify-between mb-1.5 text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>
-                  <span>← Buy (cheap)</span>
-                  <span>Sell (exp) →</span>
+                <div className="flex justify-between mb-1 text-[#484F58] text-[9px]">
+                  <span>← Buy</span>
+                  <span>Sell →</span>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {pricingBias.map(({ ex, cheapPct }) => (
-                    <div key={ex} className="flex items-center gap-1.5">
+                    <div key={ex} className="flex items-center gap-1" style={{ height: "20px" }}>
                       <span
-                        className={`font-mono w-[34px] flex-shrink-0 ${
+                        className={`text-[10px] font-mono w-[32px] flex-shrink-0 ${
                           cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#8B949E]"
                         }`}
-                        style={{ fontSize: "var(--fs-xs)" }}
                       >
                         {shortEx(ex)}
                       </span>
-                      <div className="flex-1 flex h-[8px] relative">
+                      <div className="flex-1 flex h-[6px] relative">
                         <div className="absolute top-0 bottom-0 w-[1px] bg-[#484F58]" style={{ left: "50%", transform: "translateX(-50%)" }} />
                         <div className="w-1/2 flex justify-end overflow-hidden">
                           <div className="h-full bg-[#3FB950] rounded-l" style={{ width: `${cheapPct}%`, opacity: cheapPct > 55 ? 0.7 : 0.3 }} />
@@ -1030,7 +1014,7 @@ export default function IntelligencePage() {
                           <div className="h-full bg-[#F85149] rounded-r" style={{ width: `${100 - cheapPct}%`, opacity: cheapPct < 45 ? 0.7 : 0.3 }} />
                         </div>
                       </div>
-                      <span className="font-mono text-[#484F58] w-[26px] text-right flex-shrink-0" style={{ fontSize: "var(--fs-xs)" }}>
+                      <span className="text-[10px] font-mono text-[#484F58] w-[26px] text-right flex-shrink-0">
                         {cheapPct}%
                       </span>
                     </div>
@@ -1042,10 +1026,10 @@ export default function IntelligencePage() {
           </ErrorBoundary>
 
           {/* Ad zones */}
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
+          <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
             <AdZone zone="contextual-signal" context={{ exchange: "okx" }} />
           </div>
-          <div style={{ padding: "var(--pad-sm)" }}>
+          <div style={{ padding: "4px 6px" }}>
             <AdZone zone="contextual-signal" context={{ exchange: "bitget" }} />
           </div>
         </aside>
@@ -1055,8 +1039,8 @@ export default function IntelligencePage() {
 
           {/* Page title */}
           <div className="px-3 pt-2 pb-1 flex-shrink-0">
-            <h1 className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-lg)" }}>Trading Intelligence</h1>
-            <p className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Live gap analysis · order book depth · profit simulation</p>
+            <h1 className="text-[13px] font-medium text-[#E6EDF3]">Trading Intelligence</h1>
+            <p className="text-[10px] text-[#484F58]">live gap analysis · order book depth · profit simulation</p>
           </div>
 
           {/* ── Sparkline stat cards ── */}
@@ -1064,62 +1048,49 @@ export default function IntelligencePage() {
           <div className="grid grid-cols-4 gap-2 px-2 pb-2 flex-shrink-0">
 
             {/* Card 1: Gaps detected */}
-            <div
-              className="bg-[#161B22] border border-[#21262D] rounded-lg relative overflow-hidden"
-              style={{ padding: "var(--pad-md)" }}
-            >
+            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
               <SparklineSVG data={statHistory.gaps} color="#E6EDF3" id="gaps" />
               <div className="relative z-10">
-                <div className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Gaps detected</div>
-                <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="font-mono font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-xl)" }}>
+                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Gaps detected</div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-[20px] font-mono font-medium text-[#E6EDF3]">
                     {formatNumber(stats?.totalGapsLast1h ?? 0)}
                   </span>
                   <StatDeltaBadge history={statHistory.gaps} />
                 </div>
-                <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>last hour</div>
+                <div className="text-[10px] text-[#484F58]">last hour</div>
               </div>
             </div>
 
             {/* Card 2: Profitable */}
-            <div
-              className="bg-[#161B22] border border-[#21262D] rounded-lg relative overflow-hidden"
-              style={{ padding: "var(--pad-md)" }}
-            >
+            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
               <SparklineSVG data={statHistory.profitable} color="#3FB950" id="profitable" />
               <div className="relative z-10">
-                <div className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Profitable</div>
-                <div className="flex items-baseline gap-2 mt-0.5">
+                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Profitable</div>
+                <div className="flex items-baseline gap-1.5">
                   <span
-                    className="font-mono font-medium"
-                    style={{
-                      fontSize: "var(--fs-xl)",
-                      color: (stats?.profitableGapsCount ?? 0) > 0 ? "#3FB950" : "#8B949E",
-                    }}
+                    className="text-[20px] font-mono font-medium"
+                    style={{ color: (stats?.profitableGapsCount ?? 0) > 0 ? "#3FB950" : "#8B949E" }}
                   >
                     {formatNumber(stats?.profitableGapsCount ?? 0)}
                   </span>
                   <StatDeltaBadge history={statHistory.profitable} />
                 </div>
-                <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>
+                <div className="text-[10px] text-[#484F58]">
                   {stats?.profitableGapsPercent ?? 0}% conversion
                 </div>
               </div>
             </div>
 
             {/* Card 3: Avg net spread */}
-            <div
-              className="bg-[#161B22] border border-[#21262D] rounded-lg relative overflow-hidden"
-              style={{ padding: "var(--pad-md)" }}
-            >
+            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
               <SparklineSVG data={statHistory.spread} color="#3FB950" id="spread" />
               <div className="relative z-10">
-                <div className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Avg net spread</div>
-                <div className="flex items-baseline gap-2 mt-0.5">
+                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Avg net spread</div>
+                <div className="flex items-baseline gap-1.5">
                   <span
-                    className="font-mono font-medium"
+                    className="text-[20px] font-mono font-medium"
                     style={{
-                      fontSize: "var(--fs-xl)",
                       color: (stats?.avgSpreadPercent ?? 0) >= 0.2
                         ? "#3FB950"
                         : (stats?.avgSpreadPercent ?? 0) >= 0.05 ? "#D29922" : "#8B949E",
@@ -1129,23 +1100,19 @@ export default function IntelligencePage() {
                   </span>
                   <StatDeltaBadge history={statHistory.spread} />
                 </div>
-                <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>after all fees</div>
+                <div className="text-[10px] text-[#484F58]">after all fees</div>
               </div>
             </div>
 
             {/* Card 4: Avg gap life */}
-            <div
-              className="bg-[#161B22] border border-[#21262D] rounded-lg relative overflow-hidden"
-              style={{ padding: "var(--pad-md)" }}
-            >
+            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
               <SparklineSVG data={statHistory.duration} color="#D29922" id="duration" />
               <div className="relative z-10">
-                <div className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Avg gap life</div>
-                <div className="flex items-baseline gap-2 mt-0.5">
+                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Avg gap life</div>
+                <div className="flex items-baseline gap-1.5">
                   <span
-                    className="font-mono font-medium"
+                    className="text-[20px] font-mono font-medium"
                     style={{
-                      fontSize: "var(--fs-xl)",
                       color: (stats?.avgGapDurationMs ?? 0) >= 60_000
                         ? "#3FB950"
                         : (stats?.avgGapDurationMs ?? 0) >= 30_000 ? "#D29922" : "#F85149",
@@ -1155,7 +1122,7 @@ export default function IntelligencePage() {
                   </span>
                   <StatDeltaBadge history={statHistory.duration} />
                 </div>
-                <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>before close</div>
+                <div className="text-[10px] text-[#484F58]">before close</div>
               </div>
             </div>
           </div>
@@ -1167,18 +1134,18 @@ export default function IntelligencePage() {
             style={{
               display: "grid",
               gridTemplateColumns: "2fr 1fr 1fr",
-              gap: "var(--pad-sm, 4px)",
-              maxHeight: "clamp(100px, 12vh, 160px)",
-              minHeight: "90px",
-              padding: "2px var(--pad-md, 6px)",
+              gap: "4px",
+              maxHeight: "100px",
+              minHeight: "80px",
+              padding: "2px 6px",
             }}
           >
 
             {/* ── Treemap Heatmap (2fr) ── */}
             <ErrorBoundary name="Arbitrage heatmap">
-            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col" style={{ padding: "var(--pad-sm)" }}>
+            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col p-1.5">
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Arbitrage heatmap</span>
+                <span className="text-[11px] font-medium text-[#E6EDF3]">Arbitrage heatmap</span>
                 <InfoCorner text={TIP.heatmap} />
               </div>
               {symbolData.length === 0 ? (
@@ -1214,9 +1181,8 @@ export default function IntelligencePage() {
                             }}
                             onClick={() => setFilterSymbol(prev => prev === s.coin ? null : s.coin)}
                           >
-                            <span className="font-mono font-medium text-[#E6EDF3] leading-tight" style={{ fontSize: "var(--fs-lg)" }}>{s.coin}</span>
-                            <span className="font-mono text-[#3FB950] leading-tight" style={{ fontSize: "var(--fs-md)" }}>{s.count}</span>
-                            <span className="font-mono text-[#8B949E] leading-tight" style={{ fontSize: "var(--fs-xs)" }}>{formatPercent(s.avgSpread, 3)}</span>
+                            <span className="text-[10px] font-mono font-medium text-[#E6EDF3] leading-tight">{s.coin}</span>
+                            <span className="text-[10px] font-mono text-[#3FB950] leading-tight">{s.count}</span>
                           </div>
                         );
                       }
@@ -1231,14 +1197,14 @@ export default function IntelligencePage() {
                               borderRadius: "4px",
                             }}
                           >
-                            <span className="text-[#484F58] font-mono" style={{ fontSize: "9px" }}>+{remainingCount} more</span>
+                            <span className="text-[9px] text-[#484F58] font-mono">+{remainingCount} more</span>
                           </div>
                         );
                       }
                       return (
                         <div
                           key={s.coin}
-                          className={`rounded cursor-pointer transition-all duration-150 flex flex-col items-center justify-center hover:brightness-125 ${isSelected ? "ring-1 ring-[#388BFD]/60" : ""}`}
+                          className={`rounded cursor-pointer transition-all duration-150 flex flex-col items-center justify-center hover:brightness-125 min-h-[20px] ${isSelected ? "ring-1 ring-[#388BFD]/60" : ""}`}
                           style={{
                             background: `rgba(63,185,80,${Math.max(0.06, Math.min(0.35, s.avgSpread * 0.8))})`,
                             border: "1px solid rgba(63,185,80,0.3)",
@@ -1246,8 +1212,8 @@ export default function IntelligencePage() {
                           }}
                           onClick={() => setFilterSymbol(prev => prev === s.coin ? null : s.coin)}
                         >
-                          <span className="font-mono font-medium text-[#E6EDF3] leading-tight" style={{ fontSize: "var(--fs-xs)" }}>{s.coin}</span>
-                          <span className="font-mono text-[#3FB950] leading-tight" style={{ fontSize: "10px" }}>{s.count}</span>
+                          <span className="text-[10px] font-mono font-medium text-[#E6EDF3] leading-tight">{s.coin}</span>
+                          <span className="text-[10px] font-mono text-[#3FB950] leading-tight">{s.count}</span>
                         </div>
                       );
                     })}
@@ -1259,9 +1225,9 @@ export default function IntelligencePage() {
 
             {/* ── Spread Distribution Histogram (1fr) ── */}
             <ErrorBoundary name="Spread distribution">
-            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col" style={{ padding: "var(--pad-sm)" }}>
+            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col p-1.5">
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Spread dist.</span>
+                <span className="text-[11px] font-medium text-[#E6EDF3]">Spread dist.</span>
                 <InfoCorner text={TIP.spreadDist} />
               </div>
               {profitableGaps.length === 0 ? (
@@ -1273,7 +1239,7 @@ export default function IntelligencePage() {
                   <div className="flex items-end gap-[2px] flex-1 min-h-0" style={{ minHeight: 0 }}>
                     {spreadHistBuckets.map(b => (
                       <div key={b.key} className="flex flex-col items-center flex-1 h-full justify-end">
-                        <span className="font-mono text-[#8B949E] mb-0.5 leading-none" style={{ fontSize: "8px" }}>
+                        <span className="font-mono text-[#8B949E] mb-0.5 leading-none text-[9px]">
                           {b.count > 0 ? b.count : ""}
                         </span>
                         <div
@@ -1291,10 +1257,9 @@ export default function IntelligencePage() {
                     {spreadHistBuckets.map(b => (
                       <span
                         key={b.key}
-                        className="flex-1 text-center"
+                        className="flex-1 text-center text-[9px] font-mono"
                         style={{
                           color: b.color,
-                          fontSize: "8px",
                           fontWeight: b.key === tallestBucketKey ? 500 : 400,
                         }}
                       >
@@ -1309,9 +1274,9 @@ export default function IntelligencePage() {
 
             {/* ── Type Profitability with proportional bars (1fr) ── */}
             <ErrorBoundary name="Type profitability">
-            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col" style={{ padding: "var(--pad-sm)" }}>
+            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col p-1.5">
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Type profit</span>
+                <span className="text-[11px] font-medium text-[#E6EDF3]">Type profit</span>
                 <InfoCorner text={TIP.typeProfitability} />
               </div>
               {profitableGaps.length === 0 ? (
@@ -1332,21 +1297,19 @@ export default function IntelligencePage() {
                       const spreadBar  = isBest ? "bg-[#3FB950]" : isWorst ? "bg-[#F85149]/70" : "bg-[#3FB950]/60";
                       return (
                         <div key={t.type}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-0.5">
+                            <div className="flex items-center gap-1 flex-shrink-0" style={{ width: "30px" }}>
                               <div className="w-[4px] h-[4px] rounded-sm flex-shrink-0" style={{ background: t.color }} />
-                              <span className="text-[#E6EDF3]" style={{ fontSize: "10px" }}>{t.label}</span>
+                              <span className="text-[10px] font-mono text-[#E6EDF3]">{t.label}</span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className={`font-mono ${spreadTxt}`} style={{ fontSize: "10px" }}>
-                                {t.count > 0 ? formatPercent(t.avgSpread, 2) : "—"}
+                            <span className={`text-[10px] font-mono flex-1 text-right ${spreadTxt}`}>
+                              {t.count > 0 ? formatPercent(t.avgSpread, 2) : "—"}
+                            </span>
+                            {t.count > 0 && (
+                              <span className="text-[10px] font-mono text-[#484F58] whitespace-nowrap text-right" style={{ width: "50px" }}>
+                                {formatDuration(t.avgDuration)}
                               </span>
-                              {t.count > 0 && (
-                                <span className="font-mono text-[#484F58]" style={{ fontSize: "9px" }}>
-                                  {formatDuration(t.avgDuration)}
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                           {t.count > 0 && (
                             <div className="h-[2px] bg-[#21262D] rounded mt-0.5 mb-0.5">
@@ -1385,35 +1348,34 @@ export default function IntelligencePage() {
             {/* Table toolbar */}
             <div className="flex justify-between items-center py-1 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-[#3FB950]" style={{ fontSize: "var(--fs-xs)" }}>Live profitable gaps</span>
-                <span className="bg-[#3FB950]/20 text-[#3FB950] font-mono px-1.5 py-0.5 rounded" style={{ fontSize: "var(--fs-xs)" }}>
+                <span className="text-[11px] text-[#3FB950]">Live profitable gaps</span>
+                <span className="text-[9px] font-mono bg-[#3FB950]/10 text-[#3FB950] px-1.5 rounded">
                   {filteredGaps.length}
                 </span>
-                <span className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>· updated {lastUpdated}</span>
+                <span className="text-[9px] text-[#484F58]">· updated {lastUpdated}</span>
               </div>
               <div className="flex items-center gap-1">
-                <span className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Filter:</span>
+                <span className="text-[9px] text-[#484F58]">Filter:</span>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
                   value={filterInput}
                   onChange={(e) => handleFilterChange(e.target.value)}
-                  className="bg-[#0D1117] border border-[#21262D] rounded px-2 py-0.5 text-[#E6EDF3] font-mono w-[64px] focus:outline-none focus:border-[#388BFD] transition-colors"
-                  style={{ fontSize: "var(--fs-xs)" }}
+                  className="w-[40px] text-[10px] font-mono bg-[#161B22] border border-[#21262D] rounded px-1 py-0 text-center text-[#E6EDF3] focus:outline-none focus:border-[#388BFD] transition-colors"
                 />
-                <span className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>%</span>
+                <span className="text-[9px] text-[#484F58]">%</span>
               </div>
             </div>
 
             {/* Symbol filter badge */}
             {filterSymbol && (
               <div className="flex items-center gap-2 mb-1 flex-shrink-0">
-                <span className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>Filtered:</span>
-                <span className="bg-[#3FB950]/15 text-[#3FB950] px-2 py-0.5 rounded font-mono" style={{ fontSize: "var(--fs-xs)" }}>
+                <span className="text-[11px] text-[#8B949E]">Filtered:</span>
+                <span className="text-[11px] bg-[#3FB950]/15 text-[#3FB950] px-2 py-0.5 rounded font-mono">
                   {filterSymbol}
                 </span>
-                <button onClick={() => setFilterSymbol(null)} className="text-[#F85149] hover:underline" style={{ fontSize: "var(--fs-xs)" }}>
+                <button onClick={() => setFilterSymbol(null)} className="text-[11px] text-[#F85149] hover:underline">
                   Clear
                 </button>
               </div>
@@ -1442,8 +1404,7 @@ export default function IntelligencePage() {
                         {TABLE_HEADERS.map((h) => (
                           <th
                             key={h}
-                            className="text-left px-2 py-2 text-[#8B949E] font-normal whitespace-nowrap"
-                            style={{ fontSize: "var(--fs-xs)" }}
+                            className="text-left text-[11px] font-normal text-[#484F58] px-2 py-1 whitespace-nowrap"
                           >
                             {h}
                           </th>
@@ -1461,10 +1422,7 @@ export default function IntelligencePage() {
             </ErrorBoundary>
 
             {/* Footer note */}
-            <div
-              className="text-right py-1 text-[#484F58] border-t border-[#21262D] flex-shrink-0"
-              style={{ fontSize: "var(--fs-xs)" }}
-            >
+            <div className="text-[10px] text-right py-1 text-[#484F58] border-t border-[#21262D] flex-shrink-0">
               All spreads net of fees
             </div>
           </div>
@@ -1480,76 +1438,40 @@ export default function IntelligencePage() {
             onMouseDown={startRightDrag}
           />
 
-          {/* ── Rich leaderboard: Most gapped assets (from profitable gaps only) ── */}
+          {/* ── Dense leaderboard: Most gapped assets ── */}
           <ErrorBoundary name="Most gapped assets">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Most gapped assets</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Most gapped assets</span>
               <InfoCorner text={TIP.mostGapped} />
             </div>
             {!leaderboard.length ? (
               <WidgetSkeleton type="list" rows={5} />
             ) : (
-              <div>
-                {leaderboard.map((item, i) => {
-                  const spread = formatPercent(item.maxSpread, 3);
-
-                  if (i === 0) {
-                    return (
-                      <div
-                        key={item.coin}
-                        className="flex items-center gap-2 p-2 rounded-lg mb-1"
-                        style={{
-                          background: "rgba(210,153,34,0.06)",
-                          border: "1px solid rgba(210,153,34,0.15)",
-                        }}
-                      >
-                        <div className="w-[22px] h-[22px] bg-[#D29922]/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#D29922]" style={{ fontSize: "var(--fs-sm)" }}>1</span>
-                        </div>
-                        <span className="font-mono font-medium flex-1 text-[#E6EDF3]" style={{ fontSize: "var(--fs-md)" }}>
-                          {item.coin}
-                        </span>
-                        <div className="text-right">
-                          <div className="text-[#3FB950] font-mono font-medium" style={{ fontSize: "var(--fs-md)" }}>
-                            {item.count}
-                          </div>
-                          <div className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>{spread}</div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  if (i < 3) {
-                    return (
-                      <div key={item.coin} className="flex items-center gap-2 py-1.5 px-2">
-                        <div className="w-[20px] h-[20px] bg-[#8B949E]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-[#8B949E]" style={{ fontSize: "var(--fs-xs)" }}>{i + 1}</span>
-                        </div>
-                        <span className="font-mono flex-1 text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>
-                          {item.coin}
-                        </span>
-                        <div className="text-right">
-                          <div className="text-[#3FB950] font-mono" style={{ fontSize: "var(--fs-sm)" }}>{item.count}</div>
-                          <div className="text-[#484F58]" style={{ fontSize: "var(--fs-xs)" }}>{spread}</div>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={item.coin}
-                      className="flex items-center gap-1.5 py-[3px] border-b border-[#21262D]/30"
-                      style={{ fontSize: "var(--fs-xs)" }}
+              <div style={{ fontSize: "11px" }}>
+                {leaderboard.map((item, i) => (
+                  <div
+                    key={item.coin}
+                    className="flex items-center gap-2 hover:bg-[#161B22]/60"
+                    style={{ fontSize: "11px", height: "22px" }}
+                  >
+                    <span
+                      className={`font-mono w-[14px] text-right flex-shrink-0 ${i === 0 ? "text-[#D29922]" : "text-[#484F58]"}`}
+                      style={{ fontSize: "10px" }}
                     >
-                      <span className="text-[#484F58] w-[16px] text-center">{i + 1}</span>
-                      <span className="font-mono text-[#8B949E] flex-1 truncate">{item.coin}</span>
-                      <span className="font-mono text-[#3FB950]">{item.count}</span>
-                      <span className="font-mono text-[#8B949E] w-[42px] text-right">{spread}</span>
-                    </div>
-                  );
-                })}
+                      {i + 1}
+                    </span>
+                    <span
+                      className={`font-mono flex-1 ${
+                        i === 0 ? "text-[#E6EDF3] font-medium" : i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"
+                      }`}
+                    >
+                      {item.coin}
+                    </span>
+                    <span className="font-mono text-[#3FB950] w-[20px] text-right">{item.count}</span>
+                    <span className="font-mono text-[#484F58] w-[42px] text-right">{item.maxSpread.toFixed(3)}%</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -1557,15 +1479,15 @@ export default function IntelligencePage() {
 
           {/* Price variance index */}
           <ErrorBoundary name="Price variance">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Price variance</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Price variance</span>
               <InfoCorner text={TIP.priceVariance} />
             </div>
             {priceVariance.length === 0 ? (
               <EmptyState title="Calculating price variance" subtitle="Requires multi-exchange price data" />
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-0">
                 {priceVariance.map((item, i) => {
                   const isExtreme = item.variance > 5;
                   const maxVar    = priceVariance[0].variance;
@@ -1573,19 +1495,17 @@ export default function IntelligencePage() {
                   return (
                     <div
                       key={item.symbol}
-                      className={`flex items-center gap-1.5 p-1 rounded ${
-                        isExtreme ? "bg-[#F85149]/6 border border-[#F85149]/15" : ""
-                      }`}
+                      className="flex items-center gap-1 py-[1px]"
+                      style={{ height: "20px" }}
                     >
                       <span
-                        className={`font-mono font-medium w-[32px] flex-shrink-0 ${
+                        className={`text-[10px] font-mono w-[45px] flex-shrink-0 ${
                           isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
                         }`}
-                        style={{ fontSize: "var(--fs-xs)" }}
                       >
                         {item.symbol}
                       </span>
-                      <div className="flex-1 h-[5px] bg-[#21262D] rounded overflow-hidden">
+                      <div className="flex-1 h-[4px] bg-[#21262D] rounded overflow-hidden">
                         <div
                           className="h-full rounded"
                           style={{
@@ -1597,10 +1517,9 @@ export default function IntelligencePage() {
                         />
                       </div>
                       <span
-                        className={`font-mono w-[36px] text-right flex-shrink-0 ${
-                          isExtreme ? "text-[#F85149] font-medium" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
+                        className={`text-[10px] font-mono w-[35px] text-right flex-shrink-0 ${
+                          isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
                         }`}
-                        style={{ fontSize: "var(--fs-xs)" }}
                       >
                         {item.variance.toFixed(1)}%
                       </span>
@@ -1614,9 +1533,9 @@ export default function IntelligencePage() {
 
           {/* ── Gradient coverage bars ── */}
           <ErrorBoundary name="Exchange coverage">
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="font-medium text-[#E6EDF3]" style={{ fontSize: "var(--fs-sm)" }}>Exchange coverage</span>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Exchange coverage</span>
               <InfoCorner text={TIP.exchangeCoverage} />
             </div>
             {exchangeCoverage.length === 0 ? (
@@ -1624,14 +1543,14 @@ export default function IntelligencePage() {
             ) : (
               <div className="space-y-0">
                 {exchangeCoverage.map((ex, i) => (
-                  <div key={ex.name} className="flex items-center gap-2 py-1" style={{ fontSize: "var(--fs-sm)" }}>
+                  <div key={ex.name} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
                     <span
-                      className={i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}
-                      style={{ width: "42px", fontSize: "var(--fs-xs)" }}
+                      className={`text-[10px] font-mono flex-shrink-0 ${i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}`}
+                      style={{ width: "35px" }}
                     >
                       {shortEx(ex.name)}
                     </span>
-                    <div className="flex-1 h-[8px] bg-[#21262D] rounded overflow-hidden">
+                    <div className="flex-1 h-[5px] bg-[#21262D] rounded overflow-hidden">
                       <div
                         className="h-full rounded"
                         style={{
@@ -1646,8 +1565,8 @@ export default function IntelligencePage() {
                       />
                     </div>
                     <span
-                      className={`font-mono ${i < 3 ? "text-[#3FB950] font-medium" : "text-[#8B949E]"}`}
-                      style={{ width: "22px", textAlign: "right", fontSize: "var(--fs-xs)" }}
+                      className={`text-[10px] font-mono ${i < 3 ? "text-[#3FB950]" : "text-[#8B949E]"}`}
+                      style={{ width: "18px", textAlign: "right" }}
                     >
                       {ex.symbols}
                     </span>
@@ -1659,21 +1578,21 @@ export default function IntelligencePage() {
           </ErrorBoundary>
 
           {/* Magnus AI card */}
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
+          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
             <MagnusAICard />
           </div>
 
           {/* Ad zone */}
-          <div className="border-b border-[#21262D]" style={{ padding: "var(--pad-sm)" }}>
+          <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
             <AdZone zone="contextual-signal" context={{ exchange: "binance" }} />
           </div>
 
           {/* Upgrade nudge */}
-          <div style={{ padding: "var(--pad-sm)" }}>
-            <div className="bg-[#D29922]/4 border border-[#D29922]/10 rounded-md p-2 text-center">
-              <div className="text-[#D29922] font-medium" style={{ fontSize: "var(--fs-xs)" }}>Upgrade to Pro</div>
-              <div className="text-[#484F58] mt-1" style={{ fontSize: "var(--fs-xs)" }}>Real-time alerts + Magnus AI</div>
-              <a href="/settings" className="text-[#D29922] underline block mt-1" style={{ fontSize: "var(--fs-xs)" }}>
+          <div style={{ padding: "4px 6px" }}>
+            <div className="bg-[#D29922]/4 border border-[#21262D]/30 rounded-md p-1 text-center">
+              <div className="text-[10px] text-[#D29922] font-medium">Upgrade to Pro</div>
+              <div className="text-[10px] text-[#484F58] mt-0.5">Real-time alerts + Magnus AI</div>
+              <a href="/settings" className="text-[10px] text-[#D29922] block mt-0.5">
                 View plans →
               </a>
             </div>
