@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { formatNumber, formatPnl, formatUsd } from "@/lib/utils";
 import NavAuthButton from "@/components/NavAuthButton";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 
 const EX_COLS = [
   { id: "okx", label: "OKX" },
@@ -466,6 +468,9 @@ function FuturesPanel({ state }: { state: FuturesState | null }) {
 }
 
 export default function MagnusPage() {
+  const { canAccess } = useFeatureGate();
+  const hasMagnusAccess = canAccess('magnus_ai');
+
   const [tab, setTab] = useState<"alpha" | "beta" | "futures">("alpha");
   const [alphaState, setAlphaState] = useState<BotStateLike | null>(null);
   const [perf, setPerf] = useState<MagnusPerformance | null>(null);
@@ -624,7 +629,15 @@ export default function MagnusPage() {
         </button>
       </div>
 
-      <main className="flex-1 px-6 py-4 overflow-y-auto">
+      <main className="flex-1 px-6 py-4 overflow-y-auto relative">
+        {/* Magnus AI gate — free/trader users see a prompt over the live content */}
+        {!hasMagnusAccess && (
+          <UpgradePrompt
+            feature="Magnus AI live controls"
+            requiredPlan="pro"
+            className="rounded-lg"
+          />
+        )}
         {tab === "futures" ? (
           <FuturesPanel state={futuresState} />
         ) : tab === "beta" ? (

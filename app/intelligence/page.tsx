@@ -7,8 +7,10 @@ import { formatNumber } from "@/lib/utils";
 import { formatPercent, formatPrice, formatDuration } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
 import AdZone from "@/components/ui/AdZone";
+import AdBanner from "@/components/AdBanner";
 import MagnusAICard from "@/components/intelligence/MagnusAICard";
 import NavAuthButton from "@/components/NavAuthButton";
+import { useFeatureGate } from "@/hooks/useFeatureGate";
 import InfoCorner from "@/components/ui/InfoCorner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -469,7 +471,13 @@ interface PriceTick {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const FREE_GAP_LIMIT = 10;
+
 export default function IntelligencePage() {
+  const { canAccess, plan } = useFeatureGate();
+  const isRealtime = canAccess('real_time_data');
+  const canSeeAllGaps = canAccess('all_gap_types');
+
   const [stats, setStats] = useState<TradingStats | null>(null);
   const [profitableGaps, setProfitableGaps] = useState<GapRecord[]>([]);
   const [ticks, setTicks] = useState<PriceTick[]>([]);
@@ -797,9 +805,14 @@ export default function IntelligencePage() {
   }, [stats?.profitableGapsCount, stats?.totalGapsLast1h]);
 
   // ── Filtered gaps ──
-  const filteredGaps = profitableGaps
+  const allFilteredGaps = profitableGaps
     .filter(g => g.spreadPercent >= minSpread)
     .filter(g => filterSymbol ? g.symbol?.startsWith(filterSymbol) : true);
+
+  // Free users see only first 10 rows; remaining are blurred
+  const filteredGaps = isRealtime ? allFilteredGaps : allFilteredGaps.slice(0, FREE_GAP_LIMIT);
+  const hasHiddenGaps = !isRealtime && allFilteredGaps.length > FREE_GAP_LIMIT;
+  const hiddenCount = hasHiddenGaps ? allFilteredGaps.length - FREE_GAP_LIMIT : 0;
 
   // ── Drag handlers ──
   function startLeftDrag(e: React.MouseEvent) {
@@ -874,6 +887,11 @@ export default function IntelligencePage() {
             <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
             <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
+          {!isRealtime && (
+            <span className="text-[10px] font-mono text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/30 rounded px-1.5 py-0.5 mr-1">
+              DELAYED 15s
+            </span>
+          )}
           {connectionStatus === 'connecting' && (
             <span className="text-[11px] text-[#D29922] font-mono mr-1">Connecting…</span>
           )}
@@ -902,8 +920,8 @@ export default function IntelligencePage() {
         </div>
       </header>
 
-      {/* ── Ad pill ── */}
-      <AdZone zone="pill" />
+      {/* ── Ad pill — only for free users ── */}
+      <AdBanner zone="pill" />
 
       {/* ── 3-column layout ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1085,12 +1103,12 @@ export default function IntelligencePage() {
           </div>
           </ErrorBoundary>
 
-          {/* Ad zones */}
+          {/* Ad zones — only for free users */}
           <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
-            <AdZone zone="contextual-signal" context={{ exchange: "okx" }} />
+            <AdBanner zone="contextual-signal" context={{ exchange: "okx" }} />
           </div>
           <div style={{ padding: "4px 6px" }}>
-            <AdZone zone="contextual-signal" context={{ exchange: "bitget" }} />
+            <AdBanner zone="contextual-signal" context={{ exchange: "bitget" }} />
           </div>
         </aside>
 
@@ -1398,9 +1416,9 @@ export default function IntelligencePage() {
 
           </div>
 
-          {/* Ad banner */}
+          {/* Ad banner — only for free users */}
           <div className="flex-shrink-0">
-            <AdZone zone="horizontal" />
+            <AdBanner zone="horizontal" />
           </div>
 
           {/* ── Live gaps table — fills remaining height, scrolls internally ── */}
@@ -1447,7 +1465,7 @@ export default function IntelligencePage() {
                 <div className="flex-1 min-h-0 bg-[#161B22] border border-[#21262D] rounded overflow-hidden">
                   <WidgetSkeleton type="table" rows={8} />
                 </div>
-              ) : filteredGaps.length === 0 ? (
+              ) : filteredGaps.length === 0 && allFilteredGaps.length === 0 ? (
                 <div className="flex-1 min-h-0 bg-[#161B22] border border-[#21262D] rounded overflow-hidden">
                   <EmptyState
                     title="No arbitrage gaps detected"
@@ -1457,26 +1475,46 @@ export default function IntelligencePage() {
                   />
                 </div>
               ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto bg-[#161B22] border border-[#21262D] rounded">
-                  <table className="w-full min-w-[560px]">
-                    <thead className="sticky top-0 bg-[#161B22] z-10">
-                      <tr className="border-b border-[#21262D]">
-                        {TABLE_HEADERS.map((h) => (
-                          <th
-                            key={h}
-                            className="text-left text-[11px] font-normal text-[#484F58] px-2 py-1 whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
+                <div className="flex-1 min-h-0 relative bg-[#161B22] border border-[#21262D] rounded overflow-hidden flex flex-col">
+                  <div className="flex-1 overflow-y-auto">
+                    <table className="w-full min-w-[560px]">
+                      <thead className="sticky top-0 bg-[#161B22] z-10">
+                        <tr className="border-b border-[#21262D]">
+                          {TABLE_HEADERS.map((h) => (
+                            <th
+                              key={h}
+                              className="text-left text-[11px] font-normal text-[#484F58] px-2 py-1 whitespace-nowrap"
+                            >
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredGaps.map((gap, i) => (
+                          <GapRow key={gap.id} gap={gap} rowIndex={i} symHistory={symbolHistory} scoreThresholds={scoreThresholds} />
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredGaps.map((gap, i) => (
-                        <GapRow key={gap.id} gap={gap} rowIndex={i} symHistory={symbolHistory} scoreThresholds={scoreThresholds} />
-                      ))}
-                    </tbody>
-                  </table>
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Free user blur overlay — shown when there are hidden gaps */}
+                  {hasHiddenGaps && (
+                    <div className="flex-shrink-0 relative">
+                      {/* Blur gradient over phantom rows */}
+                      <div className="h-16 bg-gradient-to-b from-transparent to-[#161B22] pointer-events-none" />
+                      <div className="px-3 py-3 bg-[#161B22] border-t border-[#21262D] flex items-center justify-between">
+                        <span className="text-[11px] font-mono text-[#484F58]">
+                          +{hiddenCount} gaps hidden · upgrade for full access
+                        </span>
+                        <a
+                          href="/pricing"
+                          className="text-[11px] font-mono text-[#238636] hover:text-[#3FB950] border border-[#238636]/40 hover:border-[#3FB950] rounded px-2.5 py-0.5 transition-colors"
+                        >
+                          View plans →
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </ErrorBoundary>
@@ -1642,21 +1680,23 @@ export default function IntelligencePage() {
             <MagnusAICard />
           </div>
 
-          {/* Ad zone */}
+          {/* Ad zone — only for free users */}
           <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
-            <AdZone zone="contextual-signal" context={{ exchange: "binance" }} />
+            <AdBanner zone="contextual-signal" context={{ exchange: "binance" }} />
           </div>
 
-          {/* Upgrade nudge */}
-          <div style={{ padding: "4px 6px" }}>
-            <div className="bg-[#D29922]/4 border border-[#21262D]/30 rounded-md p-1 text-center">
-              <div className="text-[10px] text-[#D29922] font-medium">Upgrade to Pro</div>
-              <div className="text-[10px] text-[#484F58] mt-0.5">Real-time alerts + Magnus AI</div>
-              <a href="/settings" className="text-[10px] text-[#D29922] block mt-0.5">
-                View plans →
-              </a>
+          {/* Upgrade nudge — shown to free users */}
+          {!isRealtime && (
+            <div style={{ padding: "4px 6px" }}>
+              <div className="bg-[#D29922]/4 border border-[#21262D]/30 rounded-md p-1 text-center">
+                <div className="text-[10px] text-[#D29922] font-medium">Upgrade to Pro</div>
+                <div className="text-[10px] text-[#484F58] mt-0.5">Real-time alerts + Magnus AI</div>
+                <a href="/pricing" className="text-[10px] text-[#D29922] block mt-0.5">
+                  View plans →
+                </a>
+              </div>
             </div>
-          </div>
+          )}
         </aside>
 
       </div>

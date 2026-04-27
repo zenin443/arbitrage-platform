@@ -9,6 +9,7 @@ export type FeatureKey =
   | 'real_time_data'
   | 'all_coins'
   | 'all_gap_types'
+  | 'intelligence_page'
   | 'cex_arb'
   | 'dex_arb'
   | 'cross_chain_arb'
@@ -20,6 +21,8 @@ export type FeatureKey =
   | 'webhooks'
   | 'white_label'
   | 'no_ads'
+  | 'export_csv'
+  | 'export_full'
   | 'priority_support';
 
 const PLAN_RANK: Record<PlanTier, number> = {
@@ -34,6 +37,7 @@ const FEATURE_MIN_PLAN: Record<FeatureKey, PlanTier> = {
   real_time_data:    'trader',
   all_coins:         'trader',
   all_gap_types:     'trader',
+  intelligence_page: 'trader',
   cex_arb:           'free',
   dex_arb:           'trader',
   cross_chain_arb:   'trader',
@@ -45,6 +49,8 @@ const FEATURE_MIN_PLAN: Record<FeatureKey, PlanTier> = {
   webhooks:          'institutional',
   white_label:       'institutional',
   no_ads:            'trader',
+  export_csv:        'trader',
+  export_full:       'pro',
   priority_support:  'pro',
 };
 
