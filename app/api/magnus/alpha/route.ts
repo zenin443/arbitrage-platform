@@ -1,9 +1,11 @@
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+
 // Module-level flag — fires once per process lifetime, audits stored vs. calculated stats
 let validated = false
 
 export async function GET() {
   try {
-    const res = await fetch('http://localhost:3001/magnus/alpha', { cache: 'no-store' })
+    const res = await fetch(`${BACKEND_URL}/magnus/alpha`, { cache: 'no-store' })
     const magnusData = await res.json()
 
     // Use recentTrades as the sample for profit-quality calculations;
@@ -52,9 +54,9 @@ export async function GET() {
       const recalcWinRate = ((recalcWins / Math.max(trades.length, 1)) * 100).toFixed(1)
 
       console.log('[Magnus Audit]', {
-        storedTrades:     magnusData.totalTrades,
-        calculatedTrades: trades.length,
-        storedWinRate:    magnusData.winRate,
+        storedTrades:      magnusData.totalTrades,
+        calculatedTrades:  trades.length,
+        storedWinRate:     magnusData.winRate,
         calculatedWinRate: recalcWinRate,
         match: String(magnusData.totalTrades) === String(trades.length),
       })

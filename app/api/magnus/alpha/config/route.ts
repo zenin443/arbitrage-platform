@@ -1,6 +1,8 @@
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+
 export async function GET() {
   try {
-    const res = await fetch('http://localhost:3001/magnus/alpha/config', { cache: 'no-store' })
+    const res = await fetch(`${BACKEND_URL}/magnus/alpha/config`, { cache: 'no-store' })
     const data = await res.json()
     return Response.json(data)
   } catch {
@@ -11,7 +13,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.text()
-    const res = await fetch('http://localhost:3001/magnus/alpha/config', {
+    const res = await fetch(`${BACKEND_URL}/magnus/alpha/config`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: body || '{}',

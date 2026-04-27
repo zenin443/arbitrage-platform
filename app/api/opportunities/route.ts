@@ -1,21 +1,11 @@
 import { NextResponse } from "next/server";
 
-const PRICE_SERVER_URL = "http://localhost:3001";
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
 
-/**
- * GET /api/opportunities
- * Proxies to the standalone price server running on port 3001.
- * Query params are forwarded as-is to the price server.
- *
- * Query params:
- *   minNetSpread  — Minimum net spread % filter (default: 0.05)
- *   minSpread     — Alias for minNetSpread
- *   limit         — Max results returned (default: 50, max: 200)
- */
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
 
-  const upstream = new URL(`${PRICE_SERVER_URL}/opportunities`);
+  const upstream = new URL(`${BACKEND_URL}/opportunities`);
   searchParams.forEach((value, key) => upstream.searchParams.set(key, value));
 
   if (!upstream.searchParams.has("minNetSpread") && !upstream.searchParams.has("minSpread")) {

@@ -1,9 +1,11 @@
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+
 export async function POST(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
   try {
-    const res = await fetch(`http://localhost:3001/simulator/${params.id}/reset`, {
+    const res = await fetch(`${BACKEND_URL}/simulator/${params.id}/reset`, {
       method: 'POST',
     })
     const data = await res.json()

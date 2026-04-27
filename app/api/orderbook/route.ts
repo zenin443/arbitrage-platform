@@ -1,3 +1,5 @@
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+
 export async function GET(request: Request): Promise<Response> {
   try {
     const { searchParams } = new URL(request.url)
@@ -13,7 +15,7 @@ export async function GET(request: Request): Promise<Response> {
     }
 
     const res = await fetch(
-      `http://localhost:3001/orderbook?symbol=${encodeURIComponent(symbol)}&buyExchange=${encodeURIComponent(buyExchange)}&sellExchange=${encodeURIComponent(sellExchange)}`,
+      `${BACKEND_URL}/orderbook?symbol=${encodeURIComponent(symbol)}&buyExchange=${encodeURIComponent(buyExchange)}&sellExchange=${encodeURIComponent(sellExchange)}`,
       { cache: 'no-store' }
     )
     const data: unknown = await res.json()

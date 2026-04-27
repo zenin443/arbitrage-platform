@@ -116,29 +116,24 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
     }
   }, [coins, selectedCoin, onSelectCoin]);
 
-  // Fetch Magnus alpha stats
+  // Fetch Magnus alpha stats from the dedicated endpoint
   useEffect(() => {
     const fetchMagnus = async () => {
       try {
-        const res = await fetch("/api/simulators");
+        const res = await fetch("/api/magnus/alpha");
+        if (!res.ok) return;
         const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.simulators ?? data.bots ?? []);
-        if (list.length > 0) {
-          const bot = list[0];
-          const wins = bot.wins ?? bot.winCount ?? 0;
-          const losses = bot.losses ?? bot.lossCount ?? 0;
-          const total = wins + losses;
-          const winRate = total > 0 ? (wins / total) * 100 : 100;
-          const tradeCount = bot.tradeCount ?? bot.trades ?? total ?? 27;
-          const capital = bot.capital ?? bot.startingCapital ?? bot.balance ?? 19000;
-          setMagnus({ winRate, tradeCount, capital });
-        }
+        if (!data) return;
+        const tradeCount = data.totalTrades ?? data.qualityMetrics?.totalTrades ?? 0;
+        const winRate = data.winRate ?? data.qualityMetrics?.winRate ?? 0;
+        const capital = data.totalPortfolioValueUsd ?? data.portfolioValue ?? data.capital ?? 0;
+        setMagnus({ winRate: parseFloat(String(winRate)), tradeCount, capital });
       } catch {
-        // use placeholder display
+        // silently keep previous display
       }
     };
     fetchMagnus();
-    const id = setInterval(fetchMagnus, 30000);
+    const id = setInterval(fetchMagnus, 15000);
     return () => clearInterval(id);
   }, []);
 
@@ -216,13 +211,15 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
     return c.coinName.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
   });
 
-  const magnusWinRate = magnus ? `${magnus.winRate.toFixed(0)}% win rate` : "100% win rate";
-  const magnusTradeCount = magnus ? magnus.tradeCount : 27;
+  const magnusWinRate = magnus ? `${parseFloat(String(magnus.winRate)).toFixed(1)}% win rate` : "—";
+  const magnusTradeCount = magnus ? magnus.tradeCount : "—";
   const magnusCapital = magnus
-    ? magnus.capital >= 1000
-      ? `$${(magnus.capital / 1000).toFixed(0)}K`
+    ? magnus.capital >= 1_000_000
+      ? `$${(magnus.capital / 1_000_000).toFixed(1)}M`
+      : magnus.capital >= 1000
+      ? `$${(magnus.capital / 1000).toFixed(1)}K`
       : `$${magnus.capital.toFixed(0)}`
-    : "$19K";
+    : "—";
 
   return (
     <>

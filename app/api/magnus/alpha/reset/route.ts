@@ -1,6 +1,8 @@
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+
 export async function POST() {
   try {
-    const res = await fetch('http://localhost:3001/magnus/alpha/reset', { method: 'POST' })
+    const res = await fetch(`${BACKEND_URL}/magnus/alpha/reset`, { method: 'POST' })
     const data = await res.json()
     return Response.json(data, { status: res.ok ? 200 : res.status })
   } catch {

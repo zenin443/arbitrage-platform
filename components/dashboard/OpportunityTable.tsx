@@ -56,9 +56,9 @@ function timeAgo(ms: number): string {
 }
 
 const CONFIDENCE_BADGE: Record<ConfidenceTier, string> = {
-  high:   "bg-[#3FB950]/10 text-[#3FB950] border border-[#3FB950]/20 text-[11px] px-2 py-0.5 rounded-full",
-  medium: "bg-[#D29922]/10 text-[#D29922] border border-[#D29922]/20 text-[11px] px-2 py-0.5 rounded-full",
-  low:    "text-[#8B949E] text-[11px] px-2 py-0.5",
+  high:   "bg-[#3FB950]/15 text-[#3FB950] px-1.5 py-0.5 rounded font-mono",
+  medium: "bg-[#D29922]/12 text-[#D29922] px-1.5 py-0.5 rounded font-mono",
+  low:    "bg-[#8B949E]/12 text-[#8B949E] px-1.5 py-0.5 rounded font-mono",
 };
 
 interface GapRecord {
@@ -142,17 +142,17 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
       <div className="flex-1 overflow-auto">
         <table className="min-w-[800px] w-full text-xs font-mono">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-[#1C2128] text-[#484F58] text-[11px] font-sans">
-              <th className="px-3 py-1 text-left font-medium">Symbol</th>
-              <th className="px-3 py-1 text-left font-medium">Buy</th>
-              <th className="px-3 py-1 text-left font-medium">Sell</th>
-              <th className="px-3 py-1 text-right font-medium">Gross %</th>
-              <th className="px-3 py-1 text-right font-medium">Net %</th>
-              <th className="px-3 py-1 text-right font-medium">Est. profit</th>
-              <th className="px-3 py-1 text-right font-medium">Liquidity</th>
-              <th className="px-3 py-1 text-right font-medium">Network</th>
-              <th className="px-3 py-1 text-right font-medium">Confidence</th>
-              <th className="px-3 py-1 text-right font-medium">Detected</th>
+            <tr className="bg-[#161B22] border-b border-[#21262D]" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
+              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Symbol</th>
+              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Buy</th>
+              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Sell</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Gross %</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Net %</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Est. profit</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Liquidity</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Type</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Confidence</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Detected</th>
             </tr>
           </thead>
           <tbody>
@@ -195,67 +195,74 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                   tier === "medium" ? "border-l-[#D29922]" :
                                       "border-l-[#21262D]";
 
+                const typeBadgeClass =
+                  gap.type === 'spot_futures' ? 'bg-[#3FB950]/12 text-[#3FB950]' :
+                  gap.type === 'dex_cex'      ? 'bg-[#D29922]/12 text-[#D29922]' :
+                                                'bg-[#388BFD]/12 text-[#388BFD]';
+
                 return (
                   <tr
                     key={key}
                     onClick={() => onSelectSignal(gap)}
                     className={clsx(
-                      "cursor-pointer transition-colors duration-200 border-b border-[#21262D] border-l-2",
+                      "cursor-pointer transition-colors border-b border-[#21262D]/30 border-l-2",
                       isSelected
                         ? "bg-[#161B22] border-l-[#388BFD]"
-                        : clsx(tierBorderColor, "hover:bg-[#161B22]/30"),
+                        : clsx(tierBorderColor, "hover:bg-[#161B22]/60"),
                       isNew && !isSelected && "animate-fade-in"
                     )}
                   >
-                    <td className="px-3 py-1 text-[#E6EDF3] font-mono text-[12px] font-medium">
+                    <td className="px-2 py-1.5 text-[#E6EDF3] font-mono font-medium" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
                       {gap.symbol}
                     </td>
-                    <td className="px-3 py-1 font-sans text-[12px]">
+                    <td className="px-2 py-1.5" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
                       <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
                         {exchangeLabel(gap.buyExchange)}
                       </ExchangeLink>
                     </td>
-                    <td className="px-3 py-1 font-sans text-[12px]">
+                    <td className="px-2 py-1.5" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
                       <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
                         {exchangeLabel(gap.sellExchange)}
                       </ExchangeLink>
                     </td>
-                    <td className="px-3 py-1 text-right text-[#8B949E] font-mono text-[12px] tabular-nums">
+                    <td className="px-2 py-1.5 text-right text-[#8B949E] font-mono tabular-nums" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
                       {formatPercent(gap.spreadPercent, 3)}
                     </td>
                     <td
                       className={clsx(
-                        "px-3 py-1 text-right tabular-nums font-mono text-[12px] font-medium",
+                        "px-2 py-1.5 text-right tabular-nums font-mono font-medium",
                         netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]"
                       )}
+                      style={{ fontSize: 'var(--fs-sm, 12px)' }}
                     >
                       {formatPercent(netSpread, 3)}
                     </td>
-                    <td className="px-3 py-1 text-right text-[#388BFD] font-mono text-[12px] font-medium tabular-nums">
+                    <td className="px-2 py-1.5 text-right text-[#388BFD] font-mono font-medium tabular-nums" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
                       {formatUsd(estimatedProfit)}
                     </td>
-                    <td className="px-3 py-1 text-right tabular-nums">
+                    <td className="px-2 py-1.5 text-right tabular-nums">
                       <LiquidityBar
                         score={liquidityScore}
                         label={formatLiquidity(gap.maxTradeableUsd)}
                       />
                     </td>
-                    <td className="px-3 py-1 text-right text-[#8B949E] tabular-nums text-[11px]">
-                      <span className="bg-[#1C2128] border border-[#21262D] px-1.5 py-0.5 rounded text-[11px]">
+                    <td className="px-2 py-1.5 text-right">
+                      <span
+                        className={clsx('px-1.5 py-0.5 rounded font-mono text-center', typeBadgeClass)}
+                        style={{ fontSize: 'var(--fs-xs, 11px)' }}
+                      >
                         {networkLabel(gap.type)}
                       </span>
                     </td>
-                    <td className="px-3 py-1 text-right">
+                    <td className="px-2 py-1.5 text-right">
                       <span
-                        className={clsx(
-                          "inline-flex items-center font-medium text-[11px] uppercase",
-                          CONFIDENCE_BADGE[tier]
-                        )}
+                        className={clsx("font-medium uppercase", CONFIDENCE_BADGE[tier])}
+                        style={{ fontSize: 'var(--fs-xs, 11px)' }}
                       >
                         {tier}
                       </span>
                     </td>
-                    <td className="px-3 py-1 text-right text-[#484F58] tabular-nums text-[11px] font-sans">
+                    <td className="px-2 py-1.5 text-right text-[#484F58] tabular-nums font-sans" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
                       {gap.detectedAt ? timeAgo(gap.detectedAt) : formatTimestamp(Date.now())}
                     </td>
                   </tr>

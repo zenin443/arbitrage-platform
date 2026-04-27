@@ -11,7 +11,7 @@ process.on('unhandledRejection', (reason: any) => {
 
 import http from 'http'
 import { WebSocketServer } from 'ws'
-import { PriceTick } from './adapters/cex/base'
+import { PriceTick, BaseExchangeAdapter } from './adapters/cex/base'
 import { BinanceAdapter } from './adapters/cex/binance'
 import { BybitAdapter } from './adapters/cex/bybit'
 import { OkxAdapter } from './adapters/cex/okx'
@@ -94,10 +94,78 @@ let latestOpportunities: ArbitrageOpportunity[] = []
 let latestSpotFuturesOpportunities: SpotFuturesOpportunity[] = []
 let latestCexDexOpportunities: CexDexOpportunity[] = []
 
+// ── Exchange health tracking ──────────────────────────────────────────────────
+
+const exchangeHealth: Record<string, {
+  lastTickAt: number
+  status: 'connected' | 'stale' | 'disconnected'
+  tickCount: number
+  reconnectCount: number
+}> = {}
+
+const adapterMap = new Map<string, BaseExchangeAdapter>()
+const reconnecting = new Set<string>()
+
+function connectExchange(exchangeId: string): void {
+  const adapter = adapterMap.get(exchangeId)
+  if (!adapter) {
+    console.warn(`[Reconnect] No adapter found for ${exchangeId}`)
+    return
+  }
+  adapter.disconnect()
+  adapter.connect(onTick).then(() => {
+    exchangeHealth[exchangeId] = {
+      lastTickAt: Date.now(),
+      status: 'connected',
+      tickCount: 0,
+      reconnectCount: exchangeHealth[exchangeId]?.reconnectCount ?? 0,
+    }
+    reconnecting.delete(exchangeId)
+  }).catch(err => {
+    console.error(`[Reconnect] ${exchangeId} failed:`, err)
+    reconnecting.delete(exchangeId)
+    reconnectExchange(exchangeId, 1)
+  })
+}
+
+function reconnectExchange(exchangeId: string, attempt = 0): void {
+  if (reconnecting.has(exchangeId)) return
+  const baseDelay = 1000
+  const maxDelay = 30000
+  const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+  const jitter = Math.random() * 1000
+
+  console.log(`[Reconnect] ${exchangeId} — attempt ${attempt + 1}, retry in ${Math.round(delay + jitter)}ms`)
+
+  exchangeHealth[exchangeId] = {
+    ...exchangeHealth[exchangeId],
+    status: 'disconnected',
+    reconnectCount: (exchangeHealth[exchangeId]?.reconnectCount ?? 0) + 1,
+  }
+  reconnecting.add(exchangeId)
+
+  setTimeout(() => {
+    try {
+      connectExchange(exchangeId)
+    } catch (err) {
+      console.error(`[Reconnect] ${exchangeId} failed:`, err)
+      reconnecting.delete(exchangeId)
+      reconnectExchange(exchangeId, attempt + 1)
+    }
+  }, delay + jitter)
+}
+
 // ── Tick handlers ──────────────────────────────────────────────────────────────
 
 function onTick(tick: PriceTick): void {
   tickStore.upsert(tick)
+  const h = exchangeHealth[tick.exchangeId]
+  exchangeHealth[tick.exchangeId] = {
+    lastTickAt: Date.now(),
+    status: 'connected',
+    tickCount: (h?.tickCount ?? 0) + 1,
+    reconnectCount: h?.reconnectCount ?? 0,
+  }
 }
 
 function onFuturesTick(tick: FuturesTick): void {
@@ -122,6 +190,32 @@ setInterval(() => {
   wsServer.broadcast('cex-dex', latestCexDexOpportunities)
 }, RECALC_INTERVAL_MS)
 
+// ── Exchange stale detection ──────────────────────────────────────────────────
+
+setInterval(() => {
+  const now = Date.now()
+  Object.entries(exchangeHealth).forEach(([ex, health]) => {
+    const age = now - health.lastTickAt
+    const wasDisconnected = health.status === 'disconnected'
+    if (age > 30000) {
+      exchangeHealth[ex].status = 'disconnected'
+      if (!wasDisconnected) {
+        console.warn(`[Health] ${ex} disconnected — no ticks for ${Math.round(age / 1000)}s`)
+        if (adapterMap.has(ex) && !reconnecting.has(ex)) {
+          reconnectExchange(ex, 0)
+        }
+      }
+    } else if (age > 15000) {
+      if (exchangeHealth[ex].status !== 'stale') {
+        exchangeHealth[ex].status = 'stale'
+        console.warn(`[Health] ${ex} stale — no ticks for ${Math.round(age / 1000)}s`)
+      }
+    } else {
+      exchangeHealth[ex].status = 'connected'
+    }
+  })
+}, 10000)
+
 // ── HTTP server ───────────────────────────────────────────────────────────────
 
 function json(res: http.ServerResponse, status: number, body: unknown): void {
@@ -142,6 +236,7 @@ function readBody(req: http.IncomingMessage): Promise<string> {
 }
 
 const httpServer = http.createServer(async (req, res) => {
+  try {
   const url = new URL(req.url ?? '/', `http://localhost:${HTTP_PORT}`)
   const method = req.method ?? 'GET'
 
@@ -329,6 +424,15 @@ const httpServer = http.createServer(async (req, res) => {
       clients: wsServer.connectedCount,
       memoryMB: Math.round(mem.heapUsed / 1024 / 1024),
       memoryMaxMB: Math.round(mem.heapTotal / 1024 / 1024),
+      exchangeStatus: Object.fromEntries(
+        Object.entries(exchangeHealth).map(([ex, h]) => [ex, {
+          status: h.status,
+          lastTickAge: Math.round((Date.now() - h.lastTickAt) / 1000),
+          tickCount: h.tickCount,
+        }])
+      ),
+      connectedExchanges: Object.values(exchangeHealth).filter(h => h.status === 'connected').length,
+      totalExchanges: Object.keys(exchangeHealth).length,
     })
     return
   }
@@ -434,6 +538,12 @@ const httpServer = http.createServer(async (req, res) => {
   }
 
   json(res, 404, { error: 'Not found' })
+  } catch (err) {
+    console.error(`[HTTP Error] ${req.method} ${req.url}:`, err)
+    try {
+      json(res, 500, { error: 'Internal server error' })
+    } catch { /* response already sent */ }
+  }
 })
 
 // ── Start sequence ────────────────────────────────────────────────────────────
@@ -487,6 +597,7 @@ async function start(): Promise<void> {
   ]
 
   for (const adapter of tier1) {
+    adapterMap.set(adapter.config.id, adapter)
     adapter.connect(onTick).catch(err =>
       console.error(`[PriceServer] ${adapter.config.id} connect error: ${String(err)}`)
     )
@@ -495,6 +606,7 @@ async function start(): Promise<void> {
   // 4. Tier 2 spot adapters (CCXT)
   const tier2 = createAllTier2Adapters()
   for (const adapter of tier2) {
+    adapterMap.set(adapter.config.id, adapter)
     adapter.connect(onTick).catch(err =>
       console.error(`[PriceServer] ${adapter.config.id} connect error: ${String(err)}`)
     )
@@ -528,6 +640,7 @@ async function start(): Promise<void> {
   ]
 
   for (const adapter of tier3) {
+    adapterMap.set(adapter.config.id, adapter)
     adapter.connect(onTick).catch(err =>
       console.error(`[PriceServer] ${adapter.config.id} connect error: ${String(err)}`)
     )

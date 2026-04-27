@@ -813,7 +813,7 @@ export default function IntelligencePage() {
     <div className="flex flex-col h-screen bg-[#0D1117] text-[#E6EDF3] overflow-hidden">
 
       {/* ── Top Nav ── */}
-      <header className="flex items-center justify-between px-4 py-2 bg-[#161B22] border-b border-[#21262D] flex-shrink-0">
+      <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-2 bg-[#161B22] border-b border-[#21262D] flex-shrink-0">
         <div className="flex items-center gap-3">
           <ZapIcon className="h-4 w-4 text-[#388BFD]" />
           <span className="text-[13px] font-medium text-[#388BFD]">Arbitrage Terminal</span>
@@ -821,7 +821,7 @@ export default function IntelligencePage() {
           <span className="text-[11px] text-[#484F58] font-mono">v0.7.4</span>
         </div>
         <div className="flex items-center gap-1 text-[11px]">
-          <div className="flex items-center gap-1 mr-1">
+          <div className="flex items-center gap-1 mr-2">
             <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
             <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
@@ -831,22 +831,22 @@ export default function IntelligencePage() {
           {connectionStatus === 'error' && (
             <span className="text-[#F85149] font-mono mr-1" style={{ fontSize: 'var(--fs-xs, 11px)' }}>Backend unavailable</span>
           )}
-          <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/10 border border-[#388BFD]/40 text-[#388BFD] text-[11px]">
+          <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px]">
             Intelligence
           </Link>
-          <Link href="/magnus" className="px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD]/40 transition-colors text-[11px]">
+          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
             Magnus
           </Link>
-          <Link href="/dex" className="px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD]/40 transition-colors text-[11px]">
+          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
             DEX Markets
           </Link>
-          <Link href="/funding-rates" className="px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD]/40 transition-colors text-[11px]">
+          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
             Funding Rates
           </Link>
-          <Link href="/dashboard" className="px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD]/40 transition-colors text-[11px]">
+          <Link href="/dashboard" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
             Dashboard
           </Link>
-          <Link href="/settings" className="px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD]/40 transition-colors" title="Settings">
+          <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
           </Link>
         </div>

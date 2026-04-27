@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
-const PRICE_SERVER_URL = "http://localhost:3001";
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const res = await fetch(`${PRICE_SERVER_URL}/cross-chain`, {
+    const res = await fetch(`${BACKEND_URL}/cross-chain`, {
       next: { revalidate: 0 },
     });
 

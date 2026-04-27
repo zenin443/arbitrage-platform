@@ -538,61 +538,36 @@ export default function MagnusPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0D1117] text-[#E6EDF3]">
-      <header className="flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
+      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
         <div className="flex items-center gap-3">
           <ZapIcon className="h-4 w-4 text-[#388BFD]" />
-          <span className="text-sm font-bold tracking-widest uppercase font-mono text-[#388BFD]">
+          <span className="text-[14px] font-medium font-sans text-[#388BFD]">
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-xs text-[#484F58] font-mono">v0.5.4</span>
+          <span className="text-[11px] text-[#484F58] font-mono">v0.7.4</span>
         </div>
-        <div className="flex items-center gap-1 text-xs font-mono overflow-x-auto">
-          <div className="flex items-center gap-1 mr-1">
+        <div className="flex items-center gap-1 text-[11px] overflow-x-auto">
+          <div className="flex items-center gap-1 mr-2">
             <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
             <span className="text-[#3FB950] font-mono">LIVE</span>
           </div>
-          <Link
-            href="/intelligence"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Intelligence</span>
+          <Link href="/intelligence" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
+            Intelligence
           </Link>
-          <Link
-            href="/magnus"
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#388BFD]/10 border border-[#388BFD]/40 text-[#388BFD] text-[10px] font-mono whitespace-nowrap"
-          >
+          <Link href="/magnus" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium whitespace-nowrap">
             Magnus
           </Link>
-          <Link
-            href="/dex"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">DEX Markets</span>
+          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
+            DEX Markets
           </Link>
-          <Link
-            href="/funding-rates"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Funding Rates</span>
+          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
+            Funding Rates
           </Link>
-          <Link
-            href="/alerts"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Alerts</span>
+          <Link href="/dashboard" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors whitespace-nowrap">
+            Dashboard
           </Link>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[10px] font-mono">Dashboard</span>
-          </Link>
-          <Link
-            href="/settings"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-            title="Settings"
-          >
+          <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -610,7 +585,7 @@ export default function MagnusPage() {
             Inventory model · ROI-driven rebalancing · predictive pre-balancing
           </p>
         </div>
-        <span className="text-[10px] text-[#484F58] font-mono">v0.5.4 · Last updated: {now}</span>
+        <span className="text-[10px] text-[#484F58] font-mono">v0.7.4 · Last updated: {now}</span>
       </div>
 
       <div className="px-6 pt-3 flex gap-1">

@@ -65,13 +65,16 @@ export default function DashboardPage() {
   const [opportunityCount, setOpportunityCount] = useState<number | null>(null);
   const [bestSpread, setBestSpread] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [now, setNow] = useState('');
 
-  const now = new Date().toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+  useEffect(() => {
+    const fmt = () => new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+    });
+    setNow(fmt());
+    const t = setInterval(() => setNow(fmt()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // Check backend connectivity once
   useEffect(() => {
@@ -193,17 +196,17 @@ export default function DashboardPage() {
     <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
 
       {/* ── Top navigation bar ── */}
-      <header className="flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
+      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
         <div className="flex items-center gap-3">
           <ZapIcon className="h-4 w-4 text-[#388BFD]" />
           <span className="text-[14px] font-medium font-sans text-[#388BFD]">
             Arbitrage Terminal
           </span>
           <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-[12px] text-[#484F58] font-mono">v0.6.5</span>
+          <span className="text-[12px] text-[#484F58] font-mono">v0.7.4</span>
         </div>
         <div className="flex items-center gap-1 text-xs overflow-x-auto">
-          <div className="flex items-center gap-1 mr-1">
+          <div className="flex items-center gap-1 mr-2">
             <span className="animate-pulse bg-[#3FB950] rounded-full w-1.5 h-1.5" />
             <span className="text-[#3FB950] font-mono text-[11px]">LIVE</span>
           </div>
@@ -213,50 +216,24 @@ export default function DashboardPage() {
           {connectionStatus === 'error' && (
             <span className="text-[#F85149] font-mono text-[11px] mr-1">Backend unavailable</span>
           )}
-          <span className="text-[#484F58] text-[11px] font-mono mr-1">{now}</span>
-          <Link
-            href="/intelligence"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[12px] font-sans">Intelligence</span>
+          {now && <span className="text-[#484F58] text-[11px] font-mono mr-2">{now}</span>}
+          <Link href="/intelligence" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
+            Intelligence
           </Link>
-          <Link
-            href="/magnus"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[12px] font-sans">Magnus</span>
+          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
+            Magnus
           </Link>
-          <Link
-            href="/dex"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[12px] font-sans">DEX Markets</span>
+          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
+            DEX Markets
           </Link>
-          <Link
-            href="/funding-rates"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[12px] font-sans">Funding Rates</span>
+          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
+            Funding Rates
           </Link>
-          <Link
-            href="/alerts"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-          >
-            <span className="text-[12px] font-sans">Alerts</span>
-          </Link>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#388BFD]/10 border border-[#388BFD]/40 text-[#388BFD] text-[12px] font-sans whitespace-nowrap"
-          >
+          <Link href="/dashboard" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px] whitespace-nowrap">
             Dashboard
           </Link>
-          <Link
-            href="/settings"
-            className="flex items-center gap-1 px-2 py-0.5 rounded border border-[#21262D] text-[#8B949E] hover:text-[#388BFD] hover:border-[#388BFD] transition-colors whitespace-nowrap"
-            title="Settings"
-          >
+          <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
             <SettingsIcon className="h-3.5 w-3.5" />
-            <span className="text-[12px] font-sans">Settings</span>
           </Link>
         </div>
       </header>

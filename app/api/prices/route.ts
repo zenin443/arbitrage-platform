@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
 
-const PRICE_SERVER_URL = "http://localhost:3001";
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
 
-/**
- * GET /api/prices
- * Proxies to the standalone price server running on port 3001.
- * The price server maintains persistent WebSocket connections to exchanges.
- */
 export async function GET(): Promise<NextResponse> {
   try {
-    const res = await fetch(`${PRICE_SERVER_URL}/prices`, {
+    const res = await fetch(`${BACKEND_URL}/prices`, {
       next: { revalidate: 0 },
     });
 
