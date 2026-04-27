@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import stripe, { PLAN_PRICE_IDS } from '@/lib/stripe';
+import getStripe, { PLAN_PRICE_IDS } from '@/lib/stripe';
 import pool from '@/lib/db';
 import { getAuthUser } from '@/lib/auth/middleware';
 
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     let customerId = stripe_customer_id;
     if (!customerId) {
-      const customer = await stripe.customers.create({ email, name });
+      const customer = await getStripe().customers.create({ email, name });
       customerId = customer.id;
       await client.query(
         `UPDATE subscriptions SET stripe_customer_id = $2 WHERE user_id = $1`,
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-    const session = await stripe.checkout.sessions.create({
+    const session = await getStripe().checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: priceId, quantity: 1 }],

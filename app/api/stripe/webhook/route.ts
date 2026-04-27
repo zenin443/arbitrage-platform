@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import stripe, { PRICE_ID_TO_PLAN } from '@/lib/stripe';
+import getStripe, { PRICE_ID_TO_PLAN } from '@/lib/stripe';
 import pool from '@/lib/db';
 import type { PoolClient } from 'pg';
 import type Stripe from 'stripe';
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(Buffer.from(rawBody), sig, webhookSecret);
+    event = getStripe().webhooks.constructEvent(Buffer.from(rawBody), sig, webhookSecret);
   } catch (err) {
     console.error('Webhook signature verification failed:', err);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         if (session.mode === 'subscription' && session.customer) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string);
+          const sub = await getStripe().subscriptions.retrieve(session.subscription as string);
           await upsertSubscription(client, sub, session.customer as string);
         }
         break;

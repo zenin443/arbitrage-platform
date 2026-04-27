@@ -3,9 +3,10 @@ import { createContext, useContext, useState, useEffect, useCallback, ReactNode 
 
 interface User {
   id: string;
-  email: string;
+  email: string | null;
   name: string;
   plan: string;
+  walletAddress?: string | null;
   createdAt?: string;
 }
 
@@ -16,6 +17,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
+  walletLogin: (user: User, accessToken: string) => void;
   accessToken: string | null;
 }
 
@@ -101,9 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
   }, []);
 
+  const walletLogin = useCallback((walletUser: User, token: string) => {
+    setUser(walletUser);
+    setAccessToken(token);
+  }, []);
+
   return (
     <AuthContext.Provider value={{
-      user, isLoading, isAuthenticated: !!user, login, signup, logout, accessToken
+      user, isLoading, isAuthenticated: !!user, login, signup, logout, walletLogin, accessToken
     }}>
       {children}
     </AuthContext.Provider>

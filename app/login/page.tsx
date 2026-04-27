@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ZapIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { WalletLoginButton } from '@/components/WalletLoginButton';
 
 export default function LoginPage() {
-  const { login, isAuthenticated, isLoading } = useAuth();
+  const { login, walletLogin, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -99,6 +100,21 @@ export default function LoginPage() {
               {submitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-[#21262D]" />
+            <span className="text-[11px] font-mono text-[#484F58] uppercase">or</span>
+            <div className="flex-1 h-px bg-[#21262D]" />
+          </div>
+
+          {/* Wallet Connect */}
+          <WalletLoginButton
+            onSuccess={(user, token) => {
+              walletLogin(user, token);
+              router.push('/intelligence');
+            }}
+          />
         </div>
 
         <p className="text-center text-[12px] font-mono text-[#8B949E] mt-4">
