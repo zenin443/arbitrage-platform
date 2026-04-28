@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 
@@ -16,15 +16,19 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const inter = Inter({
+// IBM Plex Sans — Binance trading terminal UI font
+const ibmPlexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400", "500"],
+  variable: "--font-ibm-sans",
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+// IBM Plex Mono — Binance trading terminal data/number font
+const ibmPlexMono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-jetbrains",
+  weight: ["400", "500"],
+  variable: "--font-ibm-mono",
   display: "swap",
 });
 
@@ -41,7 +45,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" style={{ background: "#0D1117" }}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased bg-[#0D1117] text-[#E6EDF3]`}
+        className={`${geistSans.variable} ${geistMono.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} antialiased bg-[#0D1117] text-[#E6EDF3]`}
       >
         <Providers>{children}</Providers>
       </body>

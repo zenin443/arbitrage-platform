@@ -1,13 +1,22 @@
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
+import { NextRequest } from 'next/server';
+import { getAuthUser } from '@/lib/auth/middleware';
+import { atLeast, upgradeRequired } from '@/lib/response-transformer';
 
-export async function GET(request: Request) {
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+
+export async function GET(req: NextRequest) {
+  const authUser = getAuthUser(req);
+  const plan = authUser?.plan ?? 'free';
+
+  if (!atLeast(plan, 'trader')) return upgradeRequired('trader');
+
   try {
-    const { searchParams } = new URL(request.url)
-    const limit = searchParams.get('limit') || '100'
-    const res = await fetch(`${BACKEND_URL}/gap-history?limit=${limit}`, { cache: 'no-store' })
-    const data = await res.json()
-    return Response.json(data)
+    const { searchParams } = new URL(req.url);
+    const limit = searchParams.get('limit') || '100';
+    const res = await fetch(`${BACKEND_URL}/gap-history?limit=${limit}`, { cache: 'no-store' });
+    const data = await res.json();
+    return Response.json(data);
   } catch {
-    return Response.json([], { status: 503 })
+    return Response.json([], { status: 503 });
   }
 }

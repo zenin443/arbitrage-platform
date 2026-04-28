@@ -17,6 +17,7 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatPercent, formatNumber } from "@/lib/formatters";
 import NavAuthButton from "@/components/NavAuthButton";
+import { normalizeApiGapList, NormalizedGap } from "@/lib/response-transformer";
 
 interface StatsResponse {
   total: number;
@@ -24,20 +25,7 @@ interface StatsResponse {
   bySymbol: Record<string, number>;
 }
 
-interface Opportunity {
-  id?: string;
-  type: string;
-  symbol: string;
-  buyExchange: string;
-  sellExchange: string;
-  spreadPercent: number;
-  netSpread?: number;
-  buyPrice: number;
-  sellPrice: number;
-  maxTradeableUsd: number;
-  detectedAt: number;
-  durationMs: number;
-}
+type Opportunity = NormalizedGap;
 
 async function fetchExchangeStats(): Promise<StatsResponse | null> {
   try {
@@ -99,14 +87,21 @@ export default function DashboardPage() {
       try {
         const res = await fetch("/api/opportunities");
         const json = await res.json();
-        const opps = Array.isArray(json)
+        const raw: unknown[] = Array.isArray(json)
           ? json
           : (json.opportunities ?? json.data ?? []);
+        // Normalize both free-tier (4-field) and trader+ shapes
+        const opps = normalizeApiGapList(raw);
         if (!active) return;
         setOpportunities(opps);
         setOpportunityCount(opps.length);
+        // For free-tier responses netSpread is 0 — show null ("—") so the stat
+        // card doesn't mislead with "0.0000%"
+        const allFreeTier = opps.length > 0 && opps.every(o => o._isFreeTier);
         setBestSpread(
-          opps.length > 0 ? Math.max(...opps.map((o: { netSpread?: number }) => o.netSpread ?? 0)) : null
+          opps.length === 0 || allFreeTier
+            ? null
+            : Math.max(...opps.map(o => o.netSpread))
         );
       } catch {
         // keep previous values
@@ -139,7 +134,11 @@ export default function DashboardPage() {
     ? formatExchangeSubtitle(stats.byExchange)
     : "Fetching exchange data…";
   const countDisplay = opportunityCount === null ? "—" : formatNumber(opportunityCount);
-  const spreadDisplay = bestSpread === null ? "—" : formatPercent(bestSpread, 4);
+  // bestSpread is null when loading or when all responses are free-tier (no net spread data)
+  const isFreeTierOpps = opportunities.length > 0 && opportunities.every(o => o._isFreeTier);
+  const spreadDisplay = bestSpread === null
+    ? (isFreeTierOpps ? "Upgrade" : "—")
+    : formatPercent(bestSpread, 4);
 
   const statCards = [
     {
@@ -183,13 +182,21 @@ export default function DashboardPage() {
     {
       label: "Best Net Spread",
       value: spreadDisplay,
-      subtitle: bestSpread !== null ? "highest net spread" : "No spread detected",
+      subtitle: isFreeTierOpps
+        ? "unavailable on free plan"
+        : bestSpread !== null
+        ? "highest net spread"
+        : "No spread detected",
       icon: null,
       glow: bestSpread !== null ? "bg-[#388BFD]/5" : "bg-transparent",
       glowBorder: bestSpread !== null ? "hover:border-[#388BFD]/40" : "",
       pulse: bestSpread !== null,
       pulseColor: "#388BFD",
-      valueColor: bestSpread !== null ? "text-[#388BFD]" : "text-[#E6EDF3]",
+      valueColor: isFreeTierOpps
+        ? "text-[#D29922]"
+        : bestSpread !== null
+        ? "text-[#388BFD]"
+        : "text-[#E6EDF3]",
     },
   ];
 
@@ -253,7 +260,7 @@ export default function DashboardPage() {
           <ErrorBoundary name="Coin detail">
             <CoinDetailPanel
               symbol={selectedCoin}
-              onSelectSignal={setSelectedSignal}
+              onSelectSignal={(signal) => setSelectedSignal(signal as unknown as Opportunity)}
             />
           </ErrorBoundary>
         </div>
@@ -341,10 +348,10 @@ export default function DashboardPage() {
                 />
               ) : (
                 <OpportunityTable
-                  onSelectSignal={setSelectedSignal}
+                  onSelectSignal={(signal) => setSelectedSignal(signal)}
                   selectedSignalId={
                     selectedSignal
-                      ? (selectedSignal.id ?? `${selectedSignal.symbol}:${selectedSignal.buyExchange}:${selectedSignal.sellExchange}`)
+                      ? selectedSignal.id
                       : null
                   }
                 />

@@ -50,17 +50,47 @@ export const paymentConfirmSchema = z.object({
     .uuid('paymentId must be a valid UUID'),
   txHash: z
     .string()
-    .min(10, 'txHash too short'),
+    .min(10, 'txHash too short')
+    .max(255, 'txHash too long'),
   fromAddress: z.string().optional(),
 });
 
-// ── Helper to format Zod errors into user-friendly messages ──────────────────
+// ── Wallet auth schema ────────────────────────────────────────────────────────
+
+export const walletAuthSchema = z.object({
+  address: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Ethereum wallet address format'),
+  signature: z
+    .string()
+    .min(10, 'Signature too short'),
+  message: z
+    .string()
+    .min(1, 'Message is required'),
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function formatZodError(error: z.ZodError): string {
   return error.issues.map(issue => issue.message).join('; ');
+}
+
+type ValidateSuccess<T> = { success: true; data: T };
+type ValidateFailure    = { success: false; error: string };
+
+export function validateRequest<T>(
+  schema: z.ZodSchema<T>,
+  data: unknown
+): ValidateSuccess<T> | ValidateFailure {
+  const result = schema.safeParse(data);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: formatZodError(result.error) };
 }
 
 export type RegisterInput       = z.infer<typeof registerSchema>;
 export type LoginInput          = z.infer<typeof loginSchema>;
 export type PaymentCreateInput  = z.infer<typeof paymentCreateSchema>;
 export type PaymentConfirmInput = z.infer<typeof paymentConfirmSchema>;
+export type WalletAuthInput     = z.infer<typeof walletAuthSchema>;

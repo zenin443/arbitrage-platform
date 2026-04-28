@@ -57,6 +57,7 @@ import { startTradingIntelligence, getActiveGaps, getGapHistory, getTradingStats
 import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider } from './services/orderbook-fetcher'
 import { startTriangularEngine, getTriangularRoutes, getCrossPairCount } from './engines/triangularArbitrage'
 import { startCrossChainEngine, getCrossChainOpportunities } from './engines/crossChainArbitrage'
+import { startStablecoinEngine } from './engines/stablecoinArbitrage'
 import { SYMBOLS } from './config/symbols'
 import {
   startPaperTraders,
@@ -78,6 +79,8 @@ import {
   getMagnusFuturesTrades,
   getMagnusFuturesVoided,
   resetMagnusFutures,
+  getRateHarvestState,
+  resetRateHarvestBot,
   type MagnusAlphaConfig,
 } from './services/paper-trader'
 
@@ -452,6 +455,28 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  // ── Magnus Rate Harvest ───────────────────────────────────────────────────
+  if (url.pathname === '/magnus/rate-harvest' && method === 'GET') {
+    json(res, 200, getRateHarvestState())
+    return
+  }
+  if (url.pathname === '/magnus/rate-harvest/trades' && method === 'GET') {
+    const limit = parseInt(url.searchParams.get('limit') ?? '50')
+    const state = getRateHarvestState()
+    json(res, 200, state.recentTrades.slice(0, isNaN(limit) ? 50 : limit))
+    return
+  }
+  if (url.pathname === '/magnus/rate-harvest/positions' && method === 'GET') {
+    const state = getRateHarvestState()
+    json(res, 200, state.openPositions)
+    return
+  }
+  if (url.pathname === '/magnus/rate-harvest/reset' && method === 'POST') {
+    if (!requireInternalAuth(req, res)) return
+    json(res, 200, resetRateHarvestBot())
+    return
+  }
+
   if (method !== 'GET') {
     json(res, 405, { error: 'Method not allowed' })
     return
@@ -767,6 +792,7 @@ async function start(): Promise<void> {
   try { startTradingIntelligence() } catch (e: any) { console.error('[Startup] Trading intelligence failed:', e.message) }
   try { startTriangularEngine() } catch (e: any) { console.error('[Startup] Triangular engine failed:', e.message) }
   try { startCrossChainEngine() } catch (e: any) { console.error('[Startup] Cross-chain engine failed:', e.message) }
+  try { startStablecoinEngine() } catch (e: any) { console.error('[Startup] Stablecoin engine failed:', e.message) }
   try {
     registerGapProvider(getProfitableGaps)
     startOrderBookFetcher()

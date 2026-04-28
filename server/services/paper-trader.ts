@@ -4,6 +4,10 @@ import { getProfitableGaps, getTradingStats, GapRecord } from './trading-intelli
 import { getAlertConfig } from './alert-engine'
 import { tickStore } from '../engine/tickStore'
 import { EXCHANGE_REGISTRY } from '../registry/exchangeRegistry'
+import { getTriangularRoutes } from '../engines/triangularArbitrage'
+import { getCrossChainOpportunities } from '../engines/crossChainArbitrage'
+import { getStablecoinOpportunities } from '../engines/stablecoinArbitrage'
+import { startRateHarvestBot, getRateHarvestState, resetRateHarvestBot } from './funding-rate-bot'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -3059,6 +3063,116 @@ function evaluate(): void {
         console.log('[Magnus Futures] Rebalanced USDT — $' + perExchange.toFixed(2) + ' per exchange')
       }
     }
+
+    // === Triangular Arbitrage — feed routes as GapRecords to all bots ===
+    const triRoutes = getTriangularRoutes()
+    for (const route of triRoutes) {
+      if (route.netProfitPercent <= 0) continue
+      const triGap: GapRecord = {
+        id: route.id,
+        type: 'triangular',
+        symbol: route.baseSymbol,
+        buyExchange: route.exchange,
+        sellExchange: route.exchange,
+        spreadPercent: route.netProfitPercent,
+        buyPrice: route.prices.step1,
+        sellPrice: route.prices.step3,
+        buyBidSize: 0,
+        sellAskSize: 0,
+        maxTradeableUsd: 1_000,
+        detectedAt: route.detectedAt,
+        lastSeenAt: route.detectedAt,
+        durationMs: 0,
+        isActive: true,
+        profitSimulation: {
+          isProfitable: route.netProfitPercent > 0,
+          at100:  route.estimatedProfit1k * 0.1,
+          at1k:   route.estimatedProfit1k,
+          at5k:   route.estimatedProfit1k * 5,
+          at10k:  route.estimatedProfit1k * 10,
+          breakEvenSpread:    route.feesPercent,
+          maxProfitableSize:  1_000,
+        },
+        depthAnalysis: null,
+      }
+      magnusBeta1k.evaluateTrade(triGap)
+      magnusBeta10k.evaluateTrade(triGap)
+      magnusAlpha.evaluateTrade(triGap)
+    }
+
+    // === Cross-Chain Arbitrage — feed opportunities as GapRecords ===
+    const crossChainOpps = getCrossChainOpportunities()
+    for (const opp of crossChainOpps) {
+      if (opp.netProfitPercent <= 0) continue
+      const xGap: GapRecord = {
+        id: opp.id,
+        type: 'cross_chain',
+        symbol: opp.symbol,
+        buyExchange: opp.buyDex,
+        sellExchange: opp.sellDex,
+        spreadPercent: opp.netProfitPercent,
+        buyPrice: opp.buyPrice,
+        sellPrice: opp.sellPrice,
+        buyBidSize: 0,
+        sellAskSize: 0,
+        maxTradeableUsd: Math.min(opp.liquidityUsd * 0.1, 5_000),
+        detectedAt: opp.detectedAt,
+        lastSeenAt: opp.detectedAt,
+        durationMs: 0,
+        isActive: true,
+        profitSimulation: {
+          isProfitable: opp.netProfitPercent > 0,
+          at100:  opp.estimatedProfit1k * 0.1,
+          at1k:   opp.estimatedProfit1k,
+          at5k:   opp.estimatedProfit1k * 5,
+          at10k:  opp.estimatedProfit1k * 10,
+          breakEvenSpread:   opp.estimatedBridgeCostPercent,
+          maxProfitableSize: Math.min(opp.liquidityUsd * 0.1, 5_000),
+        },
+        depthAnalysis: null,
+      }
+      magnusBeta1k.evaluateTrade(xGap)
+      magnusBeta10k.evaluateTrade(xGap)
+      magnusAlpha.evaluateTrade(xGap)
+    }
+
+    // === Stablecoin Arbitrage — "Stable Drift" ===
+    const stableOpps = getStablecoinOpportunities()
+    for (const opp of stableOpps) {
+      // Only trade if net profitable after fees
+      if (opp.netProfitPercent <= 0) continue
+      const sGap: GapRecord = {
+        id: opp.id,
+        type: 'cex_cex',
+        symbol: opp.symbol,
+        buyExchange: opp.buyExchange,
+        sellExchange: opp.sellExchange,
+        spreadPercent: opp.netProfitPercent,
+        buyPrice: opp.buyPrice,
+        sellPrice: opp.sellPrice,
+        buyBidSize: 0,
+        sellAskSize: 0,
+        maxTradeableUsd: 10_000,   // stables are ultra-liquid
+        detectedAt: opp.detectedAt,
+        lastSeenAt: opp.detectedAt,
+        durationMs: 0,
+        isActive: true,
+        profitSimulation: {
+          isProfitable: opp.netProfitPercent > 0,
+          at100:  opp.estimatedProfit1k * 0.1,
+          at1k:   opp.estimatedProfit1k,
+          at5k:   opp.estimatedProfit1k * 5,
+          at10k:  opp.estimatedProfit1k * 10,
+          breakEvenSpread:   opp.minFeePercent,
+          maxProfitableSize: 10_000,
+        },
+        depthAnalysis: null,
+      }
+      magnusBeta1k.evaluateTrade(sGap)
+      magnusBeta10k.evaluateTrade(sGap)
+      magnusAlpha.evaluateTrade(sGap)
+    }
+
   } catch (err) {
     console.error('[PaperBot] Evaluate error:', err)
   }
@@ -3072,6 +3186,8 @@ export function getBotState(id: string): BotState | null {
   if (id === 'magnus-alpha') return magnusAlpha.getState()
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   if (id === 'magnus-futures') return magnusFutures?.getState() ?? null
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  if (id === 'magnus-rate-harvest') return getRateHarvestState() as unknown as BotState
   return null
 }
 
@@ -3083,6 +3199,7 @@ export function getAllBotStates(): { magnusBeta1k: BotState; magnusBeta10k: BotS
 }
 
 export function resetBot(id: string): BotState | null {
+  if (id === 'magnus-rate-harvest') return resetRateHarvestBot() as unknown as BotState
   if (id === 'magnus-beta-1k') return magnusBeta1k.reset()
   if (id === 'magnus-beta-10k') return magnusBeta10k.reset()
   if (id === 'magnus-alpha') return magnusAlpha.reset()
@@ -3120,6 +3237,7 @@ export function getBotTrades(id: string, limit = 50): SimTrade[] {
   if (id === 'magnus-alpha') return magnusAlpha.getTrades(limit)
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   if (id === 'magnus-futures') return (magnusFutures?.recentTrades ?? []).slice(0, limit)
+  if (id === 'magnus-rate-harvest') return getRateHarvestState().recentTrades.slice(0, limit) as unknown as SimTrade[]
   return []
 }
 
@@ -3295,6 +3413,10 @@ export function resetMagnusFutures(): Record<string, unknown> | null {
   return resetBot('magnus-futures') as unknown as Record<string, unknown> | null
 }
 
+// ── Rate Harvest API exports ───────────────────────────────────────────────
+
+export { getRateHarvestState, resetRateHarvestBot }
+
 export function startPaperTraders(): void {
   if (isRunning) return
   isRunning = true
@@ -3334,6 +3456,10 @@ export function startPaperTraders(): void {
     getState() { return this },
   }
   console.log('[Magnus Futures] Started — $1000 USDT across 7 exchanges, spot-futures only')
+
+  // ── Rate Harvest Bot — delta-neutral funding rate arbitrage ───────────────
+  startRateHarvestBot()
+  console.log('[Rate Harvest] Bot wired — funding rate arb, $5K paper capital')
 
   setInterval(evaluate, EVAL_INTERVAL_MS)
 

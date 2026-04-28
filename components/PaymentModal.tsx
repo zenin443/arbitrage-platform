@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract, useSwitchChain, useWaitForTransactionReceipt } from 'wagmi';
 import { parseUnits } from 'viem';
 import { CheckCircle, X, Copy, ExternalLink, AlertCircle } from 'lucide-react';
-import { CHAINS, CHAIN_ORDER, PLAN_PRICES, ERC20_TRANSFER_ABI, PAYMENT_WALLET_ADDRESS, SOLANA_PAYMENT_WALLET } from '@/lib/payments/config';
+import { CHAINS, CHAIN_ORDER, PLAN_PRICES, ERC20_TRANSFER_ABI, SOLANA_PAYMENT_WALLET } from '@/lib/payments/config';
 
 interface PaymentModalProps {
   plan: 'trader' | 'pro' | 'institutional';
@@ -21,13 +21,6 @@ const PLAN_LABELS: Record<string, string> = {
   institutional: 'Institutional',
 };
 
-const CHAIN_ID_MAP: Record<number, string> = {
-  8453: 'base',
-  137: 'polygon',
-  42161: 'arbitrum',
-  1: 'ethereum',
-  56: 'bsc',
-};
 
 function truncateTx(hash: string, len = 12): string {
   if (!hash) return '';
@@ -41,8 +34,6 @@ export default function PaymentModal({ plan, onClose, onSuccess, accessToken }: 
   const [status, setStatus] = useState<PaymentStatus>('idle');
   const [errorMsg, setErrorMsg] = useState('');
   const [paymentId, setPaymentId] = useState<string | null>(null);
-  const [recipientAddress, setRecipientAddress] = useState('');
-  const [tokenContract, setTokenContract] = useState<`0x${string}` | null>(null);
   const [txHashDisplay, setTxHashDisplay] = useState('');
   const [explorerUrl, setExplorerUrl] = useState('');
   const [solanaTxInput, setSolanaTxInput] = useState('');
@@ -88,7 +79,7 @@ export default function PaymentModal({ plan, onClose, onSuccess, accessToken }: 
     }
   }, [isTxConfirming, status]);
 
-  async function createPaymentRecord(): Promise<{ paymentId: string; recipient: string; contract: `0x${string}` | null; explorer: string } | null> {
+  const createPaymentRecord = useCallback(async (): Promise<{ paymentId: string; recipient: string; contract: `0x${string}` | null; explorer: string } | null> => {
     setStatus('creating');
     try {
       const res = await fetch('/api/payments/create', {
@@ -103,8 +94,6 @@ export default function PaymentModal({ plan, onClose, onSuccess, accessToken }: 
       if (!res.ok) throw new Error(data.error || 'Failed to create payment');
 
       setPaymentId(data.paymentId);
-      setRecipientAddress(data.recipientAddress);
-      setTokenContract(data.tokenContract as `0x${string}` | null);
       setExplorerUrl(data.explorerUrl);
       return {
         paymentId: data.paymentId,
@@ -118,7 +107,7 @@ export default function PaymentModal({ plan, onClose, onSuccess, accessToken }: 
       setStatus('error');
       return null;
     }
-  }
+  }, [accessToken, plan, selectedChain, selectedCurrency]);
 
   async function confirmPaymentOnServer(txHash: string, from: string) {
     try {

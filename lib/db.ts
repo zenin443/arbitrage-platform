@@ -21,7 +21,7 @@ function getPool(): Pool {
 const pool = new Proxy({} as Pool, {
   get(_target, prop: string | symbol) {
     const p = getPool();
-    const value = (p as any)[prop];
+    const value = (p as unknown as Record<string | symbol, unknown>)[prop];
     return typeof value === 'function' ? value.bind(p) : value;
   },
 });

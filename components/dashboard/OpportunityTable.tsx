@@ -6,6 +6,7 @@ import { formatTimestamp } from "@/lib/utils/formatters";
 import { formatUsd } from "@/lib/utils";
 import { formatPercent } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
+import { normalizeApiGapList, NormalizedGap } from "@/lib/response-transformer";
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance:  "Binance",
@@ -61,19 +62,7 @@ const CONFIDENCE_BADGE: Record<ConfidenceTier, string> = {
   low:    "bg-[#8B949E]/12 text-[#8B949E] px-1.5 py-0.5 rounded font-mono",
 };
 
-interface GapRecord {
-  id?: string;
-  type: string;
-  symbol: string;
-  buyExchange: string;
-  sellExchange: string;
-  spreadPercent: number;
-  buyPrice: number;
-  sellPrice: number;
-  maxTradeableUsd: number;
-  detectedAt: number;
-  durationMs: number;
-}
+type GapRecord = NormalizedGap;
 
 interface OpportunityTableProps {
   onSelectSignal: (signal: GapRecord) => void;
@@ -89,8 +78,10 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
     const fetchGaps = async () => {
       try {
         const res = await fetch("/api/profitable-gaps");
-        const data = await res.json();
-        setGaps(Array.isArray(data) ? data : []);
+        const raw = await res.json();
+        // Normalize both free-tier (4-field) and trader+ shapes so every
+        // GapRecord always has spreadPercent, buyExchange, sellExchange, etc.
+        setGaps(normalizeApiGapList(Array.isArray(raw) ? raw : []));
       } catch {
         // keep previous data on transient errors
       } finally {
@@ -103,9 +94,12 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
     return () => clearInterval(interval);
   }, []);
 
+  // Detect whether all current rows are free-tier limited
+  const allFreeTier = gaps.length > 0 && gaps.every(g => g._isFreeTier);
+
   const newIds = new Set<string>();
   for (const gap of gaps) {
-    const key = gap.id ?? `${gap.symbol}:${gap.buyExchange}:${gap.sellExchange}`;
+    const key = gap.id;
     if (!seenIds.current.has(key)) {
       newIds.add(key);
       seenIds.current.add(key);
@@ -144,9 +138,8 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
           <thead className="sticky top-0 z-10">
             <tr className="bg-[#161B22] border-b border-[#21262D]" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
               <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Symbol</th>
-              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Buy</th>
-              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Sell</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Gross %</th>
+              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Route</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Spread</th>
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Net %</th>
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Est. profit</th>
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Liquidity</th>
@@ -158,7 +151,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
           <tbody>
             {gaps.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-4">
+                <td colSpan={9} className="px-4 py-4">
                   <div className="flex flex-col items-center gap-2 text-[#484F58]">
                     <div className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1C2128] opacity-60" />
@@ -180,13 +173,14 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
               </tr>
             ) : (
               gaps.map((gap) => {
-                const key = gap.id ?? `${gap.symbol}:${gap.buyExchange}:${gap.sellExchange}`;
+                const key = gap.id;
+                const isFreeTier = gap._isFreeTier;
                 const tier = computeConfidence(gap.spreadPercent, gap.durationMs);
-                const netSpread = gap.spreadPercent - 0.2;
-                const estimatedProfit =
-                  (gap.maxTradeableUsd * gap.spreadPercent) / 100 -
-                  gap.maxTradeableUsd * 0.002;
-                const liquidityScore = Math.min(100, (gap.maxTradeableUsd / 10_000) * 100);
+                const netSpread = gap.netSpread;
+                const estimatedProfit = isFreeTier
+                  ? null
+                  : (gap.maxTradeableUsd * gap.spreadPercent) / 100 - gap.maxTradeableUsd * 0.002;
+                const liquidityScore = isFreeTier ? 0 : Math.min(100, (gap.maxTradeableUsd / 10_000) * 100);
                 const isNew = newIds.has(key);
                 const isSelected = selectedSignalId === key;
 
@@ -212,40 +206,67 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                       isNew && !isSelected && "animate-fade-in"
                     )}
                   >
+                    {/* Symbol */}
                     <td className="px-2 py-1.5 text-[#E6EDF3] font-mono font-medium" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
                       {gap.symbol}
                     </td>
+                    {/* Route — free tier: plain "BIN → BYB" string; trader+: exchange links */}
                     <td className="px-2 py-1.5" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
-                      <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
-                        {exchangeLabel(gap.buyExchange)}
-                      </ExchangeLink>
+                      {isFreeTier ? (
+                        <span className="text-[#8B949E] font-mono">{gap._direction}</span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1">
+                          <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
+                            {exchangeLabel(gap.buyExchange)}
+                          </ExchangeLink>
+                          <span className="text-[#484F58]">→</span>
+                          <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
+                            {exchangeLabel(gap.sellExchange)}
+                          </ExchangeLink>
+                        </span>
+                      )}
                     </td>
-                    <td className="px-2 py-1.5" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
-                      <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
-                        {exchangeLabel(gap.sellExchange)}
-                      </ExchangeLink>
-                    </td>
+                    {/* Spread — free tier shows delayed string */}
                     <td className="px-2 py-1.5 text-right text-[#8B949E] font-mono tabular-nums" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
-                      {formatPercent(gap.spreadPercent, 3)}
+                      {isFreeTier ? (
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          {gap._delayedSpread}
+                          <span className="text-[9px] text-[#D29922] opacity-70">~</span>
+                        </span>
+                      ) : (
+                        formatPercent(gap.spreadPercent, 3)
+                      )}
                     </td>
+                    {/* Net spread — unavailable for free tier */}
                     <td
                       className={clsx(
                         "px-2 py-1.5 text-right tabular-nums font-mono font-medium",
-                        netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]"
+                        isFreeTier ? "text-[#484F58]" : netSpread >= 0 ? "text-[#3FB950]" : "text-[#F85149]"
                       )}
                       style={{ fontSize: 'var(--fs-sm, 12px)' }}
                     >
-                      {formatPercent(netSpread, 3)}
+                      {isFreeTier ? "—" : formatPercent(netSpread, 3)}
                     </td>
-                    <td className="px-2 py-1.5 text-right text-[#388BFD] font-mono font-medium tabular-nums" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
-                      {formatUsd(estimatedProfit)}
+                    {/* Est. profit — unavailable for free tier */}
+                    <td className="px-2 py-1.5 text-right font-mono font-medium tabular-nums" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
+                      {isFreeTier || estimatedProfit === null ? (
+                        <span className="text-[#484F58]">—</span>
+                      ) : (
+                        <span className="text-[#388BFD]">{formatUsd(estimatedProfit)}</span>
+                      )}
                     </td>
+                    {/* Liquidity — unavailable for free tier */}
                     <td className="px-2 py-1.5 text-right tabular-nums">
-                      <LiquidityBar
-                        score={liquidityScore}
-                        label={formatLiquidity(gap.maxTradeableUsd)}
-                      />
+                      {isFreeTier ? (
+                        <span className="text-[#484F58] text-[11px] font-mono">—</span>
+                      ) : (
+                        <LiquidityBar
+                          score={liquidityScore}
+                          label={formatLiquidity(gap.maxTradeableUsd)}
+                        />
+                      )}
                     </td>
+                    {/* Type badge */}
                     <td className="px-2 py-1.5 text-right">
                       <span
                         className={clsx('px-1.5 py-0.5 rounded font-mono text-center', typeBadgeClass)}
@@ -254,6 +275,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                         {networkLabel(gap.type)}
                       </span>
                     </td>
+                    {/* Confidence */}
                     <td className="px-2 py-1.5 text-right">
                       <span
                         className={clsx("font-medium uppercase", CONFIDENCE_BADGE[tier])}
@@ -262,6 +284,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                         {tier}
                       </span>
                     </td>
+                    {/* Detected */}
                     <td className="px-2 py-1.5 text-right text-[#484F58] tabular-nums font-sans" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
                       {gap.detectedAt ? timeAgo(gap.detectedAt) : formatTimestamp(Date.now())}
                     </td>
@@ -272,6 +295,20 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
           </tbody>
         </table>
       </div>
+      {/* Free-tier footer — shown when data is delayed/limited */}
+      {allFreeTier && gaps.length > 0 && (
+        <div className="shrink-0 px-3 py-2 border-t border-[#21262D] flex items-center justify-between bg-[#0D1117]">
+          <span className="text-[11px] font-mono text-[#484F58]">
+            Showing delayed data · net spread, liquidity & profit unavailable
+          </span>
+          <a
+            href="/pricing"
+            className="text-[11px] font-mono text-[#238636] hover:text-[#3FB950] border border-[#238636]/40 hover:border-[#3FB950] rounded px-2.5 py-0.5 transition-colors"
+          >
+            Upgrade for full access →
+          </a>
+        </div>
+      )}
     </div>
   );
 }

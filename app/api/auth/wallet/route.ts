@@ -3,6 +3,7 @@ import pool from '@/lib/db';
 import { generateAccessToken, generateRefreshToken } from '@/lib/auth/tokens';
 import { serialize } from 'cookie';
 import { consumeWalletNonce } from '@/lib/auth/wallet-nonces';
+import { walletAuthSchema, formatZodError } from '@/lib/validation';
 
 // Expected message format (built by WalletLoginButton):
 //   Sign in to Arbitrance Terminal
@@ -17,21 +18,22 @@ const NONCE_REGEX = /^Nonce: ([a-f0-9]{32})$/m;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => null);
-    if (!body || typeof body !== 'object') {
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { address, signature, message } = body as Record<string, unknown>;
-
-    if (typeof address !== 'string' || typeof signature !== 'string' || typeof message !== 'string') {
-      return NextResponse.json({ error: 'address, signature, and message are required' }, { status: 400 });
+    const parsed = walletAuthSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Validation error', details: formatZodError(parsed.error) },
+        { status: 400 }
+      );
     }
 
-    // Validate address format
-    if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
-      return NextResponse.json({ error: 'Invalid wallet address format' }, { status: 400 });
-    }
+    const { address, signature, message } = parsed.data;
 
     // Extract and consume nonce — must happen before signature verification
     // so a valid-looking message with a wrong nonce fails fast
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     const client = await pool.connect();
     try {
-      let result = await client.query(
+      const result = await client.query(
         `SELECT u.id, u.email, u.name, u.wallet_address,
                 COALESCE(s.plan_tier, 'free') as plan
          FROM users u
