@@ -63,8 +63,15 @@ function checkApiLimit(key: string, limit: number): RateLimitResult {
  * Apply tier-based rate limiting to an API route.
  * Returns a 429 NextResponse if rate limit is exceeded, null otherwise.
  * Always attaches X-RateLimit-* headers to any returned response.
+ *
+ * NOTE: skipped in development — localhost has no x-forwarded-for so every
+ * request would share the same `api:unknown:anon` key, causing false 429s
+ * from the browser's polling loops. In production Nginx always forwards the
+ * real client IP so per-user bucketing works correctly.
  */
 export function applyApiRateLimit(req: NextRequest): NextResponse | null {
+  if (process.env.NODE_ENV === 'development') return null;
+
   const ip = getClientIp(req);
   const authUser = getAuthUser(req);
 

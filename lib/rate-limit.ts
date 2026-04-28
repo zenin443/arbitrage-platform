@@ -78,8 +78,14 @@ function getIp(req: NextRequest): string {
  * Tier-based rate limit for general API routes.
  * Unauthenticated = anon (10/min). Authenticated = plan tier.
  * Key format: `${ip}:${userId || 'anon'}`.
+ *
+ * Returns an "always allowed" result in development — localhost has no
+ * x-forwarded-for so all requests share one bucket and trigger false 429s.
  */
 export function checkRateLimit(req: NextRequest, plan?: string): RateLimitResult {
+  if (process.env.NODE_ENV === 'development') {
+    return { allowed: true, limit: 9999, remaining: 9999, resetIn: 60 };
+  }
   const ip = getIp(req);
   const authUser = getAuthUser(req);
   const userId = authUser?.userId ?? 'anon';

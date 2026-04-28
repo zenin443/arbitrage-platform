@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ExchangeLink, getReferralUrl, getCommission } from "@/lib/referrals";
+import { normalizeApiGapList } from "@/lib/response-transformer";
 
 interface RawTick {
   symbol?: string; s?: string;
@@ -30,6 +31,8 @@ interface GapRecord {
   maxTradeableUsd: number;
   detectedAt: number;
   durationMs: number;
+  /** true when item came from the 4-field free-tier payload */
+  _isFreeTier?: boolean;
 }
 
 const EXCHANGE_SHORT: Record<string, string> = {
@@ -123,7 +126,10 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
         });
         setTicks(coinTicks);
 
-        const allGaps: GapRecord[] = Array.isArray(gapData) ? gapData : [];
+        // Normalize both free-tier (4-field) and trader+ shapes so every
+        // GapRecord has safe numeric values (spreadPercent, detectedAt, etc.)
+        // and the _isFreeTier flag for conditional rendering.
+        const allGaps = normalizeApiGapList(Array.isArray(gapData) ? gapData : []) as unknown as GapRecord[];
         setGaps(allGaps.filter((g) => g.symbol === symbol || g.symbol?.split("/")[0] === symBase));
       } catch {
         // keep previous data on transient errors
@@ -299,11 +305,21 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
                       {gap.sellExchange}
                     </ExchangeLink>
                   </span>
-                  <span className="text-[#3FB950]">{gap.spreadPercent.toFixed(3)}%</span>
+                  <span className="text-[#3FB950]">
+                    {gap._isFreeTier
+                      ? (gap.spreadPercent > 0 ? `~${gap.spreadPercent.toFixed(3)}` : '—')
+                      : (gap.spreadPercent?.toFixed(3) ?? '—')}%
+                  </span>
                 </div>
                 <div className="text-[11px] text-[#8B949E] font-sans mt-0.5">
-                  {gap.type} · ${((gap.maxTradeableUsd * gap.spreadPercent) / 100).toFixed(2)} ·{" "}
-                  {timeAgoShort(gap.detectedAt)}
+                  {gap.type || '—'} ·{" "}
+                  {gap._isFreeTier
+                    ? <span title="Upgrade for profit data">$— est. profit</span>
+                    : `$${((gap.maxTradeableUsd * gap.spreadPercent) / 100).toFixed(2)}`}{" "}
+                  ·{" "}
+                  {gap._isFreeTier || !gap.detectedAt
+                    ? '—'
+                    : timeAgoShort(gap.detectedAt)}
                 </div>
               </div>
             ))
