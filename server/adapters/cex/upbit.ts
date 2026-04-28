@@ -2,18 +2,28 @@ import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from '.
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
 import { SYMBOLS } from '../../config/symbols'
 
-// Upbit: quote-base reversed with dash (USDT-BTC). No separate bid/ask — uses trade_price.
-// Auto-generate from master list; Upbit silently omits markets it doesn't list.
+// Upbit only supports USDT spot markets (USDT-BTC, USDT-ETH, etc.).
+// We MUST restrict to USDT-quoted symbols only.
+// If we include USDC or BTC cross-pairs they all collapse to the same Upbit market
+// as the corresponding USDT pair (e.g. ETH/USDT, ETH/USDC, ETH/BTC all become USDT-ETH).
+// Object.fromEntries in REVERSE_MAP would then keep only the last entry, causing:
+//   - BTC/USDT price emitted as BTC/USDC  (wrong symbol label)
+//   - ETH/USDT price emitted as ETH/BTC   (completely wrong magnitude)
+// Fix: only map USDT symbols. Non-USDT pairs are left to their respective tier-1/2 adapters.
+const UPBIT_SUPPORTED = SYMBOLS.filter(s => s.endsWith('/USDT'))
+
 function toUpbitMarket(sym: string): string {
   return `USDT-${sym.split('/')[0]}`
 }
 
 const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
-  SYMBOLS.map(s => [s, toUpbitMarket(s)])
+  UPBIT_SUPPORTED.map(s => [s, toUpbitMarket(s)])
 )
-const UPBIT_MARKETS = Object.values(SYMBOL_MAP)
-const REVERSE_MAP = Object.fromEntries(
-  SYMBOLS.map(s => [toUpbitMarket(s), s])
+// Deduplicate markets (Upbit has one price per base, regardless of quote)
+const UPBIT_MARKETS = [...new Set(Object.values(SYMBOL_MAP))]
+// Each USDT symbol has a unique base, so no REVERSE_MAP collisions
+const REVERSE_MAP: Record<string, string> = Object.fromEntries(
+  UPBIT_SUPPORTED.map(s => [toUpbitMarket(s), s])
 )
 
 type UpbitTicker = {

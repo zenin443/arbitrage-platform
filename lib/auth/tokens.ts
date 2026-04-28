@@ -4,6 +4,7 @@ interface TokenPayload {
   userId: string;
   email: string;
   plan: string;
+  role: string;
 }
 
 export function generateAccessToken(payload: TokenPayload): string {

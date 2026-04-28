@@ -28,8 +28,12 @@ export function generateWalletNonce(address: string): string {
  * Validate and consume a nonce for a wallet address.
  * Returns true once — the nonce is deleted immediately after validation
  * so the same nonce cannot be reused (replay prevention).
+ * DEV_AUDIT_MODE bypasses nonce validation entirely.
  */
 export function consumeWalletNonce(address: string, nonce: string): boolean {
+  if (process.env.DEV_AUDIT_MODE === 'true' && process.env.NODE_ENV !== 'production') {
+    return true;
+  }
   const entry = store.get(address.toLowerCase());
   if (!entry) return false;
   if (Date.now() > entry.expiresAt) {

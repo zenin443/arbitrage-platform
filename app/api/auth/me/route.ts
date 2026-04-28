@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const client = await pool.connect();
   try {
     const result = await client.query(
-      `SELECT u.id, u.email, u.name, u.wallet_address, u.created_at, COALESCE(s.plan_tier, 'free') AS plan
+      `SELECT u.id, u.email, u.name, u.wallet_address, u.created_at, u.role, COALESCE(s.plan_tier, 'free') AS plan
        FROM users u
        LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
        WHERE u.id = $1
@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         name: user.name,
         plan: user.plan,
+        role: user.role ?? 'user',
         walletAddress: user.wallet_address,
         createdAt: user.created_at,
       },

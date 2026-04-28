@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userResult = await client.query(
-      `SELECT u.id, u.email, COALESCE(s.plan_tier, 'free') AS plan
+      `SELECT u.id, u.email, u.role, COALESCE(s.plan_tier, 'free') AS plan
        FROM users u
        LEFT JOIN subscriptions s ON s.user_id = u.id AND s.status = 'active'
        WHERE u.id = $1
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     }
 
     const user = userResult.rows[0];
-    const accessToken = generateAccessToken({ userId: user.id, email: user.email, plan: user.plan });
+    const accessToken = generateAccessToken({ userId: user.id, email: user.email, plan: user.plan, role: user.role ?? 'user' });
 
     const response = NextResponse.json({ accessToken });
     response.cookies.set('access_token', accessToken, {

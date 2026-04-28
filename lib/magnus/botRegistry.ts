@@ -18,6 +18,8 @@ export interface BotDefinition {
   apiPath: string
   startingCapital: number | 'flex'
   capitalLabel: string
+  /** Preferred quote currency for this bot's signal universe */
+  quoteCurrency: 'USDT' | 'USDC' | 'BTC'
   strategies: BotStrategy[]
   winRateBenchmark: string
   signalsPerDay: string
@@ -39,6 +41,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/magnus/beta-1k',
     startingCapital: 1000,
     capitalLabel: '$1K',
+    quoteCurrency: 'USDT',
     strategies: [
       { name: 'CEX-CEX Spot Arb', type: 'primary', description: 'Same coin, different prices across exchanges' },
       { name: 'TWAP Deviation', type: 'primary', description: 'Positions ahead of institutional TWAP reversion' },
@@ -64,6 +67,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/magnus/beta-10k',
     startingCapital: 10000,
     capitalLabel: '$10K',
+    quoteCurrency: 'USDC',
     strategies: [
       { name: 'CEX-CEX Spot Arb', type: 'primary', description: 'High-capital cross-exchange spread capture' },
       { name: 'Triangular Arbitrage', type: 'primary', description: 'Three-leg cycle: USDT->BTC->ETH->USDT' },
@@ -89,6 +93,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/magnus/alpha',
     startingCapital: 'flex',
     capitalLabel: 'Flex',
+    quoteCurrency: 'BTC',
     strategies: [
       { name: 'DEX-CEX Arbitrage', type: 'primary', description: 'Uniswap/Jupiter vs Binance/OKX price gaps' },
       { name: 'Wrapped Token Parity', type: 'primary', description: 'WBTC/BTC wETH/ETH parity detection' },
@@ -114,6 +119,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/magnus/futures',
     startingCapital: 1000,
     capitalLabel: '$1K',
+    quoteCurrency: 'USDT',
     strategies: [
       { name: 'Spot-Futures Basis', type: 'primary', description: 'Buy spot, short perp, collect basis convergence' },
     ],
@@ -135,6 +141,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/magnus/rate-harvest',
     startingCapital: 5000,
     capitalLabel: '$5K',
+    quoteCurrency: 'USDC',
     strategies: [
       { name: 'Funding Rate Harvest', type: 'primary', description: 'Delta-neutral long spot + short perp position' },
     ],
@@ -156,6 +163,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/simulators',
     startingCapital: 10000,
     capitalLabel: '$10K',
+    quoteCurrency: 'USDT',
     strategies: [
       { name: 'Pairs Trading / Cointegration', type: 'primary', description: 'Z-score mean reversion on correlated pairs' },
     ],
@@ -177,6 +185,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/simulators',
     startingCapital: 3000,
     capitalLabel: '$3K',
+    quoteCurrency: 'BTC',
     strategies: [
       { name: 'Liquidation Cascade', type: 'primary', description: 'OI drop detection + flash discount buying' },
     ],
@@ -198,6 +207,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/simulators',
     startingCapital: 5000,
     capitalLabel: '$5K',
+    quoteCurrency: 'USDC',
     strategies: [
       { name: 'Calendar Spread', type: 'primary', description: 'Quarterly futures vs perpetual basis arbitrage' },
     ],
@@ -219,6 +229,7 @@ export const BOT_REGISTRY: BotDefinition[] = [
     apiPath: '/api/simulators',
     startingCapital: 2000,
     capitalLabel: '$2K',
+    quoteCurrency: 'USDT',
     strategies: [
       { name: 'New Listing Arbitrage', type: 'primary', description: 'Exchange listing gap detection (60s polling)' },
     ],

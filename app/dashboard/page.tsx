@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useSimulators } from "@/contexts/SimulatorContext";
 import Link from "next/link";
 import {
   ActivityIcon,
@@ -89,6 +90,7 @@ export default function DashboardPage() {
   useEffect(() => {
     let active = true;
     const poll = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return; // U4
       try {
         const res = await fetch("/api/opportunities");
         const json = await res.json();
@@ -152,33 +154,48 @@ export default function DashboardPage() {
     setHeatmapData(entries);
   }, [opportunities]);
 
-  // Load bot PnL for waterfall
+  // U1: read simulator bot data from shared context — no extra fetch
+  const { simulators } = useSimulators();
+
+  // Build waterfall bars: simulator bots from context + unique endpoints fetched once (U2: give up on 403)
+  const failedWaterfallEndpoints = useRef(new Set<string>());
   useEffect(() => {
-    const BOT_CONFIGS = [
-      { id: 'magnus-beta-1k',      label: 'Beta $1K',     ep: '/api/simulators' },
-      { id: 'magnus-beta-10k',     label: 'Beta $10K',    ep: '/api/simulators' },
-      { id: 'magnus-alpha',        label: 'Alpha',         ep: '/api/magnus/alpha' },
-      { id: 'magnus-rate-harvest', label: 'Rate Harvest',  ep: '/api/magnus/rate-harvest' },
+    const UNIQUE_BOTS = [
+      { id: 'magnus-alpha',        label: 'Alpha',        ep: '/api/magnus/alpha' },
+      { id: 'magnus-rate-harvest', label: 'Rate Harvest', ep: '/api/magnus/rate-harvest' },
     ];
     async function loadWaterfall() {
+      // U4: skip when tab is hidden
+      if (typeof document !== 'undefined' && document.hidden) return;
       const bars: typeof waterfallData = [];
-      for (const bot of BOT_CONFIGS) {
+
+      // Simulator bots: read from shared context — zero network calls
+      const SIM_BOTS = [
+        { id: 'magnus-beta-1k',  label: 'Beta $1K'  },
+        { id: 'magnus-beta-10k', label: 'Beta $10K' },
+      ];
+      for (const bot of SIM_BOTS) {
+        const found = simulators.find(s => s.id === bot.id);
+        if (found) {
+          bars.push({ id: bot.id, label: bot.label, pnl: (found.totalPnl as number) ?? 0, trades: (found.totalTrades as number) ?? 0, color: bot.id });
+        }
+      }
+
+      // Unique endpoint bots: fetch once; give up on 401/403 (U2)
+      for (const bot of UNIQUE_BOTS) {
+        if (failedWaterfallEndpoints.current.has(bot.ep)) continue;
         try {
           const r = await fetch(bot.ep);
-          if (!r.ok) continue;
-          const data = await r.json() as unknown;
-          let pnl = 0; let trades = 0;
-          if (Array.isArray(data)) {
-            const found = data.find((b: { id?: string }) => b.id === bot.id);
-            if (found) { pnl = (found as { totalPnl?: number }).totalPnl ?? 0; trades = (found as { totalTrades?: number }).totalTrades ?? 0; }
-          } else if (data && typeof data === 'object') {
-            pnl = (data as { totalPnl?: number }).totalPnl ?? 0;
-            trades = (data as { totalTrades?: number }).totalTrades ?? 0;
+          if (r.status === 401 || r.status === 403) {
+            failedWaterfallEndpoints.current.add(bot.ep); // U2: stop retrying
+            continue;
           }
-          bars.push({ id: bot.id, label: bot.label, pnl, trades, color: bot.id });
+          if (!r.ok) continue;
+          const data = await r.json() as { totalPnl?: number; totalTrades?: number };
+          bars.push({ id: bot.id, label: bot.label, pnl: data?.totalPnl ?? 0, trades: data?.totalTrades ?? 0, color: bot.id });
         } catch { /* non-fatal */ }
       }
-      setWaterfallData(bars);
+      if (bars.length > 0) setWaterfallData(bars);
     }
     void loadWaterfall();
     const t = setInterval(() => void loadWaterfall(), 15_000);

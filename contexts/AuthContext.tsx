@@ -1,11 +1,13 @@
 'use client';
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 
 interface User {
   id: string;
   email: string | null;
   name: string;
   plan: string;
+  role: string;
+  walletAddress?: string | null;
   createdAt?: string;
 }
 
@@ -27,11 +29,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // U3: prevent duplicate checkAuth calls (React StrictMode double-invocation,
+  // or any component explicitly calling checkAuth() multiple times).
+  // Reset to false in login/signup so re-check works after explicit sign-in.
+  const refreshAttemptedRef = useRef(false);
+
   useEffect(() => {
-    checkAuth();
+    void checkAuth();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto-refresh token before expiry (every 13 minutes for 15min tokens)
+  // Guard: only runs when user is set — so unauthenticated sessions never poll.
   useEffect(() => {
     if (!user) return;
     const interval = setInterval(refreshToken, 13 * 60 * 1000);
@@ -39,6 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   async function checkAuth() {
+    // U3: if we already fired a refresh attempt and got a non-ok response,
+    // don't keep retrying — there is no session to restore.
+    if (refreshAttemptedRef.current) return;
+    refreshAttemptedRef.current = true;
     try {
       const res = await fetch('/api/auth/refresh', { method: 'POST' });
       if (res.ok) {
@@ -52,8 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(meData.user);
         }
       }
+      // 401 = no session — fall through to finally, isLoading → false
     } catch {
-      // Not logged in — that's fine
+      // Network error — treat as no session
     } finally {
       setIsLoading(false);
     }
@@ -65,6 +79,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok) {
         const data = await res.json();
         setAccessToken(data.accessToken);
+      } else if (res.status === 401) {
+        // Session expired — clear auth state, stop interval via [user] dep
+        setUser(null);
+        setAccessToken(null);
       }
     } catch {
       setUser(null);
@@ -80,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
+    refreshAttemptedRef.current = false; // U3: allow checkAuth again if needed
     setUser(data.user);
     setAccessToken(data.accessToken);
   }, []);

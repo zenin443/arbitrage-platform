@@ -91,7 +91,7 @@ interface PriceSidebarProps {
 }
 
 export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSidebarProps) {
-  const [quote, setQuote] = useState<"USDT" | "USDC">("USDT");
+  const [quote, setQuote] = useState<"USDT" | "USDC" | "BTC">("USDT");
   const [search, setSearch] = useState("");
   const [coins, setCoins] = useState<CoinEntry[]>([]);
   const [sidebarWidth, setSidebarWidth] = useState(180);
@@ -208,7 +208,10 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
 
   const filtered = coins.filter((c) => {
     const q = search.toLowerCase();
-    return c.coinName.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
+    const matchesSearch = c.coinName.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q);
+    const symbolQuote = c.symbol.split('/')[1] ?? 'USDT';
+    const matchesQuote = symbolQuote === quote;
+    return matchesSearch && matchesQuote;
   });
 
   const magnusWinRate = magnus ? `${parseFloat(String(magnus.winRate)).toFixed(1)}% win rate` : "—";
@@ -233,13 +236,13 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
         style={{ width: `${sidebarWidth}px` }}
         className="relative hidden lg:flex flex-col flex-shrink-0 h-full bg-[#0D1117] border-r border-[#21262D]"
       >
-        {/* USDT / USDC pill toggle */}
+        {/* USDT / USDC / BTC pill toggle */}
         <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#21262D] shrink-0">
-          {(["USDT", "USDC"] as const).map((q) => (
+          {(["USDT", "USDC", "BTC"] as const).map((q) => (
             <button
               key={q}
               onClick={() => setQuote(q)}
-              className="flex-1 text-[11px] font-sans rounded py-0.5 transition-colors duration-150"
+              className="flex-1 text-[10px] font-mono rounded py-0.5 transition-colors duration-150"
               style={{
                 background: quote === q ? "#388BFD22" : "transparent",
                 color:      quote === q ? "#388BFD"   : "#484F58",

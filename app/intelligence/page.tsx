@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2, X } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
@@ -68,6 +68,8 @@ interface GapRecord {
   isActive: boolean;
   profitSimulation?: ProfitSim | null;
   depthAnalysis: DepthAnalysis | null;
+  /** Quote currency e.g. "USDT", "USDC", "BTC". */
+  quoteCurrency?: string;
   /** Present when the item came from the free-tier 4-field response shape. */
   _isFreeTier?: boolean;
   /** Original "0.25%" string from delayed_spread. Present when _isFreeTier. */
@@ -451,17 +453,44 @@ function ExpandedModal({
 
 // ──────────────────────────────────────────────────────────────────────────────
 
-function GapRow({
-  gap,
-  rowIndex = 0,
-  scoreThresholds = { high: 55, med: 45 },
-}: {
+interface GapRowProps {
   gap: GapRecord;
   rowIndex?: number;
   symHistory?: Record<string, number[]>;
   scoreThresholds?: { high: number; med: number };
-}) {
+}
+
+// U5: custom comparator — only re-render when cell-visible values change.
+// symHistory is decorative (not rendered in cells) so excluded to reduce churn.
+function gapRowPropsEqual(prev: GapRowProps, next: GapRowProps): boolean {
+  if (prev.gap.id !== next.gap.id) return false;
+  if (prev.rowIndex !== next.rowIndex) return false;
+  if (prev.gap.spreadPercent !== next.gap.spreadPercent) return false;
+  if (prev.gap.durationMs !== next.gap.durationMs) return false;
+  if (prev.gap.maxTradeableUsd !== next.gap.maxTradeableUsd) return false;
+  if (prev.gap.buyExchange !== next.gap.buyExchange) return false;
+  if (prev.gap.sellExchange !== next.gap.sellExchange) return false;
+  if (prev.gap.profitSimulation?.at1k !== next.gap.profitSimulation?.at1k) return false;
+  if ((prev.scoreThresholds?.high ?? 55) !== (next.scoreThresholds?.high ?? 55)) return false;
+  if ((prev.scoreThresholds?.med ?? 45)  !== (next.scoreThresholds?.med ?? 45))  return false;
+  return true;
+}
+
+const GapRow = React.memo(function GapRow({
+  gap,
+  rowIndex = 0,
+  scoreThresholds = { high: 55, med: 45 },
+}: GapRowProps) {
   const [expanded, setExpanded] = useState(false);
+
+  // U5: smooth fade-in for genuinely new rows.
+  // Because React.memo skips re-mounting unchanged rows, this only fires
+  // when a row is actually added to the DOM (new gap or rank change).
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
   const score = computeScore(gap);
   const tm = TYPE_META[gap.type as keyof typeof TYPE_META] ?? { label: "?", color: "text-[#8B949E]", bg: "bg-[#8B949E]/15" };
   const isFreeTier = !!gap._isFreeTier;
@@ -486,7 +515,7 @@ function GapRow({
             ? "border-l-2 border-l-[#D29922]/40"
             : "border-l-2 border-l-transparent"
         }`}
-        style={{ background: rowGradient }}
+        style={{ background: rowGradient, opacity: visible ? 1 : 0, transition: "opacity 0.2s ease" }}
         onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.25)")}
         onMouseLeave={e => (e.currentTarget.style.filter = "brightness(1)")}
         onClick={() => setExpanded((e) => !e)}
@@ -578,7 +607,7 @@ function GapRow({
       {expanded && <DepthDetailPanel gap={gap} />}
     </>
   );
-}
+}, gapRowPropsEqual);
 
 const TABLE_HEADERS = ["Symbol", "Type", "Spread", "Route", "Max USD", "Sim P&L", "Duration", "Score"];
 
@@ -601,10 +630,13 @@ export default function IntelligencePage() {
   const [ticks, setTicks] = useState<PriceTick[]>([]);
   const [lastUpdated, setLastUpdated] = useState("—");
   const [loading, setLoading] = useState(true);
+  // U6/U7: track first successful load — never set loading→true again on refetch
+  const gapsLoadedRef = useRef(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [minSpread, setMinSpread] = useState<number>(0.2);
   const [filterInput, setFilterInput] = useState<string>("0.2");
   const [filterSymbol, setFilterSymbol] = useState<string | null>(null);
+  const [quoteFilter, setQuoteFilter] = useState<"ALL" | "USDT" | "USDC" | "BTC">("ALL");
   const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [leftWidth, setLeftWidth] = useState(200);
@@ -649,6 +681,7 @@ export default function IntelligencePage() {
   }, []);
 
   const fetchStats = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/trading-stats", { cache: "no-store" });
       if (res.ok) {
@@ -665,6 +698,7 @@ export default function IntelligencePage() {
   }, []);
 
   const fetchProfitable = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/profitable-gaps", { cache: "no-store" });
       if (!res.ok) return;
@@ -677,7 +711,11 @@ export default function IntelligencePage() {
       const scored = [...data].sort((a, b) => computeScore(b) - computeScore(a));
       setProfitableGaps(scored);
       setLastUpdated(now());
-      setLoading(false);
+      // U6/U7: only transition to "loaded" once — never re-set loading on refetch
+      if (!gapsLoadedRef.current) {
+        gapsLoadedRef.current = true;
+        setLoading(false);
+      }
       setSymbolHistory(prev => {
         const next = { ...prev };
         data.forEach(g => {
@@ -702,6 +740,7 @@ export default function IntelligencePage() {
   }, []);
 
   const fetchPrices = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/prices", { cache: "no-store" });
       if (res.ok) {
@@ -895,9 +934,12 @@ export default function IntelligencePage() {
   const HEATMAP_EXS  = ["BIN","BYB","OKX","KUC","GATE","MEXC","HTX","HYP"];
 
   const heatmapMatrix = useMemo(() => {
+    const base = quoteFilter === 'ALL'
+      ? profitableGaps
+      : profitableGaps.filter(g => (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === quoteFilter);
     const mx: Record<string, Record<string, { spread: number; count: number }>> = {};
     HEATMAP_SYMS.forEach(s => { mx[s] = {}; });
-    profitableGaps.forEach(g => {
+    base.forEach(g => {
       const coin = g.symbol?.split("/")[0] || g.symbol;
       if (!HEATMAP_SYMS.includes(coin)) return;
       [g.buyExchange, g.sellExchange].forEach(ex => {
@@ -911,7 +953,7 @@ export default function IntelligencePage() {
     });
     return mx;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profitableGaps]);
+  }, [profitableGaps, quoteFilter]);
 
   function heatCellStyle(spread: number): { bg: string; border: string } {
     if (!spread)       return { bg: "linear-gradient(135deg, rgba(22,27,34,0.6) 0%, rgba(13,17,23,0.8) 100%)", border: "rgba(33,38,45,0.35)" };
@@ -924,8 +966,11 @@ export default function IntelligencePage() {
 
   // ── Leaderboard from profitable gaps only (FIX 1) ──
   const leaderboard = useMemo(() => {
+    const base = quoteFilter === 'ALL'
+      ? profitableGaps
+      : profitableGaps.filter(g => (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === quoteFilter);
     const bySymbol: Record<string, { count: number; maxSpread: number }> = {};
-    profitableGaps.forEach(g => {
+    base.forEach(g => {
       const coin = g.symbol?.split("/")[0] || g.symbol || "";
       if (!bySymbol[coin]) bySymbol[coin] = { count: 0, maxSpread: 0 };
       bySymbol[coin].count++;
@@ -935,7 +980,7 @@ export default function IntelligencePage() {
       .map(([coin, d]) => ({ coin, count: d.count, maxSpread: d.maxSpread }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  }, [profitableGaps]);
+  }, [profitableGaps, quoteFilter]);
 
   // ── Score thresholds — dynamic percentile-based (FIX 6) ──
   const scoreThresholds = useMemo(() => {
@@ -965,10 +1010,18 @@ export default function IntelligencePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.profitableGapsCount, stats?.totalGapsLast1h]);
 
+  // ── Quote currency counts (for pill badges) ──
+  const quoteCounts = useMemo(() => {
+    const base = profitableGaps.filter(g => g.spreadPercent >= minSpread);
+    const count = (q: string) => base.filter(g => (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === q).length;
+    return { USDT: count('USDT'), USDC: count('USDC'), BTC: count('BTC') };
+  }, [profitableGaps, minSpread]);
+
   // ── Filtered gaps ──
   const allFilteredGaps = profitableGaps
     .filter(g => g.spreadPercent >= minSpread)
-    .filter(g => filterSymbol ? g.symbol?.startsWith(filterSymbol) : true);
+    .filter(g => filterSymbol ? g.symbol?.startsWith(filterSymbol) : true)
+    .filter(g => quoteFilter === 'ALL' ? true : (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === quoteFilter);
 
   // Free users see only first 10 rows; remaining are blurred
   const filteredGaps = isRealtime ? allFilteredGaps : allFilteredGaps.slice(0, FREE_GAP_LIMIT);
@@ -1411,8 +1464,16 @@ export default function IntelligencePage() {
                 </div>
               </div>
               {profitableGaps.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <EmptyState title="Waiting for gap data" subtitle="Heatmap populates as gaps are detected" />
+                // U6: animated pulse skeleton during first fetch; never re-shown once data arrives
+                <div className="flex-1 flex flex-col gap-[3px] p-1 justify-center">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="flex gap-[2px]" style={{ opacity: 0.4 + i * 0.05 }}>
+                      <div className="w-[28px] h-[11px] rounded-sm bg-[#21262D] animate-pulse flex-shrink-0" />
+                      {[...Array(6)].map((__, j) => (
+                        <div key={j} className="flex-1 h-[11px] rounded-sm bg-[#21262D] animate-pulse" style={{ animationDelay: `${(i + j) * 60}ms` }} />
+                      ))}
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col justify-between">
@@ -1497,8 +1558,11 @@ export default function IntelligencePage() {
                 </div>
               </div>
               {profitableGaps.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <EmptyState title="Calculating spread distribution" subtitle="Requires active gap data" />
+                // U6: shimmer bars match histogram shape during first load
+                <div className="flex items-end gap-[2px] flex-1 px-1 pb-1">
+                  {[40, 70, 100, 80, 55, 30, 20].map((h, i) => (
+                    <div key={i} className="flex-1 rounded-t bg-[#21262D] animate-pulse" style={{ height: `${h}%`, animationDelay: `${i * 80}ms` }} />
+                  ))}
                 </div>
               ) : (
                 <>
@@ -1548,6 +1612,28 @@ export default function IntelligencePage() {
 
           {/* ── Live gaps table ── */}
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ padding: "0 var(--pad-md, 6px)" }}>
+
+            {/* Quote currency filter pills */}
+            <div className="flex items-center gap-1 py-1 flex-shrink-0">
+              {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => {
+                const isActive = quoteFilter === q;
+                const count = q === "ALL" ? profitableGaps.filter(g => g.spreadPercent >= minSpread).length : quoteCounts[q];
+                return (
+                  <button
+                    key={q}
+                    onClick={() => setQuoteFilter(q)}
+                    className="text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors"
+                    style={{
+                      background:   isActive ? "rgba(63,185,80,0.12)" : "transparent",
+                      color:        isActive ? "#3FB950" : "#484F58",
+                      borderColor:  isActive ? "rgba(63,185,80,0.35)" : "rgba(33,38,45,0.8)",
+                    }}
+                  >
+                    {q} <span style={{ opacity: 0.7 }}>({count})</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Table toolbar */}
             <div className="flex items-center justify-between py-1 flex-shrink-0">

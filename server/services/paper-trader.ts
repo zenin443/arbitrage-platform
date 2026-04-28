@@ -8,10 +8,11 @@ import { getTriangularRoutes } from '../engines/triangularArbitrage'
 import { getCrossChainOpportunities } from '../engines/crossChainArbitrage'
 import { getStablecoinOpportunities } from '../engines/stablecoinArbitrage'
 import { startRateHarvestBot, getRateHarvestState, resetRateHarvestBot } from './funding-rate-bot'
-import { getPairsSignals, PairsSignal } from '../engines/pairsTradingEngine'
-import { getLiquidationSignals, LiquidationSignal } from '../engines/liquidationEngine'
-import { getCalendarSpreadSignals, CalendarSpreadSignal } from '../engines/calendarSpreadEngine'
-import { getTwapSignals, TwapSignal } from '../engine/twapEngine'
+import { getPairsSignals } from '../engines/pairsTradingEngine'
+import { getLiquidationSignals } from '../engines/liquidationEngine'
+import { getCalendarSpreadSignals } from '../engines/calendarSpreadEngine'
+import { getNewListingSignals } from '../engines/newListingEngine'
+import { getTwapSignals } from '../engine/twapEngine'
 import { scoreAndFilter, updateScoredSignals, feedPriceForVolatility } from '../engine/signalScorer'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
@@ -314,16 +315,26 @@ const ACTIVE_EXCHANGES = [
   'okx', 'gateio', 'binance', 'bitget', 'kucoin', 'mexc', 'htx',
 ]
 const DEX_EXCHANGES = new Set(['jupiter', 'uniswap_v3', 'hyperliquid'])
+
+// High-liquidity, high-cap coins that have active spreads AND reliable price feeds.
+// Replaced meme-coin basket (APE×5, WIF, SHIB, PEPE, BONK) which caused inventory
+// devaluation blowdown. These coins have tighter bid-ask spreads and trade on all 7 CEXs.
 const DEFAULT_INVENTORY_COINS = [
-  'APE', 'INJ', 'ORDI', 'WIF', 'SHIB', 'PEPE', 'TIA', 'WLD', 'OP',
-  'BONK', 'ATOM', 'RENDER', 'UNI', 'NEAR', 'ARB',
+  'BTC', 'ETH', 'SOL', 'BNB', 'XRP',
+  'AVAX', 'LINK', 'ADA', 'DOT', 'MATIC',
+  'ATOM', 'UNI', 'NEAR', 'ARB', 'OP',
 ]
 
+// Equal-weight by default (1.0). High-cap coins get 1.5× for deeper liquidity.
+// No single coin exceeds 1.5× (was APE at 5.0×, responsible for outsized exposure).
 const COIN_WEIGHT: Record<string, number> = {
-  'APE':    5.0, 'INJ':    2.0, 'ORDI':   1.5, 'WIF':    1.5, 'SHIB':   1.5,
-  'PEPE':   1.5, 'TIA':    1.5, 'WLD':    1.0, 'OP':     1.0, 'BONK':   1.0,
-  'ATOM':   1.5, 'RENDER': 1.0, 'UNI':    1.0, 'NEAR':   1.0, 'ARB':    1.0,
+  'BTC':   1.5, 'ETH':   1.5, 'SOL':   1.5, 'BNB':   1.5, 'XRP':   1.5,
+  'AVAX':  1.0, 'LINK':  1.0, 'ADA':   1.0, 'DOT':   1.0, 'MATIC': 1.0,
+  'ATOM':  1.0, 'UNI':   1.0, 'NEAR':  1.0, 'ARB':   1.0, 'OP':    1.0,
 }
+
+// Hard cap on unique inventory coins. refreshInventoryCoins() enforces this.
+const MAX_INVENTORY_COINS = 15
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -398,6 +409,12 @@ function makeFreshCycle(cycleNumber: number): LiquidationCycle {
 
 // ── PaperBot class ────────────────────────────────────────────────────────────
 
+// Rescue cooldown: do not rescue same coin+exchange more than once per interval.
+// Prevents the drain loop: coin depleted → rescue buys → coin depreciates → rescue again.
+const RESCUE_COOLDOWN_MS = 30 * 60_000   // 30 minutes between rescues per coin+exchange
+// Maximum USDT spent per rescue operation ($10, was $50). Smaller rescues = less exposure.
+const RESCUE_MAX_USDT = 10
+
 class PaperBot {
   protected botId: string
   protected botName: string
@@ -406,6 +423,8 @@ class PaperBot {
   protected tradedGaps = new Set<string>()
   protected symbolCooldown = new Map<string, number>()
   protected portfolioInitialized = false
+  // rescue cooldown: key = `${exchange}:${coin}`
+  protected rescueCooldown = new Map<string, number>()
 
   constructor(id: string, name: string, startingCapital: number) {
     this.botId = id
@@ -585,9 +604,21 @@ class PaperBot {
   }
 
   refreshInventoryCoins(): void {
+    // Step 1: hard-cap enforcement — if already at MAX_INVENTORY_COINS, do nothing.
+    // This was the blowup root cause: the bot accumulated 38 coins (designed for 15).
+    if (this.state.inventoryCoins.length >= MAX_INVENTORY_COINS) return
+
     const newCoins = this.selectInventoryCoins()
-    const added = newCoins.filter(c => !this.state.inventoryCoins.includes(c))
-    if (added.length === 0) return
+    // Only add coins that are in DEFAULT_INVENTORY_COINS (curated high-cap list).
+    // Prevents dynamically adding illiquid meme coins from signal data.
+    const safeNew = newCoins.filter(
+      c => DEFAULT_INVENTORY_COINS.includes(c) && !this.state.inventoryCoins.includes(c)
+    )
+    if (safeNew.length === 0) return
+
+    // Only add as many as brings us to exactly MAX_INVENTORY_COINS, no more.
+    const slots = MAX_INVENTORY_COINS - this.state.inventoryCoins.length
+    const added = safeNew.slice(0, slots)
 
     const perExchange = this.startingCapital / ACTIVE_EXCHANGES.length
     const inventoryBudget = perExchange * 0.6
@@ -608,7 +639,7 @@ class PaperBot {
         }
       }
     }
-    console.log(`[PaperBot ${this.botId}] Inventory updated — added: ${added.join(', ')}`)
+    console.log(`[PaperBot ${this.botId}] Inventory updated — added: ${added.join(', ')} (${this.state.inventoryCoins.length}/${MAX_INVENTORY_COINS})`)
   }
 
   calculatePortfolioValue(): void {
@@ -690,18 +721,25 @@ class PaperBot {
   // ── Tier 1 Rescue: buy coin using surplus USDT on the target exchange ─────────
 
   protected tryTier1RescueBuyCoin(exchange: string, coin: string): boolean {
+    // Cooldown gate — suppress rescue if we rescued this coin+exchange recently.
+    const cooldownKey = `${exchange}:${coin}`
+    const lastRescue = this.rescueCooldown.get(cooldownKey)
+    if (lastRescue && Date.now() - lastRescue < RESCUE_COOLDOWN_MS) return false
+
     const wallet = this.state.portfolio[exchange]
     if (!wallet) return false
     const usdt = wallet.USDT ?? 0
-    if (usdt < 15) return false
+    // Require $30+ USDT before rescue fires (was $15), so the rescue doesn't wipe the balance.
+    if (usdt < 30) return false
 
     const price = getCurrentAskPrice(coin) || getCurrentPrice(coin)
     if (price <= 0) return false
 
-    const buyAmount = parseFloat(Math.min(50, usdt * 0.3).toFixed(8))
-    if (buyAmount < 10) return false
+    // Cap at $10 (was $50). Smaller rescue = less USDT exposure to declining coins.
+    const buyAmount = parseFloat(Math.min(RESCUE_MAX_USDT, usdt * 0.15).toFixed(8))
+    if (buyAmount < 5) return false
 
-    const fee = parseFloat((buyAmount * DEFAULT_FEE_RATE).toFixed(8))
+    const fee = parseFloat((buyAmount * getTakerFee(exchange)).toFixed(8))
     const coinBought = parseFloat(((buyAmount - fee) / price).toFixed(8))
     const now = Date.now()
     const usdtBefore = usdt
@@ -709,6 +747,8 @@ class PaperBot {
 
     wallet.USDT = parseFloat((usdt - buyAmount).toFixed(8))
     wallet[coin] = parseFloat(((wallet[coin] ?? 0) + coinBought).toFixed(8))
+    // Record cooldown so same coin+exchange is not rescued again for 30 minutes.
+    this.rescueCooldown.set(cooldownKey, now)
 
     this.addRebalanceEvent({
       id: `reb-${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1308,6 +1348,25 @@ class PaperBot {
     const lastSymbolTrade = this.symbolCooldown.get(gap.symbol)
     if (lastSymbolTrade && now - lastSymbolTrade < SYMBOL_COOLDOWN_MS) return
 
+    // ── Q1 FIX: Minimum profitable spread guard ───────────────────────────────
+    // Dynamically compute minimum from per-exchange taker fees × 1.5× safety buffer
+    // to account for slippage on top of fees. Hard floor of 0.25%.
+    // Without this, the bot executes on 0.06% spreads that cost 0.20% in fees → guaranteed loss.
+    {
+      const buyFeePct  = getTakerFee(gap.buyExchange)  * 100
+      const sellFeePct = getTakerFee(gap.sellExchange) * 100
+      const minSpread  = Math.max(0.25, (buyFeePct + sellFeePct) * 1.5)
+      if (gap.spreadPercent < minSpread) {
+        this.recordVoid(
+          gap,
+          `Spread below min (${gap.spreadPercent.toFixed(3)}% < ${minSpread.toFixed(3)}%)`,
+          'tooSmall'
+        )
+        this.tradedGaps.add(gap.id)
+        return
+      }
+    }
+
     // ── Circuit breaker checks ────────────────────────────────────────────────
     const today = new Date().toISOString().slice(0, 10)
     if (this.state.dailyOpenDate !== today) {
@@ -1407,6 +1466,12 @@ class PaperBot {
       }
       if (rescued) {
         this.state.rescuedVoids++
+        // BUG FIX: when buyExchange === sellExchange, coin rescue spent USDT from the
+        // same wallet that availableUsdt was read from. Re-read to avoid spending USDT
+        // we no longer have — which would send the balance negative.
+        if (gap.buyExchange === gap.sellExchange) {
+          availableUsdt = buyWallet.USDT ?? 0
+        }
         console.log(
           `[Bot ${this.botId}] Rescue: bought ${baseAsset} on ${gap.sellExchange}, ` +
           `re-evaluating ${gap.symbol}`
@@ -1526,6 +1591,15 @@ class PaperBot {
    * model gas, bridge fees, and round-trip costs. We apply slippage on top.
    */
   protected evaluateMultiLegGap(gap: GapRecord, now: number): void {
+    // Multi-leg trades must also meet the minimum profitable spread.
+    // Triangular/cross-chain calculators may produce noisy low-spread signals;
+    // a 0.25% floor ensures we only execute when there is genuine profit after fees.
+    if (gap.spreadPercent < 0.25) {
+      this.recordVoid(gap, `Multi-leg spread below min (${gap.spreadPercent.toFixed(3)}% < 0.25%)`, 'tooSmall')
+      this.tradedGaps.add(gap.id)
+      return
+    }
+
     const [baseAsset, quoteAsset = 'USDT'] = gap.symbol.split('/')
     if (!baseAsset) return
 
@@ -1683,13 +1757,13 @@ function freshFlowTracker(): TradeFlowTracker {
 
 function defaultMagnusAlphaConfig(): MagnusAlphaConfig {
   return {
-    totalCapital: 19_000,
-    reservePerExchange: 1_000,
+    totalCapital: 100_000,          // Founder testing capital
+    reservePerExchange: 2_000,      // 2% reserve per exchange ($2K × 9 = $18K locked)
     exchanges: [...ACTIVE_EXCHANGES],
     inventoryCoins: [...DEFAULT_INVENTORY_COINS],
     maxPositionPercent: 10,
     rebalanceMode: 'roi_driven',
-    cycleIntervalMs: 3_600_000,
+    cycleIntervalMs: 14_400_000,    // 4 hours (Q3 fix — prevents fee drain)
   }
 }
 
@@ -1822,11 +1896,35 @@ class MagnusAlphaBot extends PaperBot {
   private shouldRebalance(asset: string, toExchange: string, cost: number): boolean {
     if (this.alphaConfig.rebalanceMode !== 'roi_driven') return true
     if (cost <= 0) return true
+
+    // Q3 FIX: Require projected ROI >= 3× (was 2×) before authorising a rebalance.
+    // Also enforce a per-cycle cost cap so the rebalancer cannot drain more than
+    // MAX_REBALANCE_COST_PER_CYCLE in fees in a single pass.
+    const MAX_REBALANCE_COST_PER_CYCLE = 5.0   // $5 maximum per rebalance sweep
+    const MIN_ROI_MULTIPLIER = 3.0             // need 3× projected payback (was 2×)
+
+    // If this cycle has already spent too much, veto all further rebalances this pass.
+    if (this.state.rebalanceStats.totalRebalanceCost > 0) {
+      const lastHourCost = this.getRebalanceCostLastHour()
+      if (lastHourCost >= MAX_REBALANCE_COST_PER_CYCLE) return false
+    }
+
     const tradesPerHour = this.getTradeFrequencyForCoinOnExchange(asset, toExchange)
     const avgProfit = this.getAvgProfitForCoin(asset)
+
+    // Warmup guard: if we have no history at all, allow (but only up to cost cap above)
     if (tradesPerHour === 0 && avgProfit === 0) return true
+
     const expectedProfit = tradesPerHour * avgProfit
-    return expectedProfit > cost * 2
+    // Require expected profit >= MIN_ROI_MULTIPLIER × cost AND must be positive
+    return expectedProfit > 0 && expectedProfit > cost * MIN_ROI_MULTIPLIER
+  }
+
+  private getRebalanceCostLastHour(): number {
+    const cutoff = Date.now() - 3_600_000
+    return this.state.recentRebalances
+      .filter(r => r.timestamp >= cutoff)
+      .reduce((s, r) => s + r.fee, 0)
   }
 
   getTradeFrequencyForCoinOnExchange(coin: string, exchange: string): number {
@@ -2866,18 +2964,22 @@ deleteStaleStateFiles()
 
 // ── Bot instances ─────────────────────────────────────────────────────────────
 
-const magnusBeta1k = new PaperBot('magnus-beta-1k', 'Magnus Beta · $1K', 1_000)
-const magnusBeta10k = new PaperBot('magnus-beta-10k', 'Magnus Beta · $10K', 10_000)
+// ── Founder testing capital — $100K per bot ───────────────────────────────────
+// All 9 bots seeded at $100,000 for strategy validation. Reset state files first.
+const FOUNDER_CAPITAL = 100_000
+
+const magnusBeta1k = new PaperBot('magnus-beta-1k', 'VEGA · $100K', FOUNDER_CAPITAL)
+const magnusBeta10k = new PaperBot('magnus-beta-10k', 'NEXUS · $100K', FOUNDER_CAPITAL)
 const magnusAlpha = new MagnusAlphaBot()
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let magnusFutures: any = null
 
 // ── Phase-2 strategy bots ─────────────────────────────────────────────────────
-const magnusPairs    = new PaperBot('magnus-pairs',    'Magnus Pairs',    10_000)
-const magnusCascade  = new PaperBot('magnus-cascade',  'Magnus Cascade',   3_000)
-const magnusCalendar = new PaperBot('magnus-calendar', 'Magnus Calendar',  5_000)
-const magnusListing  = new PaperBot('magnus-listing',  'Magnus Listing',   2_000)
+const magnusPairs    = new PaperBot('magnus-pairs',    'SIGMA · $100K',    FOUNDER_CAPITAL)
+const magnusCascade  = new PaperBot('magnus-cascade',  'ARES · $100K',     FOUNDER_CAPITAL)
+const magnusCalendar = new PaperBot('magnus-calendar', 'TEMPUS · $100K',   FOUNDER_CAPITAL)
+const magnusListing  = new PaperBot('magnus-listing',  'SCOUT · $100K',    FOUNDER_CAPITAL)
 
 let isRunning = false
 
@@ -3087,6 +3189,7 @@ function evaluate(): void {
         id: route.id,
         type: 'triangular',
         symbol: route.baseSymbol,
+        quote_currency: route.baseSymbol.split('/')[1] ?? 'USDT',
         buyExchange: route.exchange,
         sellExchange: route.exchange,
         spreadPercent: route.netProfitPercent,
@@ -3123,6 +3226,7 @@ function evaluate(): void {
         id: opp.id,
         type: 'cross_chain',
         symbol: opp.symbol,
+        quote_currency: opp.symbol.split('/')[1] ?? 'USDT',
         buyExchange: opp.buyDex,
         sellExchange: opp.sellDex,
         spreadPercent: opp.netProfitPercent,
@@ -3160,6 +3264,7 @@ function evaluate(): void {
         id: opp.id,
         type: 'cex_cex',
         symbol: opp.symbol,
+        quote_currency: opp.symbol.split('/')[1] ?? 'USDT',
         buyExchange: opp.buyExchange,
         sellExchange: opp.sellExchange,
         spreadPercent: opp.netProfitPercent,
@@ -3205,6 +3310,7 @@ function evaluate(): void {
         id: sig.id,
         type: 'cex_cex',
         symbol: sig.symbolA,
+        quote_currency: sig.symbolA.split('/')[1] ?? 'USDT',
         buyExchange:  sig.exchange,
         sellExchange: sig.exchange,
         spreadPercent: sig.netProfitPercent,
@@ -3232,6 +3338,7 @@ function evaluate(): void {
         id: sig.id,
         type: 'cex_cex',
         symbol: sig.symbol,
+        quote_currency: sig.symbol.split('/')[1] ?? 'USDT',
         buyExchange: sig.exchange, sellExchange: sig.exchange,
         spreadPercent: sig.netProfitPercent,
         buyPrice: sig.spotPrice, sellPrice: sig.fairValuePrice,
@@ -3257,6 +3364,7 @@ function evaluate(): void {
         id: sig.id,
         type: 'spot_futures',
         symbol: sig.symbol,
+        quote_currency: sig.symbol.split('/')[1] ?? 'USDT',
         buyExchange: sig.exchange, sellExchange: sig.exchange,
         spreadPercent: sig.netProfitPercent,
         buyPrice: sig.perpPrice, sellPrice: sig.quarterlyPrice,
@@ -3274,6 +3382,41 @@ function evaluate(): void {
       if (magnusCalendar) magnusCalendar.evaluateTrade(calGap)
     }
 
+    // === New Listing Arb — SCOUT bot ===
+    const listingSignals = getNewListingSignals()
+    for (const sig of listingSignals) {
+      if (sig.netProfitPercent <= 0) continue
+      if (sig.priceDiffPercent < 1.0) continue           // published 1% min threshold
+      if (Date.now() - sig.detectedAt > 600_000) continue // 10-min hard window
+      // direction: buy on cheaper exchange, sell on more expensive exchange
+      const isBuyNew = sig.direction === 'buy_new_sell_existing'
+      const buyExch  = isBuyNew ? sig.newExchange : sig.existingExchange
+      const sellExch = isBuyNew ? sig.existingExchange : sig.newExchange
+      const buyPx    = isBuyNew ? sig.priceOnNewExchange : sig.priceOnExistingExchange
+      const sellPx   = isBuyNew ? sig.priceOnExistingExchange : sig.priceOnNewExchange
+      const lGap: GapRecord = {
+        id: sig.id,
+        type: 'cex_cex',
+        symbol: sig.symbol,
+        quote_currency: sig.symbol.split('/')[1] ?? 'USDT',
+        buyExchange: buyExch,
+        sellExchange: sellExch,
+        spreadPercent: sig.netProfitPercent,
+        buyPrice: buyPx, sellPrice: sellPx,
+        buyBidSize: 0, sellAskSize: 0,
+        maxTradeableUsd: 2_000,
+        detectedAt: sig.detectedAt, lastSeenAt: Date.now(), durationMs: Date.now() - sig.detectedAt, isActive: true,
+        profitSimulation: {
+          isProfitable: true,
+          at100: sig.estimatedProfit1k * 0.1, at1k: sig.estimatedProfit1k,
+          at5k: sig.estimatedProfit1k * 5, at10k: sig.estimatedProfit1k * 10,
+          breakEvenSpread: 0.25, maxProfitableSize: 2_000,
+        },
+        depthAnalysis: null,
+      }
+      if (magnusListing) magnusListing.evaluateTrade(lGap)
+    }
+
     // === TWAP Deviation — feed into all main bots ===
     const twapSignals = getTwapSignals()
     for (const sig of twapSignals) {
@@ -3282,6 +3425,7 @@ function evaluate(): void {
         id: sig.id,
         type: 'cex_cex',
         symbol: sig.symbol,
+        quote_currency: sig.symbol.split('/')[1] ?? 'USDT',
         buyExchange: sig.exchange, sellExchange: sig.exchange,
         spreadPercent: sig.netProfitPercent,
         buyPrice: sig.currentPrice, sellPrice: sig.twap4h,
@@ -3323,15 +3467,77 @@ export function getBotState(id: string): BotState | null {
   return null
 }
 
-export function getAllBotStates(): BotState[] {
-  return [
-    magnusBeta1k.getState(),
-    magnusBeta10k.getState(),
-    magnusPairs.getState(),
-    magnusCascade.getState(),
-    magnusCalendar.getState(),
-    magnusListing.getState(),
-  ]
+/** Minimal stub for bots not yet initialised (prevents null crashes in transformer). */
+function notInitStub(id: string, name: string, capital: number): BotState {
+  return {
+    id, name,
+    startingCapital: capital,
+    portfolio: {},
+    totalPortfolioValueUsd: capital,
+    totalPnl: 0,
+    totalPnlPercent: 0,
+    tradingPnl: 0,
+    totalTrades: 0,
+    voidedSignals: 0,
+    voidedReasons: {},
+    winningTrades: 0,
+    losingTrades: 0,
+    winRate: 0,
+    bestTrade: null,
+    worstTrade: null,
+    totalFeesPaid: 0,
+    totalSlippageCost: 0,
+    totalRebalanceFees: 0,
+    rebalanceCount: 0,
+    maxDrawdown: 0,
+    peakValue: capital,
+    dailyOpenValue: capital,
+    dailyOpenDate: new Date().toISOString().slice(0, 10),
+    inventoryCoins: [],
+    activeExchanges: [],
+    recentTrades: [],
+    recentVoided: [],
+    recentRebalances: [],
+    startedAt: Date.now(),
+    lastTradeAt: null,
+    isRunning: false,
+    circuitBreakerActive: false,
+    circuitBreakerReason: '',
+    voidByCategory: { dex: 0, exchangeMissing: 0, noInventory: 0, noUsdt: 0, tooSmall: 0, circuitBreaker: 0 },
+    rebalanceStats: makeRebalanceStats(),
+    inTransitFunds: [],
+    rescuedVoids: 0,
+    currentCycle: makeFreshCycle(1),
+    cycleHistory: [],
+    nextCycleAt: 0,
+    totalCycleFees: 0,
+    realizedInventoryPnl: 0,
+    unrealizedInventoryPnl: 0,
+    inventoryValueUsd: 0,
+    restockPrices: {},
+  }
+}
+
+/**
+ * Returns all 9 bot states keyed by camelCase ID.
+ * Shape required by lib/simulator-transformer.ts which calls Object.entries(raw).
+ * DO NOT return an array — the transformer iterates over named keys.
+ */
+export function getAllBotStates(): Record<string, BotState> {
+  const rateHarvest = getRateHarvestState()
+  return {
+    magnusBeta1k:      magnusBeta1k.getState(),
+    magnusBeta10k:     magnusBeta10k.getState(),
+    magnusAlpha:       magnusAlpha.getState(),
+    // magnusFutures is a plain object initialised in startPaperTraders — may be null before startup
+    magnusFutures:     (magnusFutures?.getState?.() as BotState) ?? notInitStub('magnus-futures', 'Magnus Futures', 1_000),
+    // getRateHarvestState returns its own shape; cast to BotState for transformer compatibility
+    magnusRateHarvest: (rateHarvest as unknown as BotState) ?? notInitStub('magnus-rate-harvest', 'Magnus Rate Harvest', 5_000),
+    magnusPairs:       magnusPairs.getState(),
+    magnusCascade:     magnusCascade.getState(),
+    magnusCalendar:    magnusCalendar.getState(),
+    magnusListing:     magnusListing.getState(),
+  }
 }
 
 export function resetBot(id: string): BotState | null {
@@ -3568,13 +3774,13 @@ export function startPaperTraders(): void {
   // ── Magnus Futures — $1K USDT, spot-futures arbitrage, market neutral ────────
   const FUTURES_EXCHANGES = ['okx', 'gateio', 'binance', 'bitget', 'kucoin', 'mexc', 'htx']
   const futuresPortfolio: Record<string, Record<string, number>> = {}
-  FUTURES_EXCHANGES.forEach(ex => { futuresPortfolio[ex] = { USDT: 1000 / FUTURES_EXCHANGES.length } })
+  FUTURES_EXCHANGES.forEach(ex => { futuresPortfolio[ex] = { USDT: FOUNDER_CAPITAL / FUTURES_EXCHANGES.length } })
   magnusFutures = {
     id: 'magnus-futures',
-    name: 'Magnus Futures',
-    startingCapital: 1000,
+    name: 'KRONOS · $100K',
+    startingCapital: FOUNDER_CAPITAL,
     portfolio: futuresPortfolio,
-    totalPortfolioValueUsd: 1000,
+    totalPortfolioValueUsd: FOUNDER_CAPITAL,
     totalPnl: 0,
     totalPnlPercent: 0,
     totalTrades: 0,
@@ -3586,7 +3792,7 @@ export function startPaperTraders(): void {
     worstTrade: null as SimTrade | null,
     totalFeesPaid: 0,
     maxDrawdown: 0,
-    peakValue: 1000,
+    peakValue: FOUNDER_CAPITAL,
     inventoryCoins: [] as string[],
     activeExchanges: FUTURES_EXCHANGES,
     recentTrades: [] as SimTrade[],

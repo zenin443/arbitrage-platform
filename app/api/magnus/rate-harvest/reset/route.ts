@@ -1,11 +1,11 @@
-import { NextRequest } from 'next/server';
-import { getAuthUser } from '@/lib/auth/middleware';
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth/middleware';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
 
 export async function POST(req: NextRequest) {
-  const authUser = getAuthUser(req);
-  if (!authUser) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const authResult = requireAdmin(req);
+  if (authResult instanceof NextResponse) return authResult;
 
   try {
     const res = await fetch(`${BACKEND_URL}/magnus/rate-harvest/reset`, {

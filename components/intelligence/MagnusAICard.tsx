@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import InfoCorner from '@/components/ui/InfoCorner'
 import { formatNumber } from '@/lib/formatters'
@@ -46,24 +46,38 @@ interface MagnusApiData {
 export default function MagnusAICard() {
   const [magnusData, setMagnusData] = useState<MagnusStats | null>(null)
   const [lastTrade, setLastTrade] = useState<RecentTrade | null>(null)
+  const [authBlocked, setAuthBlocked] = useState(false)
+
+  // U2: ref to stop polling after 401/403 — no stale-closure issue
+  const gaveUpRef = useRef(false)
 
   useEffect(() => {
-    const fetchData = () => {
-      fetch('/api/magnus/alpha')
-        .then(r => r.json())
-        .then((data: MagnusApiData) => {
-          if (!data) return
-          setMagnusData({
-            trades:  data.totalTrades ?? data.qualityMetrics?.totalTrades ?? 0,
-            winRate: data.winRate     ?? data.qualityMetrics?.winRate     ?? 0,
-            capital: data.capital     ?? data.totalPortfolioValueUsd      ?? data.portfolioValue ?? 19000,
-          })
-          setLastTrade(data.recentTrades?.[0] ?? null)
+    async function fetchData() {
+      // U2: stop retrying if endpoint is auth-blocked
+      if (gaveUpRef.current) return
+      // U4: skip when tab is hidden
+      if (typeof document !== 'undefined' && document.hidden) return
+
+      try {
+        const r = await fetch('/api/magnus/alpha')
+        if (r.status === 401 || r.status === 403) {
+          gaveUpRef.current = true  // U2: never poll again this session
+          setAuthBlocked(true)
+          return
+        }
+        if (!r.ok) return
+        const data: MagnusApiData = await r.json()
+        if (!data) return
+        setMagnusData({
+          trades:  data.totalTrades ?? data.qualityMetrics?.totalTrades ?? 0,
+          winRate: data.winRate     ?? data.qualityMetrics?.winRate     ?? 0,
+          capital: data.capital     ?? data.totalPortfolioValueUsd      ?? data.portfolioValue ?? 19000,
         })
-        .catch(() => {})
+        setLastTrade(data.recentTrades?.[0] ?? null)
+      } catch { /* non-fatal */ }
     }
 
-    fetchData()
+    void fetchData()
     const interval = setInterval(fetchData, 10_000)
     return () => clearInterval(interval)
   }, [])
@@ -189,7 +203,7 @@ export default function MagnusAICard() {
         </div>
       ) : (
         <div className="bg-[#0D1117] rounded p-1.5 mb-3 text-center font-mono text-[10px] text-[#484F58]">
-          {magnusData === null ? 'Initializing…' : 'No trades yet'}
+          {authBlocked ? 'Sign in to see live bot data' : magnusData === null ? 'Initializing…' : 'No trades yet'}
         </div>
       )}
 

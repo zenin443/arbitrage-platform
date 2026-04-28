@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/auth/middleware';
+import { logAdminAction, getClientIp } from '@/lib/admin/audit';
+
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const authResult = requireAdmin(req);
+  if (authResult instanceof NextResponse) return authResult;
+  const admin = authResult;
+
+  const res = await fetch(`${BACKEND_URL}/simulator/${params.id}/reset`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-internal-api-key': process.env.INTERNAL_API_SECRET ?? '',
+    },
+  });
+  const statusCode = res.status;
+
+  logAdminAction({
+    userId: admin.userId,
+    email: admin.email,
+    method: 'POST',
+    path: req.nextUrl.pathname,
+    statusCode,
+    ip: getClientIp(req),
+    userAgent: req.headers.get('user-agent') || '',
+  });
+
+  return NextResponse.json(await res.json(), { status: statusCode });
+}

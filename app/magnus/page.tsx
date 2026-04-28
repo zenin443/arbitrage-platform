@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import {
   Activity, TrendingUp, TrendingDown, Zap, Shield, Clock,
@@ -9,8 +9,11 @@ import {
 } from 'lucide-react'
 import SignalScoreGauge from '@/components/magnus/SignalScoreGauge'
 import AlgoExplainerCard, { ALGO_DEFINITIONS } from '@/components/magnus/AlgoExplainerCard'
+import SignalHeatmap from '@/components/magnus/SignalHeatmap'
+import StrategyPnlWaterfall from '@/components/magnus/StrategyPnlWaterfall'
 import NavAuthButton from '@/components/NavAuthButton'
 import { getBotById, type BotDefinition } from '@/lib/magnus/botRegistry'
+import { useSimulators } from '@/contexts/SimulatorContext'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -172,54 +175,292 @@ function TradeRow({ trade, index }: { trade: Trade; index: number }) {
   )
 }
 
+// ── Empty-state identity + reason sub-components ─────────────────────────────
+
+type AuthState = 'anon' | 'authed_locked' | 'authed_no_data' | 'authed_ok'
+
+function BotIdentityHeader({
+  bot,
+  color,
+  liveStatus = 'initializing',
+  activeExchangeCount,
+}: {
+  bot: BotDefinition | undefined
+  color: string
+  liveStatus?: 'live' | 'initializing' | 'locked' | 'coming_soon'
+  activeExchangeCount?: number
+}) {
+  const clr = COLOR_MAP[color] ?? COLOR_MAP.cyan!
+  if (!bot) return null
+
+  function StatusChip() {
+    if (liveStatus === 'live') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-green-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" />
+          LIVE — {activeExchangeCount ?? 0} exchanges
+        </span>
+      )
+    }
+    if (liveStatus === 'locked') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-gray-500">
+          <span className="w-1.5 h-1.5 rounded-full border border-gray-600 inline-block" />
+          LOCKED
+        </span>
+      )
+    }
+    if (liveStatus === 'coming_soon') {
+      return (
+        <span className="flex items-center gap-1.5 text-xs text-gray-500">
+          <span className="w-1.5 h-1.5 rounded-full border border-gray-600 inline-block" />
+          COMING SOON
+        </span>
+      )
+    }
+    return (
+      <span className="flex items-center gap-1.5 text-xs text-amber-400">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+        INITIALIZING
+      </span>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3 flex-wrap">
+        <div>
+          <h2
+            className="font-mono font-bold leading-none"
+            style={{ fontSize: '28px', color: bot.glowHex, textShadow: `0 0 20px ${bot.glowHex}50` }}
+          >
+            {bot.codename}
+          </h2>
+          <p className="text-gray-400 text-xs mt-1">{bot.tagline}</p>
+        </div>
+        <span
+          className="mt-1 px-2 py-0.5 rounded-full text-xs font-medium border"
+          style={{
+            color: bot.glowHex,
+            borderColor: `${bot.glowHex}50`,
+            background: `${bot.glowHex}1A`,
+          }}
+        >
+          {bot.strategyClass}
+        </span>
+      </div>
+
+      {/* Benchmark chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/60 text-gray-300">
+          Win Rate: <span className="font-mono text-white">{bot.winRateBenchmark}</span>
+        </span>
+        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/60 text-gray-300">
+          Signals/Day: <span className="font-mono text-white">{bot.signalsPerDay}</span>
+        </span>
+        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/60 text-gray-300">
+          Sharpe: <span className="font-mono text-white">{bot.sharpe}</span>
+        </span>
+      </div>
+
+      {/* Identity chips */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={`text-xs px-2 py-0.5 rounded border ${clr.badge}`}>{bot.capitalLabel}</span>
+        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/40 text-gray-400">
+          {bot.strategyClass}
+        </span>
+        {bot.quoteCurrency && (
+          <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/40 font-mono"
+            style={{
+              color: bot.quoteCurrency === 'USDT' ? '#3FB950'
+                : bot.quoteCurrency === 'USDC' ? '#388BFD'
+                : '#D29922',
+            }}
+          >
+            {bot.quoteCurrency}
+          </span>
+        )}
+        <StatusChip />
+      </div>
+    </div>
+  )
+}
+
+function BotEmptyStateForReason({
+  reason,
+  bot,
+  botId,
+}: {
+  reason: AuthState
+  bot: BotDefinition | undefined
+  botId: string
+}) {
+  const algo = ALGO_DEFINITIONS[botId]
+
+  if (reason === 'authed_ok') {
+    return (
+      <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
+        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
+        Loading bot data…
+      </div>
+    )
+  }
+
+  if (reason === 'anon') {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-6 space-y-3">
+          <h3 className="text-white font-semibold text-base">Sign in to view live trade detail</h3>
+          <p className="text-sm text-gray-400">
+            Aggregate stats are public. Trade-level data requires authentication.
+          </p>
+          <div className="flex items-center gap-3 pt-1 flex-wrap">
+            <Link
+              href="/login"
+              className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-medium transition-colors"
+            >
+              Sign In
+            </Link>
+            <a
+              href="#"
+              className="text-sm text-gray-400 hover:text-gray-300 underline underline-offset-2"
+            >
+              Why? Read about our IP protection
+            </a>
+          </div>
+        </div>
+        {algo && <AlgoExplainerCard algo={algo} defaultOpen={true} />}
+      </div>
+    )
+  }
+
+  if (reason === 'authed_locked') {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-amber-800/40 bg-amber-900/10 p-6 space-y-3">
+          <h3 className="text-white font-semibold text-base">Available on Magnus Pro</h3>
+          <p className="text-sm text-gray-400">
+            {bot?.codename ?? 'This bot'} requires the Pro tier or above. Unlock all 9 bot detail panels, real-time trade feeds, and advanced signals.
+          </p>
+          <div className="pt-1">
+            <Link
+              href="/pricing"
+              className="inline-block px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-sm font-medium transition-colors"
+            >
+              Upgrade to Pro
+            </Link>
+          </div>
+        </div>
+        {algo && <AlgoExplainerCard algo={algo} defaultOpen={false} />}
+      </div>
+    )
+  }
+
+  // authed_no_data
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-6 space-y-3">
+        <h3 className="text-white font-semibold text-base">Strategy launching soon</h3>
+        <p className="text-sm text-gray-400">
+          {bot?.codename ?? 'This strategy'} is in final development. Paper trading begins in the next sprint. The algorithm is documented below.
+        </p>
+      </div>
+      {algo && <AlgoExplainerCard algo={algo} defaultOpen={true} />}
+    </div>
+  )
+}
+
 // ── Bot Panel ────────────────────────────────────────────────────────────────
+
+// U2 fix: module-scope set persists across BotPanel remounts (tab switches).
+// A per-instance useRef resets on unmount/remount — this does not.
+const SESSION_FAILED_ENDPOINTS = new Set<string>();
 
 function BotPanel({ botId, color }: { botId: string; color: string }) {
   const [state, setState] = useState<BotState | null>(null)
   const [trades, setTrades] = useState<Trade[]>([])
   const [loading, setLoading] = useState(true)
   const [showTrades, setShowTrades] = useState(true)
+  const [authState, setAuthState] = useState<AuthState>('anon')
   const clr = COLOR_MAP[color] ?? COLOR_MAP.cyan!
   const algo = ALGO_DEFINITIONS[botId]
 
-  const load = useCallback(async () => {
-    try {
-      // State
-      const stateEndpoint =
-        botId === 'magnus-alpha'        ? '/api/magnus/alpha' :
-        botId === 'magnus-futures'      ? '/api/magnus/futures' :
-        botId === 'magnus-rate-harvest' ? '/api/magnus/rate-harvest' :
-        '/api/simulators'
+  // U1: read simulator data from shared context — no direct fetch for simulator bots
+  const { simulators, authBlocked: simAuthBlocked } = useSimulators()
+  const simulatorsRef = useRef(simulators)
+  simulatorsRef.current = simulators
 
+  // U7: only show loading skeleton on the very first fetch
+  const hasLoadedRef = useRef(false)
+
+  const stateEndpoint =
+    botId === 'magnus-alpha'        ? '/api/magnus/alpha' :
+    botId === 'magnus-futures'      ? '/api/magnus/futures' :
+    botId === 'magnus-rate-harvest' ? '/api/magnus/rate-harvest' :
+    '/api/simulators'
+
+  const load = useCallback(async () => {
+    // U4: skip when tab is hidden
+    if (typeof document !== 'undefined' && document.hidden) return
+    // U7: only show loading spinner on first load — keep stale data visible on refetches
+    if (!hasLoadedRef.current) setLoading(true)
+
+    try {
       if (stateEndpoint === '/api/simulators') {
-        // Phase-2 bots: pull from simulators list
-        const r = await fetch('/api/simulators')
-        if (r.ok) {
-          const all = await r.json() as BotState[]
-          const found = Array.isArray(all) ? all.find((b: BotState) => b.id === botId) : null
-          if (found) setState(found)
+        // U1: read from shared context cache — no network call
+        if (simAuthBlocked) {
+          setAuthState('anon')
+        } else {
+          const found = simulatorsRef.current.find((b) => b.id === botId) as BotState | undefined
+          if (found) {
+            setState(found)
+            setAuthState('authed_ok')
+          } else if (simulatorsRef.current.length > 0) {
+            // data loaded but this bot not in list
+            setAuthState('authed_no_data')
+          }
+          // else: context still loading — keep previous state
         }
       } else {
+        // U2: give up if this endpoint already returned 401/403 in this session.
+        // SESSION_FAILED_ENDPOINTS is module-scope — survives tab switches.
+        if (SESSION_FAILED_ENDPOINTS.has(stateEndpoint)) return
+
         const r = await fetch(stateEndpoint)
-        if (r.ok) setState(await r.json() as BotState)
+        if (r.ok) {
+          const data = await r.json() as BotState
+          if (data) {
+            setState(data)
+            setAuthState('authed_ok')
+          } else {
+            setAuthState('authed_no_data')
+          }
+        } else if (r.status === 401 || r.status === 403) {
+          // U2: record in module-scope set — persists across remounts
+          SESSION_FAILED_ENDPOINTS.add(stateEndpoint)
+          setAuthState(r.status === 401 ? 'anon' : 'authed_locked')
+        } else if (r.status === 404) {
+          setAuthState('authed_no_data')
+        }
       }
 
-      // Trades
+      // Trades (only for bots with dedicated trade endpoints)
       const tradesEndpoint =
         botId === 'magnus-alpha'        ? '/api/magnus/alpha/trades' :
         botId === 'magnus-futures'      ? '/api/magnus/futures/trades' :
         botId === 'magnus-rate-harvest' ? '/api/magnus/rate-harvest/trades' :
         null
 
-      if (tradesEndpoint) {
+      if (tradesEndpoint && !SESSION_FAILED_ENDPOINTS.has(stateEndpoint)) {
         const r2 = await fetch(`${tradesEndpoint}?limit=20`)
         if (r2.ok) setTrades(await r2.json() as Trade[])
       }
 
     } catch { /* non-fatal */ } finally {
       setLoading(false)
+      hasLoadedRef.current = true
     }
-  }, [botId])
+  }, [botId, stateEndpoint, simAuthBlocked])
 
   useEffect(() => {
     void load()
@@ -237,10 +478,15 @@ function BotPanel({ botId, color }: { botId: string; color: string }) {
   }
 
   if (!state) {
+    const bot = getBotById(botId)
+    const liveStatus =
+      authState === 'authed_locked'  ? 'locked' :
+      authState === 'authed_no_data' ? 'coming_soon' :
+      'initializing'
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-gray-600 gap-2">
-        <AlertTriangle className="w-6 h-6" />
-        <p className="text-sm">Bot not yet started or initializing…</p>
+      <div className="space-y-4">
+        <BotIdentityHeader bot={bot} color={color} liveStatus={liveStatus} />
+        <BotEmptyStateForReason reason={authState} bot={bot} botId={botId} />
       </div>
     )
   }
@@ -443,6 +689,9 @@ export default function MagnusPage() {
   const [summaryStates, setSummaryStates] = useState<Record<string, BotState>>({})
   const [now, setNow] = useState<string>('')
 
+  // U1: read simulator bots from shared context for the summary waterfall
+  const { simulators } = useSimulators()
+
   useEffect(() => {
     const update = () => setNow(new Date().toUTCString().replace('GMT', 'UTC'))
     update()
@@ -450,51 +699,66 @@ export default function MagnusPage() {
     return () => clearInterval(t)
   }, [])
 
-  // Load all bot states for summary row
+  // Populate summary states for simulator bots directly from context (no fetch)
   useEffect(() => {
-    async function loadAll() {
-      const results: Record<string, BotState> = {}
-
-      // Fetch /api/simulators ONCE for all bots that share that endpoint
+    if (simulators.length === 0) return
+    setSummaryStates(prev => {
+      const next = { ...prev }
       const simulatorBots = BOT_TABS.filter(b => b.apiPath === '/api/simulators')
-      if (simulatorBots.length > 0) {
-        try {
-          const r = await fetch('/api/simulators')
-          if (r.ok) {
-            const data = await r.json() as Record<string, BotState>
-            for (const bot of simulatorBots) {
-              const camelKey = KEBAB_TO_CAMEL[bot.id]
-              if (camelKey && data[camelKey]) {
-                results[bot.id] = data[camelKey]!
-              }
-            }
-          }
-        } catch { /* non-fatal */ }
+      for (const bot of simulatorBots) {
+        const found = simulators.find(s => s.id === bot.id)
+        if (found) next[bot.id] = found as unknown as BotState
       }
+      return next
+    })
+  }, [simulators])
 
-      // Per-bot fetches for bots with unique endpoints
+  // Load summary states for bots with UNIQUE endpoints (alpha, futures, rate-harvest)
+  // U2: stop retrying on 401/403
+  useEffect(() => {
+    const failedEndpoints = new Set<string>()
+    async function loadUniqueEndpoints() {
+      // U4: skip when tab is hidden
+      if (typeof document !== 'undefined' && document.hidden) return
       const uniqueEndpointBots = BOT_TABS.filter(b => b.apiPath !== '/api/simulators')
       for (const bot of uniqueEndpointBots) {
+        if (failedEndpoints.has(bot.apiPath)) continue // U2: already gave up
         try {
           const r = await fetch(bot.apiPath)
+          if (r.status === 401 || r.status === 403) {
+            failedEndpoints.add(bot.apiPath) // U2: stop retrying this endpoint
+            continue
+          }
           if (r.ok) {
             const data = await r.json() as BotState
             if (data && typeof data === 'object' && !Array.isArray(data)) {
-              results[bot.id] = data
+              setSummaryStates(prev => ({ ...prev, [bot.id]: data }))
             }
           }
         } catch { /* non-fatal */ }
       }
-
-      setSummaryStates(results)
     }
-    void loadAll()
-    const t = setInterval(() => void loadAll(), 10_000)
+    void loadUniqueEndpoints()
+    const t = setInterval(() => void loadUniqueEndpoints(), 10_000)
     return () => clearInterval(t)
   }, [])
 
   const activeBot = BOT_TABS.find(b => b.id === activeTab)!
   const clr = COLOR_MAP[activeBot.color] ?? COLOR_MAP.cyan!
+
+  const fleetBars = useMemo(() => {
+    return BOT_TABS.map(tab => {
+      const s = summaryStates[tab.id]
+      const bot = getBotById(tab.id)
+      return {
+        id: tab.id,
+        label: bot?.codename ?? tab.label,
+        pnl: s?.totalPnl ?? 0,
+        trades: s?.totalTrades ?? 0,
+        color: bot?.glowHex ?? '#06b6d4',
+      }
+    })
+  }, [summaryStates])
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -604,6 +868,22 @@ export default function MagnusPage() {
         {/* Active bot panel */}
         <div className={`rounded-2xl border p-6 ${clr.ring} ring-1 bg-gray-900/40`}>
           <BotPanel botId={activeTab} color={activeBot.color} />
+        </div>
+
+        {/* Fleet context — visible regardless of which bot is selected */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">
+              Fleet PnL Contribution
+            </h3>
+            <StrategyPnlWaterfall bars={fleetBars} />
+          </div>
+          <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4">
+            <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">
+              Signal Density Heatmap
+            </h3>
+            <SignalHeatmap data={[]} />
+          </div>
         </div>
       </main>
     </div>

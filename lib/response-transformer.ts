@@ -36,6 +36,8 @@ export interface FreeGap {
   gap_type: string;
   delayed_spread: string;
   direction: string;
+  /** Quote currency is metadata — exposed at all tiers (no IP risk). */
+  quote_currency: string;
 }
 
 export interface TraderGap {
@@ -49,6 +51,7 @@ export interface TraderGap {
   detectedAt: string;
   lastSeenAt: string;
   isActive: boolean;
+  quote_currency: string;
 }
 
 export interface ProGap extends TraderGap {
@@ -98,10 +101,14 @@ export function transformGap(gap: RawGap, plan: string): FreeGap | TraderGap | P
   // Institutional: pass through everything
   if (rank >= PLAN_RANK.institutional) return gap;
 
+  // Derive quote currency from symbol (e.g. "BTC/USDT" → "USDT")
+  const rawSymbol = str(gap.symbol);
+  const quoteFromSymbol = str(gap.quote_currency) || rawSymbol.split('/')[1] || 'USDT';
+
   // Pro: full fields minus internal IDs
   if (rank >= PLAN_RANK.pro) {
     const g: ProGap = {
-      symbol:          str(gap.symbol),
+      symbol:          rawSymbol,
       type:            resolveType(gap),
       spreadPercent:   resolveSpread(gap),
       buyExchange:     str(gap.buyExchange),
@@ -113,6 +120,7 @@ export function transformGap(gap: RawGap, plan: string): FreeGap | TraderGap | P
       isActive:        bool(gap.isActive),
       buyPrice:        num(gap.buyPrice),
       sellPrice:       num(gap.sellPrice),
+      quote_currency:  quoteFromSymbol,
     };
     if (gap.profitSimulation) g.profitSimulation = gap.profitSimulation as Record<string, unknown>;
     if (gap.depthAnalysis)    g.depthAnalysis    = gap.depthAnalysis    as Record<string, unknown>;
@@ -122,7 +130,7 @@ export function transformGap(gap: RawGap, plan: string): FreeGap | TraderGap | P
   // Trader: market context, no raw prices or depth
   if (rank >= PLAN_RANK.trader) {
     const g: TraderGap = {
-      symbol:          str(gap.symbol),
+      symbol:          rawSymbol,
       type:            resolveType(gap),
       spreadPercent:   resolveSpread(gap),
       buyExchange:     str(gap.buyExchange),
@@ -132,6 +140,7 @@ export function transformGap(gap: RawGap, plan: string): FreeGap | TraderGap | P
       detectedAt:      str(gap.detectedAt),
       lastSeenAt:      str(gap.lastSeenAt),
       isActive:        bool(gap.isActive ?? true),
+      quote_currency:  quoteFromSymbol,
     };
     return g;
   }
@@ -144,10 +153,11 @@ export function transformGap(gap: RawGap, plan: string): FreeGap | TraderGap | P
   const dir    = buyEx && sellEx ? `${buyEx} → ${sellEx}` : 'unknown';
 
   const f: FreeGap = {
-    symbol:         str(gap.symbol),
+    symbol:         rawSymbol,
     gap_type:       resolveType(gap),
     delayed_spread: delayedSpread,
     direction:      dir,
+    quote_currency: quoteFromSymbol,
   };
   return f;
 }
@@ -269,12 +279,20 @@ export interface NormalizedGap {
   depthAnalysis: Record<string, unknown> | null;
   /** net spread after fees; 0 when unavailable (free tier). */
   netSpread: number;
+  /** Quote currency e.g. "USDT", "USDC", "BTC". Parsed from symbol when not present in payload. */
+  quoteCurrency: string;
   /** true when item came from the 4-field free-tier payload. */
   _isFreeTier: boolean;
   /** Original delayed_spread string e.g. "0.25%". Empty for trader+. */
   _delayedSpread: string;
   /** Original direction string e.g. "binance → bybit". Empty for trader+. */
   _direction: string;
+}
+
+/** Derive quote currency from a symbol string or a quote_currency field. */
+function deriveQuoteCurrency(symbol: string, rawQuote?: unknown): string {
+  if (typeof rawQuote === 'string' && rawQuote.length > 0) return rawQuote;
+  return String(symbol).split('/')[1] || 'USDT';
 }
 
 /** Coerce one raw API item (either tier shape) into a NormalizedGap. */
@@ -301,6 +319,7 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
       profitSimulation: null,
       depthAnalysis:   null,
       netSpread:       0,
+      quoteCurrency:   deriveQuoteCurrency(symbol, raw.quote_currency),
       _isFreeTier:     true,
       _delayedSpread:  delayedSpread,
       _direction:      direction,
@@ -330,6 +349,7 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
     profitSimulation: raw.profitSimulation ? (raw.profitSimulation as Record<string, unknown>) : null,
     depthAnalysis:    raw.depthAnalysis    ? (raw.depthAnalysis    as Record<string, unknown>) : null,
     netSpread:        typeof raw.netSpread  === 'number' ? raw.netSpread : Math.max(0, spreadPercent - 0.2),
+    quoteCurrency:    deriveQuoteCurrency(symbol, raw.quote_currency),
     _isFreeTier:      false,
     _delayedSpread:   '',
     _direction:       '',

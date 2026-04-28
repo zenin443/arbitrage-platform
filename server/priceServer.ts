@@ -10,6 +10,8 @@ process.on('unhandledRejection', (reason: any) => {
 })
 
 import http from 'http'
+import fs from 'fs'
+import path from 'path'
 import { WebSocketServer } from 'ws'
 import { PriceTick, BaseExchangeAdapter } from './adapters/cex/base'
 import { BinanceAdapter } from './adapters/cex/binance'
@@ -585,6 +587,42 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  // ── Per-symbol exchange coverage (diagnostic) ────────────────────────────
+  // Returns: { byQuote: { USDT: { 'BTC/USDT': ['binance','okx',...] }, ... } }
+  // Use this to verify how many exchanges contribute to each USDC/BTC symbol.
+  if (url.pathname === '/tick-coverage') {
+    const allTicks = tickStore.getAll()
+    const coverageByQuote: Record<string, Record<string, string[]>> = {}
+    for (const tick of allTicks) {
+      const quote = tick.symbol.split('/')[1] ?? 'UNKNOWN'
+      if (!coverageByQuote[quote]) coverageByQuote[quote] = {}
+      if (!coverageByQuote[quote][tick.symbol]) coverageByQuote[quote][tick.symbol] = []
+      if (!coverageByQuote[quote][tick.symbol].includes(tick.exchangeId)) {
+        coverageByQuote[quote][tick.symbol].push(tick.exchangeId)
+      }
+    }
+    // Sort exchange lists for readability
+    for (const q of Object.keys(coverageByQuote)) {
+      for (const sym of Object.keys(coverageByQuote[q])) {
+        coverageByQuote[q][sym] = coverageByQuote[q][sym].sort()
+      }
+    }
+    const summary: Record<string, { totalSymbols: number; multiExchange: number; singleExchange: number; noData: number }> = {}
+    for (const [q, symbols] of Object.entries(coverageByQuote)) {
+      const multi = Object.values(symbols).filter(exs => exs.length >= 2).length
+      const single = Object.values(symbols).filter(exs => exs.length === 1).length
+      const configured = SYMBOLS.filter(s => s.split('/')[1] === q).length
+      summary[q] = { totalSymbols: configured, multiExchange: multi, singleExchange: single, noData: configured - multi - single }
+    }
+    const activeGapsByQuote: Record<string, number> = {}
+    for (const gap of getProfitableGaps()) {
+      const q = gap.symbol.split('/')[1] ?? 'UNKNOWN'
+      activeGapsByQuote[q] = (activeGapsByQuote[q] ?? 0) + 1
+    }
+    json(res, 200, { coverageByQuote, summary, activeGapsByQuote, totalTicks: allTicks.length })
+    return
+  }
+
   if (url.pathname === '/opportunities') {
     const minSpread = parseFloat(url.searchParams.get('minSpread') ?? '0')
     const filtered = isNaN(minSpread)
@@ -851,6 +889,120 @@ async function start(): Promise<void> {
     startOrderBookFetcher()
   } catch (e: any) { console.error('[Startup] Order book fetcher failed:', e.message) }
   try { startPaperTraders() } catch (e: any) { console.error('[Startup] Paper traders failed:', e.message) }
+
+  // 13. Schedule coverage matrix report 45s after startup
+  // (enough time for CCXT loadMarkets + first polling rounds to complete)
+  setTimeout(() => {
+    try {
+      buildCoverageMatrix()
+    } catch (e: any) {
+      console.error('[Coverage] Coverage matrix failed:', e.message)
+    }
+  }, 45_000)
+}
+
+// ── Pair-exchange coverage matrix ─────────────────────────────────────────────
+// Runs 45s after startup (enough time for CCXT loadMarkets + first poll rounds).
+// Logs coverage to console and writes docs/pair-exchange-coverage.md.
+
+function buildCoverageMatrix(): void {
+  const allTicks = tickStore.getAll()
+  // symbol → Set<exchangeId>
+  const coverageMap = new Map<string, Set<string>>()
+  for (const tick of allTicks) {
+    if (!coverageMap.has(tick.symbol)) coverageMap.set(tick.symbol, new Set())
+    coverageMap.get(tick.symbol)!.add(tick.exchangeId)
+  }
+
+  // Sort symbols: USDT first, then USDC, then BTC, then others
+  const quoteOrder = (sym: string): number => {
+    const q = sym.split('/')[1] ?? ''
+    if (q === 'USDT') return 0
+    if (q === 'USDC') return 1
+    if (q === 'BTC')  return 2
+    if (q === 'ETH')  return 3
+    return 4
+  }
+  const sortedSymbols = Array.from(coverageMap.keys()).sort((a, b) => {
+    const qd = quoteOrder(a) - quoteOrder(b)
+    if (qd !== 0) return qd
+    return a.localeCompare(b)
+  })
+
+  // Compute per-quote counts for USDT/USDC/BTC/ETH
+  const quoteStats: Record<string, { symbols: number; withCoverage: number; noData: number }> = {}
+  const lines: string[] = []
+  lines.push(`# Pair–Exchange Coverage Matrix`)
+  lines.push(`> Generated at startup on ${new Date().toISOString()}`)
+  lines.push(`> Shows how many live price ticks (from tickStore) each symbol has after 45s warm-up.`)
+  lines.push(`> Pairs with <2 exchanges CANNOT gap (acceptable). Pairs with ≥2 should gap if spread > 0.`)
+  lines.push('')
+
+  let currentQuote = ''
+  for (const symbol of sortedSymbols) {
+    const exchanges = coverageMap.get(symbol)!
+    const q = symbol.split('/')[1] ?? 'OTHER'
+    if (q !== currentQuote) {
+      if (currentQuote !== '') lines.push('')
+      lines.push(`## ${q} pairs`)
+      lines.push(`| Symbol | Exchanges (count) | Exchange List | Gap Eligible |`)
+      lines.push(`|--------|-------------------|---------------|--------------|`)
+      currentQuote = q
+      if (!quoteStats[q]) quoteStats[q] = { symbols: 0, withCoverage: 0, noData: 0 }
+    }
+    if (!quoteStats[q]) quoteStats[q] = { symbols: 0, withCoverage: 0, noData: 0 }
+    quoteStats[q].symbols++
+    const exList = Array.from(exchanges).sort().join(', ')
+    const eligible = exchanges.size >= 2 ? '✅ Yes' : '❌ No (single source)'
+    if (exchanges.size >= 2) quoteStats[q].withCoverage++
+    lines.push(`| ${symbol.padEnd(14)} | ${String(exchanges.size).padStart(3)} | ${exList} | ${eligible} |`)
+  }
+
+  // Symbols in config but with no ticks yet
+  const allConfigSymbols = SYMBOLS
+  const missedSymbols = allConfigSymbols.filter(s => !coverageMap.has(s))
+  if (missedSymbols.length > 0) {
+    lines.push('')
+    lines.push('## Symbols with no live data yet')
+    lines.push('> These may be unsupported pairs or exchanges still warming up.')
+    lines.push(`| Symbol | Quote |`)
+    lines.push(`|--------|-------|`)
+    for (const sym of missedSymbols.sort()) {
+      const q = sym.split('/')[1] ?? '?'
+      lines.push(`| ${sym} | ${q} |`)
+      if (!quoteStats[q]) quoteStats[q] = { symbols: 0, withCoverage: 0, noData: 0 }
+      quoteStats[q].noData++
+    }
+  }
+
+  lines.push('')
+  lines.push('## Summary by quote currency')
+  lines.push('| Quote | Total Symbols | ≥2 Exchanges (gap-eligible) | No data yet |')
+  lines.push('|-------|--------------|----------------------------|-------------|')
+  for (const [q, s] of Object.entries(quoteStats).sort((a, b) => a[0].localeCompare(b[0]))) {
+    lines.push(`| ${q} | ${s.symbols} | ${s.withCoverage} | ${s.noData} |`)
+  }
+
+  const content = lines.join('\n') + '\n'
+
+  // Console summary
+  console.log('[Coverage] === PAIR-EXCHANGE COVERAGE MATRIX (45s snapshot) ===')
+  for (const symbol of sortedSymbols) {
+    const exchanges = coverageMap.get(symbol)!
+    console.log(`[Coverage]  ${symbol.padEnd(16)} → ${exchanges.size} exchange(s): ${Array.from(exchanges).sort().join(', ')}`)
+  }
+  console.log(`[Coverage] Symbols with no data: ${missedSymbols.join(', ') || 'none'}`)
+  console.log(`[Coverage] Summary: ${JSON.stringify(quoteStats)}`)
+
+  // Write to docs/pair-exchange-coverage.md
+  try {
+    const docsDir = path.join(__dirname, '../../docs')
+    if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true })
+    fs.writeFileSync(path.join(docsDir, 'pair-exchange-coverage.md'), content, 'utf8')
+    console.log('[Coverage] Written to docs/pair-exchange-coverage.md')
+  } catch (err: unknown) {
+    console.warn('[Coverage] Could not write docs file:', err instanceof Error ? err.message : String(err))
+  }
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────

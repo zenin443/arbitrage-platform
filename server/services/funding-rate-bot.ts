@@ -487,7 +487,7 @@ class FundingRateBot {
 
 // ── Singleton ─────────────────────────────────────────────────────────────────
 
-const RATE_HARVEST_CAPITAL = 5_000   // $5K paper capital for this bot
+const RATE_HARVEST_CAPITAL = 100_000  // Founder testing capital ($100K)
 
 export const rateHarvestBot = new FundingRateBot(RATE_HARVEST_CAPITAL)
 

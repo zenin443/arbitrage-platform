@@ -5,9 +5,25 @@ interface AuthUser {
   userId: string;
   email: string;
   plan: string;
+  role: string;
 }
 
+// DEV_AUDIT_MODE: suspends auth enforcement for raw development auditing.
+// Active ONLY when DEV_AUDIT_MODE=true AND NODE_ENV !== 'production'.
+// Flip DEV_AUDIT_MODE=false (or remove it) to restore full security.
+const DEV_AUDIT_MODE =
+  process.env.DEV_AUDIT_MODE === 'true' &&
+  process.env.NODE_ENV !== 'production';
+
+const DEV_ADMIN_USER: AuthUser = {
+  userId: 'dev-audit-bypass',
+  email: 'dev@arbitrance.internal',
+  plan: 'institutional',
+  role: 'admin',
+};
+
 export function getAuthUser(req: NextRequest): AuthUser | null {
+  if (DEV_AUDIT_MODE) return DEV_ADMIN_USER;
   try {
     const authHeader = req.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
@@ -27,9 +43,24 @@ export function getAuthUser(req: NextRequest): AuthUser | null {
 }
 
 export function requireAuth(req: NextRequest): AuthUser | NextResponse {
+  if (DEV_AUDIT_MODE) return DEV_ADMIN_USER;
   const user = getAuthUser(req);
   if (!user) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  return user;
+}
+
+export function requireAdmin(req: NextRequest): AuthUser | NextResponse {
+  if (DEV_AUDIT_MODE) return DEV_ADMIN_USER;
+  const user = getAuthUser(req);
+  if (!user) {
+    console.warn(`[admin/access] REJECTED unauthenticated — ${req.method} ${req.nextUrl.pathname} from ${req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'}`);
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+  if (user.role !== 'admin') {
+    console.warn(`[admin/access] REJECTED non-admin (role: ${user.role}, user: ${user.userId}) — ${req.method} ${req.nextUrl.pathname}`);
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   return user;
 }

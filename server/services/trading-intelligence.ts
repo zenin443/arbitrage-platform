@@ -22,6 +22,8 @@ export interface GapRecord {
   id: string
   type: 'cex_cex' | 'spot_futures' | 'dex_cex' | 'triangular' | 'cross_chain'
   symbol: string
+  /** Quote currency parsed from symbol e.g. "BTC/USDT" → "USDT", "ETH/USDC" → "USDC", "ETH/BTC" → "BTC" */
+  quote_currency: string
   buyExchange: string
   sellExchange: string
   spreadPercent: number
@@ -111,11 +113,17 @@ function getBreakEvenSpread(buy: string, sell: string): number {
 let gapHistory: GapRecord[] = []
 const activeGaps = new Map<string, GapRecord>()
 let isRunning = false
+let lastGapDebugAt = 0
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function gapKey(type: string, symbol: string, buy: string, sell: string): string {
   return `${type}-${symbol}-${buy}-${sell}`
+}
+
+/** Extract quote currency from a symbol string e.g. "BTC/USDT" → "USDT" */
+function quoteOf(symbol: string): string {
+  return symbol.split('/')[1] ?? 'USDT'
 }
 
 function computeProfitSim(
@@ -179,7 +187,23 @@ function evaluateCexCex(now: number): void {
 
   const seenKeys = new Set<string>()
 
+  // Diagnostic logging (throttled): log tick coverage once every 30s for non-USDT pairs
+  // so we can verify USDC and BTC data flow without flooding the console.
+  const debugNow = now
+  const shouldDebug = (debugNow - lastGapDebugAt) >= 30_000
+
   for (const [symbol, ticks] of bySymbol) {
+    if (shouldDebug) {
+      const quote = symbol.split('/')[1] ?? ''
+      if (quote !== 'USDT') {
+        console.log('[GAP-DEBUG]', {
+          symbol,
+          exchanges_with_ticks: ticks.map(t => t.exchangeId),
+          tick_count: ticks.length,
+        })
+      }
+    }
+
     if (ticks.length < 2) continue
 
     for (let i = 0; i < ticks.length; i++) {
@@ -231,6 +255,7 @@ function evaluateCexCex(now: number): void {
               id: `${key}-${now}`,
               type: 'cex_cex',
               symbol,
+              quote_currency: quoteOf(symbol),
               buyExchange: buy.exchangeId,
               sellExchange: sell.exchangeId,
               spreadPercent: parseFloat(spread.toFixed(4)),
@@ -261,6 +286,8 @@ function evaluateCexCex(now: number): void {
       activeGaps.delete(key)
     }
   }
+
+  if (shouldDebug) lastGapDebugAt = debugNow
 }
 
 // ── Spot-futures gap detection ────────────────────────────────────────────────
@@ -295,6 +322,7 @@ function evaluateSpotFutures(now: number): void {
           id: `${key}-${now}`,
           type: 'spot_futures',
           symbol: opp.symbol,
+          quote_currency: quoteOf(opp.symbol),
           buyExchange: opp.spotExchange,
           sellExchange: opp.futuresExchange,
           spreadPercent: parseFloat(spreadPercent.toFixed(4)),
@@ -364,6 +392,7 @@ function evaluateCexDex(now: number): void {
           id: `${key}-${now}`,
           type: 'dex_cex',
           symbol: opp.symbol,
+          quote_currency: quoteOf(opp.symbol),
           buyExchange: buyEx,
           sellExchange: sellEx,
           spreadPercent: parseFloat(spreadPercent.toFixed(4)),
@@ -423,6 +452,7 @@ function evaluateTriangular(now: number): void {
           id: `${key}-${now}`,
           type: 'triangular',
           symbol: route.crossSymbol,
+          quote_currency: quoteOf(route.crossSymbol),
           buyExchange: route.exchange,
           sellExchange: route.exchange,
           spreadPercent: parseFloat(route.netProfitPercent.toFixed(4)),
@@ -485,6 +515,7 @@ function evaluateCrossChain(now: number): void {
           id: `${key}-${now}`,
           type: 'cross_chain',
           symbol: opp.symbol,
+          quote_currency: quoteOf(opp.symbol),
           buyExchange: opp.buyDex,
           sellExchange: opp.sellDex,
           spreadPercent: parseFloat(opp.netProfitPercent.toFixed(4)),
@@ -671,10 +702,25 @@ export function getTradingStats(): TradingStats {
   return computeStats()
 }
 
+/**
+ * Returns ALL active price gaps sorted by profitability then spread.
+ * Includes sub-break-even gaps so every quote currency (USDT, USDC, BTC)
+ * shows live data in the UI. Check gap.profitSimulation.isProfitable for
+ * true profitability after fees.
+ */
 export function getProfitableGaps(): GapRecord[] {
   return Array.from(activeGaps.values())
-    .filter(g => g.profitSimulation.isProfitable)
-    .sort((a, b) => b.profitSimulation.at1k - a.profitSimulation.at1k)
+    .filter(g => g.spreadPercent > 0)
+    .sort((a, b) => {
+      // Profitable gaps always rank above non-profitable ones
+      if (a.profitSimulation.isProfitable !== b.profitSimulation.isProfitable) {
+        return a.profitSimulation.isProfitable ? -1 : 1
+      }
+      // Within same bucket: sort by simulated $1k profit (desc), then by raw spread
+      const profitDiff = b.profitSimulation.at1k - a.profitSimulation.at1k
+      if (profitDiff !== 0) return profitDiff
+      return b.spreadPercent - a.spreadPercent
+    })
 }
 
 export function startTradingIntelligence(): void {

@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const client = await pool.connect();
     try {
       const result = await client.query(
-        `SELECT u.id, u.email, u.name, u.wallet_address,
+        `SELECT u.id, u.email, u.name, u.wallet_address, u.role,
                 COALESCE(s.plan_tier, 'free') as plan
          FROM users u
          LEFT JOIN subscriptions s ON u.id = s.user_id AND s.status = 'active'
@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
         await client.query('COMMIT');
         user.plan = 'free';
         user.email = null;
+        user.role = 'user';
       } else {
         user = result.rows[0];
       }
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         email: user.email || '',
         plan: user.plan || 'free',
+        role: user.role ?? 'user',
       });
 
       const refreshToken = generateRefreshToken(user.id);
@@ -144,6 +146,7 @@ export async function POST(req: NextRequest) {
           name: user.name,
           walletAddress: user.wallet_address,
           plan: user.plan,
+          role: user.role ?? 'user',
         },
         accessToken,
       });

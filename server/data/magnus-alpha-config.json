@@ -1,35 +1,33 @@
 {
-  "totalCapital": 19000,
-  "reservePerExchange": 1000,
+  "totalCapital": 100000,
+  "reservePerExchange": 2000,
   "exchanges": [
     "okx",
     "gateio",
     "binance",
     "bitget",
     "kucoin",
-    "bingx",
-    "htx",
     "mexc",
-    "kraken"
+    "htx"
   ],
   "inventoryCoins": [
-    "APE",
-    "INJ",
-    "ORDI",
-    "WIF",
-    "SHIB",
-    "PEPE",
-    "TIA",
-    "WLD",
-    "OP",
-    "BONK",
+    "BTC",
+    "ETH",
+    "SOL",
+    "BNB",
+    "XRP",
+    "AVAX",
+    "LINK",
+    "ADA",
+    "DOT",
+    "MATIC",
     "ATOM",
-    "RENDER",
     "UNI",
     "NEAR",
-    "ARB"
+    "ARB",
+    "OP"
   ],
   "maxPositionPercent": 10,
   "rebalanceMode": "roi_driven",
-  "cycleIntervalMs": 3600000
+  "cycleIntervalMs": 14400000
 }

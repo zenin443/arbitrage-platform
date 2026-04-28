@@ -38,7 +38,14 @@ function getIp(req: NextRequest): string {
   );
 }
 
+// DEV_AUDIT_MODE: disables all rate limiting for raw development auditing.
+const DEV_AUDIT_MODE =
+  process.env.DEV_AUDIT_MODE === 'true' &&
+  process.env.NODE_ENV !== 'production';
+
 export function middleware(req: NextRequest) {
+  if (DEV_AUDIT_MODE) return NextResponse.next();
+
   const { pathname } = req.nextUrl;
 
   // Only apply to API routes
@@ -53,6 +60,11 @@ export function middleware(req: NextRequest) {
 
   // Stripe webhook must not be rate-limited (Stripe retries on 429)
   if (pathname === '/api/stripe/webhook') {
+    return NextResponse.next();
+  }
+
+  // Admin routes are authenticated, low-frequency internal calls — exempt from IP rate limiting
+  if (pathname.startsWith('/api/admin/')) {
     return NextResponse.next();
   }
 
