@@ -50,9 +50,21 @@ interface BotState {
 
 // ── Bot tab configuration ────────────────────────────────────────────────────
 
+const KEBAB_TO_CAMEL: Record<string, string> = {
+  'magnus-beta-1k':       'magnusBeta1k',
+  'magnus-beta-10k':      'magnusBeta10k',
+  'magnus-alpha':         'magnusAlpha',
+  'magnus-futures':       'magnusFutures',
+  'magnus-rate-harvest':  'magnusRateHarvest',
+  'magnus-pairs':         'magnusPairs',
+  'magnus-cascade':       'magnusCascade',
+  'magnus-calendar':      'magnusCalendar',
+  'magnus-listing':       'magnusListing',
+}
+
 const BOT_TABS = [
-  { id: 'magnus-beta-1k',      label: 'Beta $1K',     capital: '$1K',   color: 'cyan',   apiPath: '/api/magnus/beta-1k'      },
-  { id: 'magnus-beta-10k',     label: 'Beta $10K',    capital: '$10K',  color: 'blue',   apiPath: '/api/magnus/beta-10k'     },
+  { id: 'magnus-beta-1k',      label: 'Beta $1K',     capital: '$1K',   color: 'cyan',   apiPath: '/api/simulators'          },
+  { id: 'magnus-beta-10k',     label: 'Beta $10K',    capital: '$10K',  color: 'blue',   apiPath: '/api/simulators'          },
   { id: 'magnus-alpha',        label: 'Alpha',        capital: 'Flex',  color: 'violet', apiPath: '/api/magnus/alpha'        },
   { id: 'magnus-futures',      label: 'Futures',      capital: '$1K',   color: 'amber',  apiPath: '/api/magnus/futures'      },
   { id: 'magnus-rate-harvest', label: 'Rate Harvest', capital: '$5K',   color: 'green',  apiPath: '/api/magnus/rate-harvest' },
@@ -407,7 +419,7 @@ function AllBotsSummary({ states }: { states: Record<string, BotState> }) {
       <div className="rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 p-4">
         <div className="text-xs text-gray-500 mb-1">Total PnL</div>
         <div className={`text-2xl font-bold font-mono ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-          {totalPnl >= 0 ? '+' : ''}{fmtUsd(totalPnl)}
+          {totalPnl >= 0 ? '+' : '-'}{fmtUsd(totalPnl)}
         </div>
       </div>
       <div className="rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 p-4">
@@ -429,30 +441,51 @@ function AllBotsSummary({ states }: { states: Record<string, BotState> }) {
 export default function MagnusPage() {
   const [activeTab, setActiveTab] = useState('magnus-beta-1k')
   const [summaryStates, setSummaryStates] = useState<Record<string, BotState>>({})
+  const [now, setNow] = useState<string>('')
+
+  useEffect(() => {
+    const update = () => setNow(new Date().toUTCString().replace('GMT', 'UTC'))
+    update()
+    const t = setInterval(update, 1000)
+    return () => clearInterval(t)
+  }, [])
 
   // Load all bot states for summary row
   useEffect(() => {
     async function loadAll() {
       const results: Record<string, BotState> = {}
-      for (const bot of BOT_TABS) {
+
+      // Fetch /api/simulators ONCE for all bots that share that endpoint
+      const simulatorBots = BOT_TABS.filter(b => b.apiPath === '/api/simulators')
+      if (simulatorBots.length > 0) {
         try {
-          const ep =
-            bot.id === 'magnus-alpha'        ? '/api/magnus/alpha' :
-            bot.id === 'magnus-futures'      ? '/api/magnus/futures' :
-            bot.id === 'magnus-rate-harvest' ? '/api/magnus/rate-harvest' :
-            '/api/simulators'
-          const r = await fetch(ep)
+          const r = await fetch('/api/simulators')
           if (r.ok) {
-            const data = await r.json()
-            if (Array.isArray(data)) {
-              const found = data.find((b: BotState) => b.id === bot.id)
-              if (found) results[bot.id] = found as BotState
-            } else if (data && typeof data === 'object' && 'id' in data) {
-              results[bot.id] = data as BotState
+            const data = await r.json() as Record<string, BotState>
+            for (const bot of simulatorBots) {
+              const camelKey = KEBAB_TO_CAMEL[bot.id]
+              if (camelKey && data[camelKey]) {
+                results[bot.id] = data[camelKey]!
+              }
             }
           }
         } catch { /* non-fatal */ }
       }
+
+      // Per-bot fetches for bots with unique endpoints
+      const uniqueEndpointBots = BOT_TABS.filter(b => b.apiPath !== '/api/simulators')
+      for (const bot of uniqueEndpointBots) {
+        try {
+          const r = await fetch(bot.apiPath)
+          if (r.ok) {
+            const data = await r.json() as BotState
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+              results[bot.id] = data
+            }
+          }
+        } catch { /* non-fatal */ }
+      }
+
       setSummaryStates(results)
     }
     void loadAll()
@@ -505,7 +538,7 @@ export default function MagnusPage() {
             </p>
           </div>
           <div className="text-xs text-gray-600 font-mono">
-            {new Date().toUTCString().replace('GMT', 'UTC')}
+            {now}
           </div>
         </div>
 
