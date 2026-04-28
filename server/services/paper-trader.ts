@@ -8,6 +8,11 @@ import { getTriangularRoutes } from '../engines/triangularArbitrage'
 import { getCrossChainOpportunities } from '../engines/crossChainArbitrage'
 import { getStablecoinOpportunities } from '../engines/stablecoinArbitrage'
 import { startRateHarvestBot, getRateHarvestState, resetRateHarvestBot } from './funding-rate-bot'
+import { getPairsSignals, PairsSignal } from '../engines/pairsTradingEngine'
+import { getLiquidationSignals, LiquidationSignal } from '../engines/liquidationEngine'
+import { getCalendarSpreadSignals, CalendarSpreadSignal } from '../engines/calendarSpreadEngine'
+import { getTwapSignals, TwapSignal } from '../engine/twapEngine'
+import { scoreAndFilter, updateScoredSignals, feedPriceForVolatility } from '../engine/signalScorer'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -2868,6 +2873,12 @@ const magnusAlpha = new MagnusAlphaBot()
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let magnusFutures: any = null
 
+// ── Phase-2 strategy bots ─────────────────────────────────────────────────────
+const magnusPairs    = new PaperBot('magnus-pairs',    'Magnus Pairs',    10_000)
+const magnusCascade  = new PaperBot('magnus-cascade',  'Magnus Cascade',   3_000)
+const magnusCalendar = new PaperBot('magnus-calendar', 'Magnus Calendar',  5_000)
+const magnusListing  = new PaperBot('magnus-listing',  'Magnus Listing',   2_000)
+
 let isRunning = false
 
 // ── Evaluate loop ─────────────────────────────────────────────────────────────
@@ -2877,6 +2888,10 @@ function evaluate(): void {
     magnusBeta1k.initializeIfNeeded()
     magnusBeta10k.initializeIfNeeded()
     magnusAlpha.initializeIfNeeded()
+    magnusPairs.initializeIfNeeded()
+    magnusCascade.initializeIfNeeded()
+    magnusCalendar.initializeIfNeeded()
+    magnusListing.initializeIfNeeded()
 
     if (
       !magnusBeta1k.isPortfolioInitialized() &&
@@ -3173,6 +3188,119 @@ function evaluate(): void {
       magnusAlpha.evaluateTrade(sGap)
     }
 
+    // === Signal Scorer — run all profitable gaps through scorer, update cache ===
+    const allGaps: GapRecord[] = [...gaps]
+    // Feed price samples into scorer's volatility tracker
+    for (const gap of gaps) {
+      feedPriceForVolatility(gap.symbol, gap.buyPrice)
+    }
+    const scored = scoreAndFilter(allGaps, 1_000)
+    updateScoredSignals(scored)
+
+    // === Pairs Trading — PairConvergence bot ===
+    const pairsSignals = getPairsSignals()
+    for (const sig of pairsSignals) {
+      if (sig.netProfitPercent <= 0) continue
+      const pGap: GapRecord = {
+        id: sig.id,
+        type: 'cex_cex',
+        symbol: sig.symbolA,
+        buyExchange:  sig.exchange,
+        sellExchange: sig.exchange,
+        spreadPercent: sig.netProfitPercent,
+        buyPrice:  sig.priceB,
+        sellPrice: sig.priceA,
+        buyBidSize: 0, sellAskSize: 0,
+        maxTradeableUsd: 10_000,
+        detectedAt: sig.detectedAt, lastSeenAt: sig.detectedAt, durationMs: 0, isActive: true,
+        profitSimulation: {
+          isProfitable: true,
+          at100: sig.estimatedProfit1k * 0.1, at1k: sig.estimatedProfit1k,
+          at5k: sig.estimatedProfit1k * 5, at10k: sig.estimatedProfit1k * 10,
+          breakEvenSpread: 0.20, maxProfitableSize: 10_000,
+        },
+        depthAnalysis: null,
+      }
+      if (magnusPairs) magnusPairs.evaluateTrade(pGap)
+    }
+
+    // === Liquidation Cascade — CascadeHunter bot ===
+    const cascadeSignals = getLiquidationSignals()
+    for (const sig of cascadeSignals) {
+      if (sig.netProfitPercent <= 0) continue
+      const cGap: GapRecord = {
+        id: sig.id,
+        type: 'cex_cex',
+        symbol: sig.symbol,
+        buyExchange: sig.exchange, sellExchange: sig.exchange,
+        spreadPercent: sig.netProfitPercent,
+        buyPrice: sig.spotPrice, sellPrice: sig.fairValuePrice,
+        buyBidSize: 0, sellAskSize: 0,
+        maxTradeableUsd: 3_000,
+        detectedAt: sig.detectedAt, lastSeenAt: sig.detectedAt, durationMs: 0, isActive: true,
+        profitSimulation: {
+          isProfitable: true,
+          at100: sig.estimatedProfit1k * 0.1, at1k: sig.estimatedProfit1k,
+          at5k: sig.estimatedProfit1k * 5, at10k: sig.estimatedProfit1k * 10,
+          breakEvenSpread: 0.25, maxProfitableSize: 3_000,
+        },
+        depthAnalysis: null,
+      }
+      if (magnusCascade) magnusCascade.evaluateTrade(cGap)
+    }
+
+    // === Calendar Spread — TimeSpread bot ===
+    const calendarSignals = getCalendarSpreadSignals()
+    for (const sig of calendarSignals) {
+      if (sig.netProfitPercent <= 0) continue
+      const calGap: GapRecord = {
+        id: sig.id,
+        type: 'spot_futures',
+        symbol: sig.symbol,
+        buyExchange: sig.exchange, sellExchange: sig.exchange,
+        spreadPercent: sig.netProfitPercent,
+        buyPrice: sig.perpPrice, sellPrice: sig.quarterlyPrice,
+        buyBidSize: 0, sellAskSize: 0,
+        maxTradeableUsd: 5_000,
+        detectedAt: sig.detectedAt, lastSeenAt: sig.detectedAt, durationMs: 0, isActive: true,
+        profitSimulation: {
+          isProfitable: true,
+          at100: sig.estimatedProfit1k * 0.1, at1k: sig.estimatedProfit1k,
+          at5k: sig.estimatedProfit1k * 5, at10k: sig.estimatedProfit1k * 10,
+          breakEvenSpread: 0.15, maxProfitableSize: 5_000,
+        },
+        depthAnalysis: null,
+      }
+      if (magnusCalendar) magnusCalendar.evaluateTrade(calGap)
+    }
+
+    // === TWAP Deviation — feed into all main bots ===
+    const twapSignals = getTwapSignals()
+    for (const sig of twapSignals) {
+      if (sig.netProfitPercent <= 0) continue
+      const tGap: GapRecord = {
+        id: sig.id,
+        type: 'cex_cex',
+        symbol: sig.symbol,
+        buyExchange: sig.exchange, sellExchange: sig.exchange,
+        spreadPercent: sig.netProfitPercent,
+        buyPrice: sig.currentPrice, sellPrice: sig.twap4h,
+        buyBidSize: 0, sellAskSize: 0,
+        maxTradeableUsd: 5_000,
+        detectedAt: sig.detectedAt, lastSeenAt: sig.detectedAt, durationMs: 0, isActive: true,
+        profitSimulation: {
+          isProfitable: true,
+          at100: sig.estimatedProfit1k * 0.1, at1k: sig.estimatedProfit1k,
+          at5k: sig.estimatedProfit1k * 5, at10k: sig.estimatedProfit1k * 10,
+          breakEvenSpread: 0.25, maxProfitableSize: 5_000,
+        },
+        depthAnalysis: null,
+      }
+      magnusBeta1k.evaluateTrade(tGap)
+      magnusBeta10k.evaluateTrade(tGap)
+      magnusAlpha.evaluateTrade(tGap)
+    }
+
   } catch (err) {
     console.error('[PaperBot] Evaluate error:', err)
   }
@@ -3181,28 +3309,40 @@ function evaluate(): void {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export function getBotState(id: string): BotState | null {
-  if (id === 'magnus-beta-1k') return magnusBeta1k.getState()
-  if (id === 'magnus-beta-10k') return magnusBeta10k.getState()
-  if (id === 'magnus-alpha') return magnusAlpha.getState()
+  if (id === 'magnus-beta-1k')   return magnusBeta1k.getState()
+  if (id === 'magnus-beta-10k')  return magnusBeta10k.getState()
+  if (id === 'magnus-alpha')     return magnusAlpha.getState()
+  if (id === 'magnus-pairs')     return magnusPairs.getState()
+  if (id === 'magnus-cascade')   return magnusCascade.getState()
+  if (id === 'magnus-calendar')  return magnusCalendar.getState()
+  if (id === 'magnus-listing')   return magnusListing.getState()
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  if (id === 'magnus-futures') return magnusFutures?.getState() ?? null
+  if (id === 'magnus-futures')   return magnusFutures?.getState() ?? null
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   if (id === 'magnus-rate-harvest') return getRateHarvestState() as unknown as BotState
   return null
 }
 
-export function getAllBotStates(): { magnusBeta1k: BotState; magnusBeta10k: BotState } {
-  return {
-    magnusBeta1k: magnusBeta1k.getState(),
-    magnusBeta10k: magnusBeta10k.getState(),
-  }
+export function getAllBotStates(): BotState[] {
+  return [
+    magnusBeta1k.getState(),
+    magnusBeta10k.getState(),
+    magnusPairs.getState(),
+    magnusCascade.getState(),
+    magnusCalendar.getState(),
+    magnusListing.getState(),
+  ]
 }
 
 export function resetBot(id: string): BotState | null {
   if (id === 'magnus-rate-harvest') return resetRateHarvestBot() as unknown as BotState
-  if (id === 'magnus-beta-1k') return magnusBeta1k.reset()
-  if (id === 'magnus-beta-10k') return magnusBeta10k.reset()
-  if (id === 'magnus-alpha') return magnusAlpha.reset()
+  if (id === 'magnus-beta-1k')   return magnusBeta1k.reset()
+  if (id === 'magnus-beta-10k')  return magnusBeta10k.reset()
+  if (id === 'magnus-alpha')     return magnusAlpha.reset()
+  if (id === 'magnus-pairs')     return magnusPairs.reset()
+  if (id === 'magnus-cascade')   return magnusCascade.reset()
+  if (id === 'magnus-calendar')  return magnusCalendar.reset()
+  if (id === 'magnus-listing')   return magnusListing.reset()
   if (id === 'magnus-futures' && magnusFutures) {
     const FUTURES_EXCHANGES = ['okx', 'gateio', 'binance', 'bitget', 'kucoin', 'mexc', 'htx']
     FUTURES_EXCHANGES.forEach(ex => { magnusFutures.portfolio[ex] = { USDT: 1000 / FUTURES_EXCHANGES.length } })
@@ -3232,11 +3372,15 @@ export function resetBot(id: string): BotState | null {
 }
 
 export function getBotTrades(id: string, limit = 50): SimTrade[] {
-  if (id === 'magnus-beta-1k') return magnusBeta1k.getTrades(limit)
-  if (id === 'magnus-beta-10k') return magnusBeta10k.getTrades(limit)
-  if (id === 'magnus-alpha') return magnusAlpha.getTrades(limit)
+  if (id === 'magnus-beta-1k')   return magnusBeta1k.getTrades(limit)
+  if (id === 'magnus-beta-10k')  return magnusBeta10k.getTrades(limit)
+  if (id === 'magnus-alpha')     return magnusAlpha.getTrades(limit)
+  if (id === 'magnus-pairs')     return magnusPairs.getTrades(limit)
+  if (id === 'magnus-cascade')   return magnusCascade.getTrades(limit)
+  if (id === 'magnus-calendar')  return magnusCalendar.getTrades(limit)
+  if (id === 'magnus-listing')   return magnusListing.getTrades(limit)
   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-  if (id === 'magnus-futures') return (magnusFutures?.recentTrades ?? []).slice(0, limit)
+  if (id === 'magnus-futures')   return (magnusFutures?.recentTrades ?? []).slice(0, limit)
   if (id === 'magnus-rate-harvest') return getRateHarvestState().recentTrades.slice(0, limit) as unknown as SimTrade[]
   return []
 }
@@ -3460,6 +3604,13 @@ export function startPaperTraders(): void {
   // ── Rate Harvest Bot — delta-neutral funding rate arbitrage ───────────────
   startRateHarvestBot()
   console.log('[Rate Harvest] Bot wired — funding rate arb, $5K paper capital')
+
+  // ── Phase-2 strategy bots — initialize portfolios ─────────────────────────
+  magnusPairs.initializeIfNeeded()
+  magnusCascade.initializeIfNeeded()
+  magnusCalendar.initializeIfNeeded()
+  magnusListing.initializeIfNeeded()
+  console.log('[Magnus Phase-2] Pairs($10K) Cascade($3K) Calendar($5K) Listing($2K) bots initialized')
 
   setInterval(evaluate, EVAL_INTERVAL_MS)
 

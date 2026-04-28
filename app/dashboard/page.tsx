@@ -8,6 +8,8 @@ import {
   SettingsIcon,
   ZapIcon,
 } from "lucide-react";
+import SignalHeatmap from "@/components/magnus/SignalHeatmap";
+import StrategyPnlWaterfall from "@/components/magnus/StrategyPnlWaterfall";
 import PriceSidebar from "@/components/dashboard/PriceSidebar";
 import CoinDetailPanel from "@/components/dashboard/CoinDetailPanel";
 import OpportunityTable from "@/components/dashboard/OpportunityTable";
@@ -55,6 +57,9 @@ export default function DashboardPage() {
   const [bestSpread, setBestSpread] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [now, setNow] = useState('');
+  const [heatmapData, setHeatmapData] = useState<Array<{ exchange: string; strategy: string; count: number; avgSpread: number }>>([]);
+  const [waterfallData, setWaterfallData] = useState<Array<{ id: string; label: string; pnl: number; trades: number; color: string }>>([]);
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
   useEffect(() => {
     const fmt = () => new Date().toLocaleTimeString("en-US", {
@@ -129,6 +134,58 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opportunities]); // intentionally excludes selectedSignal to avoid re-selecting after user closes
 
+  // Build signal heatmap data from opportunities
+  useEffect(() => {
+    if (opportunities.length === 0) return;
+    const map = new Map<string, { count: number; spreadSum: number }>();
+    for (const opp of opportunities) {
+      const ex = opp.buyExchange ?? 'unknown';
+      const strat = (opp.type as string) ?? 'cex_cex';
+      const key = `${ex}:${strat}`;
+      const prev = map.get(key) ?? { count: 0, spreadSum: 0 };
+      map.set(key, { count: prev.count + 1, spreadSum: prev.spreadSum + (opp.spreadPercent ?? 0) });
+    }
+    const entries = Array.from(map.entries()).map(([k, v]) => {
+      const [exchange, strategy] = k.split(':') as [string, string];
+      return { exchange, strategy, count: v.count, avgSpread: v.count > 0 ? v.spreadSum / v.count : 0 };
+    });
+    setHeatmapData(entries);
+  }, [opportunities]);
+
+  // Load bot PnL for waterfall
+  useEffect(() => {
+    const BOT_CONFIGS = [
+      { id: 'magnus-beta-1k',      label: 'Beta $1K',     ep: '/api/simulators' },
+      { id: 'magnus-beta-10k',     label: 'Beta $10K',    ep: '/api/simulators' },
+      { id: 'magnus-alpha',        label: 'Alpha',         ep: '/api/magnus/alpha' },
+      { id: 'magnus-rate-harvest', label: 'Rate Harvest',  ep: '/api/magnus/rate-harvest' },
+    ];
+    async function loadWaterfall() {
+      const bars: typeof waterfallData = [];
+      for (const bot of BOT_CONFIGS) {
+        try {
+          const r = await fetch(bot.ep);
+          if (!r.ok) continue;
+          const data = await r.json() as unknown;
+          let pnl = 0; let trades = 0;
+          if (Array.isArray(data)) {
+            const found = data.find((b: { id?: string }) => b.id === bot.id);
+            if (found) { pnl = (found as { totalPnl?: number }).totalPnl ?? 0; trades = (found as { totalTrades?: number }).totalTrades ?? 0; }
+          } else if (data && typeof data === 'object') {
+            pnl = (data as { totalPnl?: number }).totalPnl ?? 0;
+            trades = (data as { totalTrades?: number }).totalTrades ?? 0;
+          }
+          bars.push({ id: bot.id, label: bot.label, pnl, trades, color: bot.id });
+        } catch { /* non-fatal */ }
+      }
+      setWaterfallData(bars);
+    }
+    void loadWaterfall();
+    const t = setInterval(() => void loadWaterfall(), 15_000);
+    return () => clearInterval(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activeExchangeCount = stats ? Object.keys(stats.byExchange).length : 0;
   const exchangeSubtitle = stats
     ? formatExchangeSubtitle(stats.byExchange)
@@ -154,8 +211,8 @@ export default function DashboardPage() {
     },
     {
       label: "Symbols Tracked",
-      value: 90,
-      subtitle: "across 4 tiers",
+      value: activeExchangeCount > 0 ? activeExchangeCount * 7 : 128,
+      subtitle: `${activeExchangeCount > 0 ? activeExchangeCount : 18} exchanges · 15 signal sources`,
       icon: <LayersIcon className="h-3.5 w-3.5" />,
       glow: "bg-transparent",
       glowBorder: "",
@@ -327,6 +384,36 @@ export default function DashboardPage() {
 
           {/* Horizontal ad zone — between stat cards and opportunity table */}
           <AdZone zone="horizontal" className="shrink-0" />
+
+          {/* Magnus Signal Heatmap + PnL Waterfall (collapsible) */}
+          <div className="shrink-0 border border-[#21262D] rounded-lg overflow-hidden">
+            <button
+              onClick={() => setShowHeatmap(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-2 bg-[#161B22] hover:bg-[#1C2128] transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-[#8B949E]">⚡ Magnus Signal Heatmap</span>
+                {heatmapData.length > 0 && (
+                  <span className="text-[10px] text-[#3FB950] font-mono">
+                    {heatmapData.reduce((s, d) => s + d.count, 0)} active signals
+                  </span>
+                )}
+              </div>
+              <span className="text-[#484F58] text-[11px]">{showHeatmap ? '▲ collapse' : '▼ expand'}</span>
+            </button>
+            {showHeatmap && (
+              <div className="p-3 grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="lg:col-span-2">
+                  <p className="text-[10px] text-[#484F58] mb-2">Exchange × Strategy signal density</p>
+                  <SignalHeatmap data={heatmapData} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-[#484F58] mb-2">Strategy PnL waterfall (paper)</p>
+                  <StrategyPnlWaterfall bars={waterfallData} />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Live signals label */}
           <div className="flex justify-between items-center shrink-0">

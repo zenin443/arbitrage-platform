@@ -58,6 +58,14 @@ import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, regis
 import { startTriangularEngine, getTriangularRoutes, getCrossPairCount } from './engines/triangularArbitrage'
 import { startCrossChainEngine, getCrossChainOpportunities } from './engines/crossChainArbitrage'
 import { startStablecoinEngine } from './engines/stablecoinArbitrage'
+import { startPairsTradingEngine, getPairsSignals } from './engines/pairsTradingEngine'
+import { startLiquidationEngine, getLiquidationSignals } from './engines/liquidationEngine'
+import { startCalendarSpreadEngine, getCalendarSpreadSignals } from './engines/calendarSpreadEngine'
+import { startNewListingEngine, getNewListingSignals } from './engines/newListingEngine'
+import { startWrappedTokenEngine, getWrappedTokenSignals } from './engines/wrappedTokenEngine'
+import { startTwapEngine, getTwapSignals } from './engine/twapEngine'
+import { startOrderbookPressureEngine, getOrderbookPressureSignals } from './engine/orderbookPressure'
+import { getScoredSignals, scoreAndFilter, updateScoredSignals } from './engine/signalScorer'
 import { SYMBOLS } from './config/symbols'
 import {
   startPaperTraders,
@@ -477,6 +485,44 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  // ── Strategy signal endpoints ─────────────────────────────────────────────
+  if (url.pathname === '/signals/pairs' && method === 'GET') {
+    json(res, 200, getPairsSignals()); return
+  }
+  if (url.pathname === '/signals/liquidation' && method === 'GET') {
+    json(res, 200, getLiquidationSignals()); return
+  }
+  if (url.pathname === '/signals/calendar' && method === 'GET') {
+    json(res, 200, getCalendarSpreadSignals()); return
+  }
+  if (url.pathname === '/signals/new-listing' && method === 'GET') {
+    json(res, 200, getNewListingSignals()); return
+  }
+  if (url.pathname === '/signals/wrapped' && method === 'GET') {
+    json(res, 200, getWrappedTokenSignals()); return
+  }
+  if (url.pathname === '/signals/twap' && method === 'GET') {
+    json(res, 200, getTwapSignals()); return
+  }
+  if (url.pathname === '/signals/orderbook-pressure' && method === 'GET') {
+    json(res, 200, getOrderbookPressureSignals()); return
+  }
+  if (url.pathname === '/signals/scored' && method === 'GET') {
+    json(res, 200, getScoredSignals()); return
+  }
+  if (url.pathname === '/signals/all' && method === 'GET') {
+    json(res, 200, {
+      pairs:            getPairsSignals(),
+      liquidation:      getLiquidationSignals(),
+      calendar:         getCalendarSpreadSignals(),
+      newListing:       getNewListingSignals(),
+      wrapped:          getWrappedTokenSignals(),
+      twap:             getTwapSignals(),
+      orderbookPressure: getOrderbookPressureSignals(),
+      scored:           getScoredSignals(),
+    }); return
+  }
+
   if (method !== 'GET') {
     json(res, 405, { error: 'Method not allowed' })
     return
@@ -793,6 +839,13 @@ async function start(): Promise<void> {
   try { startTriangularEngine() } catch (e: any) { console.error('[Startup] Triangular engine failed:', e.message) }
   try { startCrossChainEngine() } catch (e: any) { console.error('[Startup] Cross-chain engine failed:', e.message) }
   try { startStablecoinEngine() } catch (e: any) { console.error('[Startup] Stablecoin engine failed:', e.message) }
+  try { startPairsTradingEngine() } catch (e: any) { console.error('[Startup] Pairs trading engine failed:', e.message) }
+  try { startLiquidationEngine() } catch (e: any) { console.error('[Startup] Liquidation engine failed:', e.message) }
+  try { startCalendarSpreadEngine() } catch (e: any) { console.error('[Startup] Calendar spread engine failed:', e.message) }
+  try { startNewListingEngine() } catch (e: any) { console.error('[Startup] New listing engine failed:', e.message) }
+  try { startWrappedTokenEngine() } catch (e: any) { console.error('[Startup] Wrapped token engine failed:', e.message) }
+  try { startTwapEngine() } catch (e: any) { console.error('[Startup] TWAP engine failed:', e.message) }
+  try { startOrderbookPressureEngine() } catch (e: any) { console.error('[Startup] Orderbook pressure engine failed:', e.message) }
   try {
     registerGapProvider(getProfitableGaps)
     startOrderBookFetcher()
