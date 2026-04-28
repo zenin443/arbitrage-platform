@@ -13,6 +13,9 @@ export interface BotDefinition {
   displayName: string
   tagline: string
   color: string
+  colorName: string
+  glowHex: string
+  apiPath: string
   startingCapital: number | 'flex'
   capitalLabel: string
   strategies: BotStrategy[]
@@ -25,12 +28,15 @@ export interface BotDefinition {
 
 export const BOT_REGISTRY: BotDefinition[] = [
   {
-    internalId: 'magnusBeta1k',
-    apiKey: 'magnusBeta1k',
+    internalId: 'magnus-beta-1k',
+    apiKey: 'magnus-beta-1k',
     codename: 'VEGA',
     displayName: 'VEGA · $1K',
     tagline: 'Speed hunter',
     color: '#378ADD',
+    colorName: 'cyan',
+    glowHex: '#06b6d4',
+    apiPath: '/api/magnus/beta-1k',
     startingCapital: 1000,
     capitalLabel: '$1K',
     strategies: [
@@ -47,12 +53,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'VEGA hunts tight price gaps across all 18 exchanges simultaneously. When the same coin trades at different prices on different platforms, VEGA buys on the cheaper exchange and records the spread as profit. With a small capital base, it executes frequently with high precision.'
   },
   {
-    internalId: 'magnusBeta10k',
-    apiKey: 'magnusBeta10k',
+    internalId: 'magnus-beta-10k',
+    apiKey: 'magnus-beta-10k',
     codename: 'NEXUS',
     displayName: 'NEXUS · $10K',
     tagline: 'Cross-exchange bridge',
     color: '#4AADE8',
+    colorName: 'blue',
+    glowHex: '#3b82f6',
+    apiPath: '/api/magnus/beta-10k',
     startingCapital: 10000,
     capitalLabel: '$10K',
     strategies: [
@@ -69,12 +78,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'NEXUS operates with larger capital to capture price gaps across all 18 CEX exchanges. It also runs triangular arbitrage — exploiting price inconsistencies between three currency pairs on a single exchange. No cross-exchange transfer risk on the triangular leg.'
   },
   {
-    internalId: 'magnusAlpha',
-    apiKey: 'magnusAlpha',
+    internalId: 'magnus-alpha',
+    apiKey: 'magnus-alpha',
     codename: 'HERMES',
     displayName: 'HERMES · Flex',
     tagline: 'DEX-CEX messenger',
     color: '#7F77DD',
+    colorName: 'violet',
+    glowHex: '#8b5cf6',
+    apiPath: '/api/magnus/alpha',
     startingCapital: 'flex',
     capitalLabel: 'Flex',
     strategies: [
@@ -91,12 +103,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'HERMES bridges the gap between decentralized (DeFi) and centralized (CeFi) markets. DEX prices on Uniswap and Jupiter lag CEX prices by 12-60 seconds due to block confirmation times — HERMES captures this deterministic window before the gap closes.'
   },
   {
-    internalId: 'magnusFutures',
-    apiKey: 'magnusFutures',
+    internalId: 'magnus-futures',
+    apiKey: 'magnus-futures',
     codename: 'KRONOS',
     displayName: 'KRONOS · $1K',
     tagline: 'Time convergence',
     color: '#EF9F27',
+    colorName: 'amber',
+    glowHex: '#f59e0b',
+    apiPath: '/api/magnus/futures',
     startingCapital: 1000,
     capitalLabel: '$1K',
     strategies: [
@@ -109,12 +124,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'KRONOS exploits the price difference between spot markets and perpetual futures. When a perpetual contract trades at a premium to spot, KRONOS buys spot and shorts the perpetual simultaneously — collecting the spread as they mechanically converge at each 8-hour funding window.'
   },
   {
-    internalId: 'magnusRateHarvest',
-    apiKey: 'magnusRateHarvest',
+    internalId: 'magnus-rate-harvest',
+    apiKey: 'magnus-rate-harvest',
     codename: 'ATLAS',
     displayName: 'ATLAS · $5K',
     tagline: 'Carry harvester',
     color: '#1D9E75',
+    colorName: 'green',
+    glowHex: '#22c55e',
+    apiPath: '/api/magnus/rate-harvest',
     startingCapital: 5000,
     capitalLabel: '$5K',
     strategies: [
@@ -127,12 +145,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'ATLAS runs a delta-neutral strategy — simultaneously holding long spot and short perpetual positions of equal size. The directional exposure cancels out, leaving only the funding rate payment as pure income. Annualized rates reach 200-900% during bull markets. Zero directional risk.'
   },
   {
-    internalId: 'magnusPairs',
-    apiKey: 'magnusPairs',
+    internalId: 'magnus-pairs',
+    apiKey: 'magnus-pairs',
     codename: 'SIGMA',
     displayName: 'SIGMA · $10K',
     tagline: 'Statistical arbitrageur',
     color: '#5DCAA5',
+    colorName: 'purple',
+    glowHex: '#a855f7',
+    apiPath: '/api/simulators',
     startingCapital: 10000,
     capitalLabel: '$10K',
     strategies: [
@@ -145,12 +166,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'SIGMA uses statistical relationships between correlated crypto pairs. BTC and ETH share the same macro driver (crypto market sentiment) and historically trade within a stable ratio. When their ratio deviates significantly from the 30-day average, SIGMA positions for the inevitable reversion — shorting the expensive asset, longing the cheap one.'
   },
   {
-    internalId: 'magnusCascade',
-    apiKey: 'magnusCascade',
+    internalId: 'magnus-cascade',
+    apiKey: 'magnus-cascade',
     codename: 'ARES',
     displayName: 'ARES · $3K',
     tagline: 'Liquidation hunter',
     color: '#E24B4A',
+    colorName: 'orange',
+    glowHex: '#f97316',
+    apiPath: '/api/simulators',
     startingCapital: 3000,
     capitalLabel: '$3K',
     strategies: [
@@ -163,12 +187,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'ARES monitors open interest data across perpetual exchanges. When a large cascade of forced liquidations occurs (typically 50M+ in a short window), spot prices temporarily drop below fair value as liquidation engines sell at market. ARES buys the discounted spot and holds for the mechanical reversion, typically within 90 seconds.'
   },
   {
-    internalId: 'magnusCalendar',
-    apiKey: 'magnusCalendar',
+    internalId: 'magnus-calendar',
+    apiKey: 'magnus-calendar',
     codename: 'TEMPUS',
     displayName: 'TEMPUS · $5K',
     tagline: 'Calendar arbitrageur',
     color: '#BA7517',
+    colorName: 'teal',
+    glowHex: '#14b8a6',
+    apiPath: '/api/simulators',
     startingCapital: 5000,
     capitalLabel: '$5K',
     strategies: [
@@ -181,12 +208,15 @@ export const BOT_REGISTRY: BotDefinition[] = [
     explanation: 'TEMPUS trades the mispricing between quarterly futures contracts (which expire in March, June, September, December) and perpetual futures. At expiry, quarterly futures must equal spot price — this convergence is mathematically guaranteed. When the basis deviates from fair value, TEMPUS captures the mispricing.'
   },
   {
-    internalId: 'magnusListing',
-    apiKey: 'magnusListing',
+    internalId: 'magnus-listing',
+    apiKey: 'magnus-listing',
     codename: 'SCOUT',
     displayName: 'SCOUT · $2K',
     tagline: 'New listing sniper',
     color: '#9B59B6',
+    colorName: 'pink',
+    glowHex: '#ec4899',
+    apiPath: '/api/simulators',
     startingCapital: 2000,
     capitalLabel: '$2K',
     strategies: [
@@ -200,9 +230,13 @@ export const BOT_REGISTRY: BotDefinition[] = [
   },
 ]
 
-// Helper: get bot by internal ID
+// Helper: get bot by internal ID, apiKey, or codename
 export function getBotById(id: string): BotDefinition | undefined {
-  return BOT_REGISTRY.find(b => b.internalId === id || b.apiKey === id)
+  return BOT_REGISTRY.find(b =>
+    b.internalId === id ||
+    b.apiKey === id ||
+    b.codename.toLowerCase() === id.toLowerCase()
+  )
 }
 
 // Helper: get all codenames map for quick lookup
