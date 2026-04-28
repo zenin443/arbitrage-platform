@@ -10,6 +10,7 @@ import {
 import SignalScoreGauge from '@/components/magnus/SignalScoreGauge'
 import AlgoExplainerCard, { ALGO_DEFINITIONS } from '@/components/magnus/AlgoExplainerCard'
 import NavAuthButton from '@/components/NavAuthButton'
+import { getBotById, type BotDefinition } from '@/lib/magnus/botRegistry'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -512,35 +513,60 @@ export default function MagnusPage() {
         <AllBotsSummary states={summaryStates} />
 
         {/* Bot tab bar */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-6 scrollbar-none">
-          {BOT_TABS.map(bot => {
-            const bColor = COLOR_MAP[bot.color] ?? COLOR_MAP.cyan!
-            const s = summaryStates[bot.id]
-            const isActive = activeTab === bot.id
-            return (
-              <button
-                key={bot.id}
-                onClick={() => setActiveTab(bot.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all border
-                  ${isActive
-                    ? `${bColor.badge} ${bColor.ring} ring-1`
-                    : 'text-gray-400 border-transparent hover:border-gray-700 hover:bg-gray-800/40'
-                  }`}
-              >
-                <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-current' : 'bg-gray-600'}`} />
-                <span>{bot.label}</span>
-                {s && (
-                  <span className={`text-xs font-mono ${s.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {s.totalPnl >= 0 ? '+' : ''}{fmt(s.totalPnlPercent, 1)}%
-                  </span>
-                )}
-                {!s && (
-                  <span className="text-xs text-gray-600">{bot.capital}</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
+        {(() => {
+          const ENRICHED_TABS = BOT_TABS.map(tab => {
+            const bot = getBotById(tab.id)
+            return {
+              ...tab,
+              codename: bot?.codename ?? tab.label,
+              tagline: bot?.tagline ?? '',
+              glowHex: bot?.glowHex ?? '#888888',
+            }
+          })
+          return (
+            <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-6 scrollbar-none">
+              {ENRICHED_TABS.map(tab => {
+                const bColor = COLOR_MAP[tab.color] ?? COLOR_MAP.cyan!
+                const s = summaryStates[tab.id]
+                const isActive = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    title={tab.tagline}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all border
+                      ${isActive
+                        ? `${bColor.badge} ${bColor.ring} ring-1`
+                        : 'text-gray-400 border-transparent hover:border-gray-700 hover:bg-gray-800/40'
+                      }`}
+                  >
+                    <span
+                      className="inline-block transition-opacity"
+                      style={{
+                        color: tab.glowHex,
+                        fontSize: '12px',
+                        lineHeight: 1,
+                        opacity: isActive ? 1 : 0.45
+                      }}
+                      aria-hidden="true"
+                    >
+                      ●
+                    </span>
+                    <span className="font-mono font-bold tracking-wide">{tab.codename}</span>
+                    {s && (
+                      <span className={`text-xs font-mono ${s.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {s.totalPnl >= 0 ? '+' : ''}{fmt(s.totalPnlPercent, 1)}%
+                      </span>
+                    )}
+                    {!s && (
+                      <span className="text-xs opacity-60">· {tab.capital}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })()}
 
         {/* Active bot panel */}
         <div className={`rounded-2xl border p-6 ${clr.ring} ring-1 bg-gray-900/40`}>
