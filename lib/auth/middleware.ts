@@ -23,18 +23,23 @@ const DEV_ADMIN_USER: AuthUser = {
 export function getAuthUser(req: NextRequest): AuthUser | null {
   if (DEV_AUDIT_MODE) return DEV_ADMIN_USER;
   try {
+    let user: AuthUser | null = null;
+
     const authHeader = req.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      return verifyAccessToken(token);
+      user = verifyAccessToken(authHeader.substring(7));
+    } else {
+      const token = req.cookies.get('access_token')?.value;
+      if (token) user = verifyAccessToken(token);
     }
 
-    const token = req.cookies.get('access_token')?.value;
-    if (token) {
-      return verifyAccessToken(token);
+    // Admin role gets institutional plan server-side so every API route
+    // automatically serves full data without per-route role checks.
+    if (user?.role === 'admin') {
+      return { ...user, plan: 'institutional' };
     }
 
-    return null;
+    return user;
   } catch {
     return null;
   }
