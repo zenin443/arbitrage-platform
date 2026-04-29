@@ -5,7 +5,19 @@
       "patterns": [
         {
           "group": ["**/lib/engine*", "@/lib/engine*"],
-          "message": "SECURITY (P2-001): lib/engine/ contains proprietary algorithm logic (spread calculation, scoring, fee models) and MUST NOT be imported in client-side code. Use API routes (/api/opportunities, /api/prices) or the WebSocket feed to access this data. See SECURITY_AUDIT_ENGINE.md."
+          "message": "SECURITY (P2-001): lib/engine/ contains proprietary algorithm logic and MUST NOT be imported in client-side code. Use API routes (/api/opportunities, /api/prices) or the WebSocket feed. See SECURITY_AUDIT_ENGINE.md."
+        },
+        {
+          "group": ["**/server/engine*", "@/server/engine*", "**/server/engines*", "@/server/engines*"],
+          "message": "SECURITY (P2-001): server/engine/ and server/engines/ are CORE IP and MUST NOT be imported in app/ or components/. Move logic to an API route and call via fetch()."
+        },
+        {
+          "group": ["**/server/services*", "@/server/services*"],
+          "message": "SECURITY (P2-001): server/services/ (paper-trader, trading-intelligence) is Node.js only. MUST NOT be imported in app/ or components/."
+        },
+        {
+          "group": ["**/server/registry*", "@/server/registry*"],
+          "message": "SECURITY (P2-001): server/registry/ contains fee tables that MUST NEVER be exposed in the browser bundle. Use /api routes for derived fee data only."
         }
       ]
     }]
