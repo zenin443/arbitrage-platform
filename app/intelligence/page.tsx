@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Maximize2, X } from "lucide-react";
+import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon, Maximize2, X } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { formatPercent, formatPrice, formatDuration } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
@@ -631,10 +631,6 @@ export default function IntelligencePage() {
   const [quoteFilter, setQuoteFilter] = useState<"ALL" | "USDT" | "USDC" | "BTC">("ALL");
   const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [leftWidth, setLeftWidth] = useState(200);
-  const [rightWidth, setRightWidth] = useState(240);
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
   const [expandedModal, setExpandedModal] = useState<string | null>(null);
   const closeModal = useCallback(() => setExpandedModal(null), []);
 
@@ -646,21 +642,6 @@ export default function IntelligencePage() {
   }>({ gaps: [], profitable: [], spread: [], duration: [] });
 
   const [symbolHistory, setSymbolHistory] = useState<Record<string, number[]>>({});
-
-  useEffect(() => {
-    const saved = localStorage.getItem("intelLeftWidth");
-    if (saved) setLeftWidth(Math.max(160, Math.min(Number(saved), 260)));
-  }, []);
-  useEffect(() => {
-    localStorage.setItem("intelLeftWidth", String(leftWidth));
-  }, [leftWidth]);
-  useEffect(() => {
-    const saved = localStorage.getItem("intelRightWidth");
-    if (saved) setRightWidth(Math.max(190, Math.min(Number(saved), 300)));
-  }, []);
-  useEffect(() => {
-    localStorage.setItem("intelRightWidth", String(rightWidth));
-  }, [rightWidth]);
 
   useEffect(() => {
     fetch('/api/profitable-gaps')
@@ -1028,40 +1009,6 @@ export default function IntelligencePage() {
   const hasHiddenGaps = !isRealtime && allFilteredGaps.length > FREE_GAP_LIMIT;
   const hiddenCount = hasHiddenGaps ? allFilteredGaps.length - FREE_GAP_LIMIT : 0;
 
-  // ── Drag handlers ──
-  function startLeftDrag(e: React.MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX, startW = leftWidth;
-    const move = (ev: MouseEvent) =>
-      setLeftWidth(Math.max(160, Math.min(startW + (ev.clientX - startX), 260)));
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-  }
-
-  function startRightDrag(e: React.MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX, startW = rightWidth;
-    const move = (ev: MouseEvent) =>
-      setRightWidth(Math.max(190, Math.min(startW + (startX - ev.clientX), 300)));
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-  }
 
   // ── Spread histogram config ──
   const maxBucket = Math.max(
@@ -1185,183 +1132,96 @@ export default function IntelligencePage() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ════ LEFT SIDEBAR ════ */}
-        {leftCollapsed ? (
-          <aside
-            className="flex-shrink-0 border-r border-[#21262D] flex flex-col items-center pt-2 gap-3 z-20"
-            style={{ width: 28, background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)" }}
-          >
-            <button onClick={() => setLeftCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors" title="Expand sidebar">
-              <PanelLeftOpen className="h-3.5 w-3.5" />
-            </button>
-            <span className="text-[9px] uppercase tracking-widest text-[#484F58] font-mono select-none"
-              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>Intel</span>
-          </aside>
-        ) : (
-          <aside
-            className="flex-shrink-0 border-r border-[#21262D] flex flex-col overflow-y-auto relative"
-            style={{
-              width: `${leftWidth}px`,
-              minWidth: "clamp(156px, 12vw, 196px)",
-              maxWidth: "224px",
-              background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)",
-            }}
-          >
-            <div className="absolute right-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-              onMouseDown={startLeftDrag} />
+        <aside
+          className="hidden lg:flex flex-col flex-shrink-0 h-full bg-[#0D1117] border-r border-[#21262D] overflow-y-auto"
+          style={{ width: 200 }}
+        >
+          {/* Quote filter tabs — ALL | USDT | USDC | BTC */}
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#21262D] shrink-0">
+            {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => (
+              <button key={q}
+                onClick={() => setQuoteFilter(q)}
+                className="flex-1 text-[10px] font-mono rounded py-0.5 transition-colors duration-150"
+                style={{
+                  background: quoteFilter === q ? "#388BFD22" : "transparent",
+                  color:      quoteFilter === q ? "#388BFD"   : "#484F58",
+                  border:     quoteFilter === q ? "1px solid #388BFD44" : "1px solid transparent",
+                }}
+              >{q}</button>
+            ))}
+          </div>
 
-            {/* Market tabs — ALL | USDT | USDC | BTC — same style as Dashboard */}
-            <div className="flex border-b border-[#21262D] flex-shrink-0" style={{ background: "#161B22" }}>
-              {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => (
-                <button key={q}
-                  onClick={() => setQuoteFilter(q)}
-                  className={`flex-1 text-[9px] font-mono py-1.5 transition-colors border-b-2 ${
-                    quoteFilter === q ? "text-[#3FB950] border-[#3FB950]" : "text-[#484F58] border-transparent hover:text-[#8B949E]"
-                  }`}
-                >{q}</button>
+          {/* Live counts */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="bg-[#161B22] border border-[#21262D] rounded p-1.5 text-center">
+                <div className="text-[16px] text-[#3FB950] font-mono font-medium leading-none">{formatNumber(stats?.totalGapsLast1h ?? 0)}</div>
+                <div className="text-[9px] text-[#484F58] font-mono mt-0.5">gaps/hr</div>
+              </div>
+              <div className="bg-[#161B22] border border-[#21262D] rounded p-1.5 text-center">
+                <div className="text-[16px] text-[#E6EDF3] font-mono font-medium leading-none">{profitableGaps.length}</div>
+                <div className="text-[9px] text-[#484F58] font-mono mt-0.5">tracked</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Top Routes */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <div className="text-[10px] font-sans text-[#484F58] mb-1.5">Top Routes</div>
+            {!stats?.exchangePairRanking?.length ? (
+              <div className="text-[10px] text-[#484F58] font-mono">Loading…</div>
+            ) : (
+              <div className="space-y-1">
+                {stats.exchangePairRanking.slice(0, 5).map((pair, i) => (
+                  <div key={`${pair.buyExchange}-${pair.sellExchange}`}
+                    className="flex items-center justify-between py-0.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-mono text-[#484F58] w-3">{i + 1}</span>
+                      <span className="text-[10px] font-mono">
+                        <span className="text-[#388BFD]">{shortEx(pair.buyExchange)}</span>
+                        <span className="text-[#484F58]">→</span>
+                        <span className="text-[#F85149]">{shortEx(pair.sellExchange)}</span>
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>{pair.gapCount}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Gap Type Breakdown */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <div className="text-[10px] font-sans text-[#484F58] mb-1.5">Gap Types</div>
+            <div className="space-y-2">
+              {[
+                { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#388BFD", grad: "linear-gradient(90deg, rgba(56,139,253,0.8) 0%, rgba(56,139,253,0.3) 100%)" },
+                { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#3FB950", grad: "linear-gradient(90deg, rgba(63,185,80,0.8) 0%, rgba(63,185,80,0.3) 100%)" },
+                { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#A371F7", grad: "linear-gradient(90deg, rgba(163,113,247,0.8) 0%, rgba(163,113,247,0.3) 100%)" },
+              ].map(row => (
+                <div key={row.label}>
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="text-[10px] font-mono text-[#8B949E]">{row.label}</span>
+                    <span className="text-[10px] font-mono" style={{ color: row.color }}>{row.pct}%</span>
+                  </div>
+                  <div className="h-[3px] bg-[#21262D] rounded overflow-hidden">
+                    <div className="h-full rounded transition-all duration-500" style={{ width: `${row.pct}%`, background: row.grad }} />
+                  </div>
+                </div>
               ))}
-              <button onClick={() => setLeftCollapsed(true)}
-                className="px-1.5 text-[#484F58] hover:text-[#8B949E] transition-colors border-b-2 border-transparent">
-                <PanelLeftClose className="h-3 w-3" />
-              </button>
             </div>
+          </div>
 
-            {/* Pulse — 2 numbers + duration bar */}
-            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-2">
-              <div className="grid grid-cols-2 gap-1.5">
-                <div className="rounded border border-[#21262D] py-1.5 text-center"
-                  style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-                  <div className="text-[18px] text-[#3FB950] font-medium font-mono leading-none">{formatNumber(stats?.totalGapsLast1h ?? 0)}</div>
-                  <div className="text-[8px] text-[#484F58] font-mono mt-0.5">gaps/hr</div>
-                </div>
-                <div className="rounded border border-[#21262D] py-1.5 text-center"
-                  style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-                  <div className="text-[18px] text-[#E6EDF3] font-medium font-mono leading-none">{profitableGaps.length}</div>
-                  <div className="text-[8px] text-[#484F58] font-mono mt-0.5">tracked</div>
-                </div>
-              </div>
-              {buckets && (
-                <div className="mt-1.5">
-                  <div className="flex h-[4px] rounded overflow-hidden mb-1">
-                    <div className="bg-[#F85149]" style={{ width: `${pctUnder5s}%` }} />
-                    <div className="bg-[#D29922]" style={{ width: `${pctUnder30s}%` }} />
-                    <div className="bg-[#3FB950]" style={{ width: `${pctUnder1m}%` }} />
-                    <div className="bg-[#388BFD]" style={{ width: `${pctOver1m}%` }} />
-                  </div>
-                  <div className="flex gap-2">
-                    {[{ bg: "#F85149", label: "<5s" }, { bg: "#D29922", label: "<30s" }, { bg: "#3FB950", label: "<1m" }, { bg: "#388BFD", label: ">1m" }].map(b => (
-                      <div key={b.label} className="flex items-center gap-0.5">
-                        <div className="w-[3px] h-[3px] rounded-sm flex-shrink-0" style={{ background: b.bg }} />
-                        <span className="text-[7px] text-[#484F58] font-mono">{b.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+          {/* Magnus compact card */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <MagnusAICard />
+          </div>
 
-            {/* Top Routes — always visible, 5 rows */}
-            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-1.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Top Routes</span>
-                <InfoCorner text={TIP.topRoutes} />
-              </div>
-              <ErrorBoundary name="Top routes">
-                {!stats?.exchangePairRanking?.length ? (
-                  <WidgetSkeleton type="list" rows={4} />
-                ) : (
-                  <div>
-                    {stats.exchangePairRanking.slice(0, 5).map((pair, i) => (
-                      <div key={`${pair.buyExchange}-${pair.sellExchange}`}
-                        className="flex items-center justify-between border-b border-[#21262D]/25" style={{ height: 20 }}>
-                        <div className="flex items-center gap-1">
-                          <span className="text-[8px] font-mono text-[#484F58] w-3">{i + 1}</span>
-                          <span className="text-[9px] font-mono">
-                            <span className="text-[#388BFD]">{shortEx(pair.buyExchange)}</span>
-                            <span className="text-[#484F58]">→</span>
-                            <span className="text-[#F85149]">{shortEx(pair.sellExchange)}</span>
-                          </span>
-                        </div>
-                        <span className={`text-[9px] font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>{pair.gapCount}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ErrorBoundary>
-            </div>
-
-            {/* Gap Types — always visible */}
-            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-1.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Gap Types</span>
-                <InfoCorner text={TIP.gapTypes} />
-              </div>
-              <ErrorBoundary name="Gap types">
-                {profitableGaps.length === 0 ? <WidgetSkeleton type="list" rows={3} /> : (
-                  <div className="space-y-1.5">
-                    {[
-                      { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#388BFD", grad: "linear-gradient(90deg, rgba(56,139,253,0.8) 0%, rgba(56,139,253,0.3) 100%)" },
-                      { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#3FB950", grad: "linear-gradient(90deg, rgba(63,185,80,0.8) 0%, rgba(63,185,80,0.3) 100%)" },
-                      { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#A371F7", grad: "linear-gradient(90deg, rgba(163,113,247,0.8) 0%, rgba(163,113,247,0.3) 100%)" },
-                    ].map(row => (
-                      <div key={row.label}>
-                        <div className="flex justify-between items-center mb-0.5">
-                          <span className="text-[9px] font-mono text-[#8B949E]">{row.label}</span>
-                          <span className="text-[9px] font-mono" style={{ color: row.color }}>{row.pct}%</span>
-                        </div>
-                        <div className="h-[3px] bg-[#21262D] rounded overflow-hidden">
-                          <div className="h-full rounded transition-all duration-500" style={{ width: `${row.pct}%`, background: row.grad }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ErrorBoundary>
-            </div>
-
-            {/* Pricing Bias — always visible */}
-            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-1.5">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Pricing Bias</span>
-                <InfoCorner text={TIP.pricingBias} />
-              </div>
-              <ErrorBoundary name="Pricing bias">
-                {pricingBias.length === 0 ? (
-                  <div className="text-[8px] font-mono text-[#484F58] py-1 text-center">Calculating…</div>
-                ) : (
-                  <div className="space-y-0.5">
-                    {pricingBias.slice(0, 5).map(({ ex, cheapPct }) => (
-                      <div key={ex} className="flex items-center gap-1.5" style={{ height: 16 }}>
-                        <span className={`text-[8px] font-mono w-6 flex-shrink-0 ${cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#8B949E]"}`}>
-                          {shortEx(ex)}
-                        </span>
-                        <div className="flex-1 flex h-[4px] relative">
-                          <div className="absolute top-0 bottom-0 w-px bg-[#484F58]/30" style={{ left: "50%" }} />
-                          <div className="w-1/2 flex justify-end overflow-hidden">
-                            <div className="h-full bg-[#3FB950] rounded-l" style={{ width: `${cheapPct}%`, opacity: cheapPct > 55 ? 0.7 : 0.2 }} />
-                          </div>
-                          <div className="w-1/2 overflow-hidden">
-                            <div className="h-full bg-[#F85149] rounded-r" style={{ width: `${100 - cheapPct}%`, opacity: cheapPct < 45 ? 0.7 : 0.2 }} />
-                          </div>
-                        </div>
-                        <span className="text-[7px] font-mono text-[#484F58] w-5 text-right flex-shrink-0">{cheapPct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ErrorBoundary>
-            </div>
-
-            {/* Bottom: Magnus compact card + ad */}
-            <div className="mt-auto">
-              <div className="border-t border-[#21262D]/50 px-2 py-1.5">
-                <MagnusAICard />
-              </div>
-              <div className="border-t border-[#21262D]/30 px-1.5 py-1 flex-shrink-0">
-                <AdBanner zone="contextual-signal" context={{ exchange: "okx" }} />
-              </div>
-            </div>
-          </aside>
-        )}
+          {/* Ad */}
+          <div className="mt-auto px-2 py-2 shrink-0">
+            <AdBanner zone="contextual-signal" context={{ exchange: "okx" }} />
+          </div>
+        </aside>
 
         {/* ════ CENTER MAIN ════ */}
         <main className="flex-1 min-w-0 flex flex-col overflow-hidden p-3 gap-2">
@@ -1617,11 +1477,6 @@ export default function IntelligencePage() {
                   <Maximize2 className="h-3 w-3" />
                   <span>Full view</span>
                 </button>
-                {rightCollapsed && (
-                  <button onClick={() => setRightCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
-                    <PanelRightOpen className="h-3.5 w-3.5" />
-                  </button>
-                )}
               </div>
             </div>
 
@@ -1696,34 +1551,12 @@ export default function IntelligencePage() {
         </main>
 
         {/* ════ RIGHT SIDEBAR ════ */}
-        {rightCollapsed ? (
-          <aside className="flex-shrink-0 border-l border-[#21262D] flex flex-col items-center pt-2 gap-3 z-20"
-            style={{ width: 28, background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)" }}>
-            <button onClick={() => setRightCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
-              <PanelRightOpen className="h-3.5 w-3.5" />
-            </button>
-            <span className="text-[9px] uppercase tracking-widest text-[#484F58] font-mono select-none"
-              style={{ writingMode: "vertical-rl" }}>Stats</span>
-          </aside>
-        ) : (
-          <aside className="flex-shrink-0 border-l border-[#21262D] flex flex-col overflow-y-auto relative"
-            style={{
-              width: `${rightWidth}px`,
-              minWidth: "clamp(176px, 13vw, 210px)",
-              maxWidth: "256px",
-              background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)",
-            }}
-          >
-            <div className="absolute left-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-              onMouseDown={startRightDrag} />
-
-            {/* Header with collapse */}
-            <div className="flex items-center justify-between px-2 py-1.5 border-b border-[#21262D] flex-shrink-0"
-              style={{ background: "linear-gradient(180deg, #1C2128 0%, #161B22 100%)" }}>
-              <span className="text-[9px] font-mono uppercase tracking-widest text-[#484F58]">Stats</span>
-              <button onClick={() => setRightCollapsed(true)} className="text-[#484F58] hover:text-[#8B949E] transition-colors">
-                <PanelRightClose className="h-3 w-3" />
-              </button>
+        <aside className="hidden lg:flex flex-col flex-shrink-0 h-full bg-[#161B22] border-l border-[#21262D] overflow-y-auto"
+          style={{ width: 220 }}
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262D] shrink-0">
+              <span className="text-[11px] font-sans text-[#8B949E]">Intelligence</span>
             </div>
 
             {/* Most Gapped Assets — compact mini-rows matching Dashboard active-gaps style */}
@@ -1828,11 +1661,10 @@ export default function IntelligencePage() {
             </ErrorBoundary>
 
             {/* Magnus AI card */}
-            <div className="px-2 py-1.5">
+            <div className="px-2 py-2">
               <MagnusAICard />
             </div>
-          </aside>
-        )}
+        </aside>
 
       </div>
 

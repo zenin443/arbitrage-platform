@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getReferralUrl } from "@/lib/referrals";
 
 interface RawPriceTick {
@@ -56,23 +56,23 @@ function CoinRow({ sym, price, changePercent, selected, onClick }: CoinRowProps)
   return (
     <div
       onClick={onClick}
-      style={{ display: "grid", gridTemplateColumns: "40px 1fr 42px" }}
+      style={{ display: "grid", gridTemplateColumns: "44px 1fr 46px" }}
       className={`items-center px-2 py-[5px] cursor-pointer transition-all border-l-2 ${
         selected
           ? "border-[#388BFD] bg-[#161B22]"
           : "border-transparent hover:bg-[#161B22]"
       }`}
     >
-      <span className="text-[11px] font-mono font-medium text-[#E6EDF3] truncate">
+      <span className="text-[11px] font-mono font-medium text-[#E6EDF3] truncate text-center">
         {sym}
       </span>
       <span
-        className="text-[11px] font-mono text-right tabular-nums transition-colors duration-300"
+        className="text-[11px] font-mono text-center tabular-nums transition-colors duration-300"
         style={{ color: priceColor }}
       >
         {formatPrice(price)}
       </span>
-      <span className={`text-[11px] font-mono text-right tabular-nums ${changeColor}`}>
+      <span className={`text-[11px] font-mono text-center tabular-nums ${changeColor}`}>
         {changePercent >= 0 ? "+" : ""}{changePercent.toFixed(1)}%
       </span>
     </div>
@@ -94,21 +94,12 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
   const [quote, setQuote] = useState<"USDT" | "USDC" | "BTC">("USDT");
   const [search, setSearch] = useState("");
   const [coins, setCoins] = useState<CoinEntry[]>([]);
-  const [sidebarWidth, setSidebarWidth] = useState(180);
+  const [adCollapsed, setAdCollapsed] = useState(false);
+  const [magnusCollapsed, setMagnusCollapsed] = useState(false);
   const [magnus, setMagnus] = useState<MagnusStats | null>(null);
   const firstSeenPrices = useRef<Record<string, number>>({});
   const hasAutoSelected = useRef(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem("coinSidebarWidth");
-    if (saved) setSidebarWidth(Math.max(140, Math.min(260, parseInt(saved))));
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("coinSidebarWidth", String(sidebarWidth));
-  }, [sidebarWidth]);
-
-  // Auto-select first coin when list first loads
   useEffect(() => {
     if (!hasAutoSelected.current && !selectedCoin && coins.length > 0) {
       hasAutoSelected.current = true;
@@ -137,28 +128,6 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
     return () => clearInterval(id);
   }, []);
 
-  const handleResizeMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      const startX = e.clientX;
-      const startWidth = sidebarWidth;
-      const onMouseMove = (ev: MouseEvent) => {
-        const newWidth = Math.max(140, Math.min(startWidth + (ev.clientX - startX), 260));
-        setSidebarWidth(newWidth);
-      };
-      const onMouseUp = () => {
-        document.removeEventListener("mousemove", onMouseMove);
-        document.removeEventListener("mouseup", onMouseUp);
-        document.body.style.cursor = "";
-        document.body.style.userSelect = "";
-      };
-      document.addEventListener("mousemove", onMouseMove);
-      document.addEventListener("mouseup", onMouseUp);
-      document.body.style.cursor = "ew-resize";
-      document.body.style.userSelect = "none";
-    },
-    [sidebarWidth]
-  );
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -233,8 +202,8 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
       `}</style>
 
       <aside
-        style={{ width: `${sidebarWidth}px` }}
-        className="relative hidden lg:flex flex-col flex-shrink-0 h-full bg-[#0D1117] border-r border-[#21262D]"
+        style={{ width: '200px' }}
+        className="hidden lg:flex flex-col flex-shrink-0 h-full bg-[#0D1117] border-r border-[#21262D]"
       >
         {/* USDT / USDC / BTC pill toggle */}
         <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#21262D] shrink-0">
@@ -267,12 +236,12 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
 
         {/* Column headers */}
         <div
-          style={{ display: "grid", gridTemplateColumns: "40px 1fr 42px" }}
+          style={{ display: "grid", gridTemplateColumns: "44px 1fr 46px" }}
           className="px-2 py-[4px] border-b border-[#21262D] shrink-0"
         >
-          <span className="text-[10px] font-sans text-[#484F58]">Coin</span>
-          <span className="text-[10px] font-sans text-[#484F58] text-right">Price</span>
-          <span className="text-[10px] font-sans text-[#484F58] text-right">Chg</span>
+          <span className="text-[10px] font-sans text-[#484F58] text-center">Coin</span>
+          <span className="text-[10px] font-sans text-[#484F58] text-center">Price</span>
+          <span className="text-[10px] font-sans text-[#484F58] text-center">Chg</span>
         </div>
 
         {/* Coin scroller — fixed max height, independent scroll */}
@@ -303,38 +272,53 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
           )}
         </div>
 
-        {/* Ad zone card */}
-        <div className="border-t border-[#21262D] p-2 shrink-0">
-          <div className="bg-[#388BFD]/[0.04] border border-[#388BFD]/10 rounded-md p-2.5 text-center">
-            <div className="text-[#388BFD] text-[12px] font-medium">Trade on Binance</div>
-            <div className="text-[#484F58] text-[11px]">Lowest fees in crypto</div>
-            <a
-              href={getReferralUrl("binance")}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#388BFD] text-[11px] underline mt-1 block"
-            >
-              Sign up now →
-            </a>
-          </div>
-        </div>
-
-        {/* Magnus Alpha widget */}
-        <div className="border-t border-[#21262D] p-2 shrink-0">
-          <div className="bg-[#161B22] border border-[#21262D] rounded-md p-2">
-            <div className="text-[#8B949E] text-[11px]">Magnus Alpha</div>
-            <div className="text-[#3FB950] text-[14px] font-medium font-mono">{magnusWinRate}</div>
-            <div className="text-[#484F58] text-[11px]">
-              {magnusTradeCount} trades · {magnusCapital} capital
+        {/* Ad zone card — collapsible */}
+        <div className="border-t border-[#21262D] shrink-0">
+          <button
+            onClick={() => setAdCollapsed(v => !v)}
+            className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-[#161B22] transition-colors"
+          >
+            <span className="text-[10px] font-sans text-[#484F58]">Exchange</span>
+            <span className="text-[10px] text-[#484F58]">{adCollapsed ? '▼' : '▲'}</span>
+          </button>
+          {!adCollapsed && (
+            <div className="px-2 pb-2">
+              <div className="bg-[#388BFD]/[0.04] border border-[#388BFD]/10 rounded-md p-2.5 text-center">
+                <div className="text-[#388BFD] text-[11px] font-medium">Trade on Binance</div>
+                <div className="text-[#484F58] text-[10px]">Lowest fees in crypto</div>
+                <a
+                  href={getReferralUrl("binance")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#388BFD] text-[10px] underline mt-1 block"
+                >
+                  Sign up now →
+                </a>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Resize handle on right edge */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-          onMouseDown={handleResizeMouseDown}
-        />
+        {/* Magnus Alpha widget — collapsible */}
+        <div className="border-t border-[#21262D] shrink-0">
+          <button
+            onClick={() => setMagnusCollapsed(v => !v)}
+            className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-[#161B22] transition-colors"
+          >
+            <span className="text-[10px] font-sans text-[#484F58]">Magnus Alpha</span>
+            <span className="text-[10px] text-[#484F58]">{magnusCollapsed ? '▼' : '▲'}</span>
+          </button>
+          {!magnusCollapsed && (
+            <div className="px-2 pb-2">
+              <div className="bg-[#161B22] border border-[#21262D] rounded-md p-2">
+                <div className="text-[#3FB950] text-[13px] font-medium font-mono">{magnusWinRate}</div>
+                <div className="text-[#484F58] text-[10px] mt-0.5">
+                  {magnusTradeCount} trades · {magnusCapital}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </aside>
     </>
   );

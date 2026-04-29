@@ -93,6 +93,8 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [quoteFilter, setQuoteFilter] = useState<string | null>(null);
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceTier | null>(null);
+  const [maxAgeMinutes, setMaxAgeMinutes] = useState<number>(0); // 0 = all time
   const seenIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -115,11 +117,15 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
     return () => clearInterval(interval);
   }, []);
 
-  // Apply type + quote filters
+  const now = Date.now();
   const filteredGaps = gaps.filter(g => {
-    const typeOk  = typeFilter  === null || g.type          === typeFilter;
-    const quoteOk = quoteFilter === null || g.quoteCurrency === quoteFilter;
-    return typeOk && quoteOk;
+    const typeOk       = typeFilter === null || g.type === typeFilter;
+    const quoteOk      = quoteFilter === null || g.quoteCurrency === quoteFilter;
+    const ageOk        = maxAgeMinutes === 0 || !g.detectedAt ||
+                         (now - g.detectedAt) <= maxAgeMinutes * 60_000;
+    const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0);
+    const confidenceOk = confidenceFilter === null || confidence === confidenceFilter;
+    return typeOk && quoteOk && ageOk && confidenceOk;
   });
 
   // Count per type for badges
@@ -197,6 +203,52 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
               </button>
             );
           })}
+        </div>
+
+        {/* Confidence + Time filters */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Confidence filter */}
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-[#484F58] font-sans mr-1 shrink-0">Confidence</span>
+            {(['high', 'medium', 'low'] as ConfidenceTier[]).map(tier => {
+              const active = confidenceFilter === tier;
+              const color =
+                tier === 'high'   ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/40 hover:text-[#3FB950]') :
+                tier === 'medium' ? (active ? 'bg-[#D29922]/20 border-[#D29922]/50 text-[#D29922]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#D29922]/40 hover:text-[#D29922]') :
+                                    (active ? 'bg-[#8B949E]/20 border-[#8B949E]/50 text-[#8B949E]'   : 'border-[#21262D] text-[#484F58] hover:border-[#8B949E]/40 hover:text-[#8B949E]');
+              return (
+                <button
+                  key={tier}
+                  onClick={() => setConfidenceFilter(confidenceFilter === tier ? null : tier)}
+                  className={clsx('px-2 py-0.5 rounded border text-[10px] font-mono transition-colors capitalize', color)}
+                >
+                  {tier}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Time detected filter */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-[#484F58] font-sans shrink-0">Detected within</span>
+            <input
+              type="number"
+              min={0}
+              value={maxAgeMinutes === 0 ? '' : maxAgeMinutes}
+              onChange={e => setMaxAgeMinutes(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0))}
+              placeholder="∞"
+              className="w-12 bg-[#161B22] border border-[#21262D] rounded px-1.5 py-0.5 text-[10px] font-mono text-[#E6EDF3] placeholder-[#484F58] outline-none focus:border-[#388BFD]/50 text-center"
+            />
+            <span className="text-[10px] text-[#484F58] font-sans shrink-0">min</span>
+            {maxAgeMinutes > 0 && (
+              <button
+                onClick={() => setMaxAgeMinutes(0)}
+                className="text-[10px] text-[#484F58] hover:text-[#F85149] transition-colors font-mono"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
