@@ -17,7 +17,6 @@ import OpportunityTable from "@/components/dashboard/OpportunityTable";
 import SignalInsightPanel from "@/components/dashboard/SignalInsightPanel";
 import AdZone from "@/components/ui/AdZone";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { formatPercent, formatNumber } from "@/lib/formatters";
 import NavAuthButton from "@/components/NavAuthButton";
 import { normalizeApiGapList, NormalizedGap } from "@/lib/response-transformer";
@@ -445,21 +444,10 @@ export default function DashboardPage() {
           {/* Opportunity table — fills remaining height */}
           <div className="flex-1 min-h-0 overflow-hidden">
             <ErrorBoundary name="Opportunities">
-              {opportunities.length === 0 && opportunityCount !== null ? (
-                <EmptyState
-                  title="No active signals"
-                  subtitle="Signals appear when arbitrage gaps are detected"
-                />
-              ) : (
-                <OpportunityTable
-                  onSelectSignal={(signal) => setSelectedSignal(signal)}
-                  selectedSignalId={
-                    selectedSignal
-                      ? selectedSignal.id
-                      : null
-                  }
-                />
-              )}
+              <OpportunityTable
+                onSelectSignal={(signal) => setSelectedSignal(signal)}
+                selectedSignalId={selectedSignal ? selectedSignal.id : null}
+              />
             </ErrorBoundary>
           </div>
 

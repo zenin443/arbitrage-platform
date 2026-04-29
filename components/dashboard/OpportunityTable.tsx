@@ -64,6 +64,25 @@ const CONFIDENCE_BADGE: Record<ConfidenceTier, string> = {
 
 type GapRecord = NormalizedGap;
 
+// ── Filter config ────────────────────────────────────────────────────────────
+
+const TYPE_FILTERS: Array<{ key: string | null; label: string; badge?: string }> = [
+  { key: null,           label: 'All' },
+  { key: 'cex_cex',      label: 'CEX-CEX' },
+  { key: 'spot_futures', label: 'Spot-F' },
+  { key: 'dex_cex',      label: 'DEX-CEX' },
+  { key: 'triangular',   label: 'Tri' },
+  { key: 'cross_chain',  label: 'X-Chain' },
+]
+
+const QUOTE_FILTERS: Array<{ key: string | null; label: string }> = [
+  { key: null,   label: 'All' },
+  { key: 'USDT', label: 'USDT' },
+  { key: 'USDC', label: 'USDC' },
+  { key: 'BTC',  label: 'BTC' },
+  { key: 'ETH',  label: 'ETH' },
+]
+
 interface OpportunityTableProps {
   onSelectSignal: (signal: GapRecord) => void;
   selectedSignalId: string | null;
@@ -72,6 +91,8 @@ interface OpportunityTableProps {
 export default function OpportunityTable({ onSelectSignal, selectedSignalId }: OpportunityTableProps) {
   const [gaps, setGaps] = useState<GapRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [quoteFilter, setQuoteFilter] = useState<string | null>(null);
   const seenIds = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -94,11 +115,21 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
     return () => clearInterval(interval);
   }, []);
 
+  // Apply type + quote filters
+  const filteredGaps = gaps.filter(g => {
+    const typeOk  = typeFilter  === null || g.type          === typeFilter;
+    const quoteOk = quoteFilter === null || g.quoteCurrency === quoteFilter;
+    return typeOk && quoteOk;
+  });
+
+  // Count per type for badges
+  const countByType = (key: string) => gaps.filter(g => g.type === key).length;
+
   // Detect whether all current rows are free-tier limited
-  const allFreeTier = gaps.length > 0 && gaps.every(g => g._isFreeTier);
+  const allFreeTier = filteredGaps.length > 0 && filteredGaps.every(g => g._isFreeTier);
 
   const newIds = new Set<string>();
-  for (const gap of gaps) {
+  for (const gap of filteredGaps) {
     const key = gap.id;
     if (!seenIds.current.has(key)) {
       newIds.add(key);
@@ -108,7 +139,68 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
 
   return (
     <div className="h-full flex flex-col bg-[#0D1117] border border-[#21262D] rounded-lg overflow-hidden">
-      {/* Table header */}
+      {/* ── Filter bar ── */}
+      <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-[#21262D] bg-[#0D1117] space-y-1.5">
+        {/* Type filters */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] text-[#484F58] font-sans mr-1 shrink-0">Type</span>
+          {TYPE_FILTERS.map(f => {
+            const count = f.key === null ? gaps.length : countByType(f.key);
+            const active = typeFilter === f.key;
+            const typeBg =
+              f.key === 'cex_cex'      ? (active ? 'bg-[#388BFD]/20 border-[#388BFD]/50 text-[#388BFD]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]') :
+              f.key === 'spot_futures' ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/30 hover:text-[#3FB950]') :
+              f.key === 'dex_cex'      ? (active ? 'bg-[#D29922]/20 border-[#D29922]/50 text-[#D29922]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#D29922]/30 hover:text-[#D29922]') :
+              f.key === 'triangular'   ? (active ? 'bg-[#BC8CFF]/20 border-[#BC8CFF]/50 text-[#BC8CFF]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#BC8CFF]/30 hover:text-[#BC8CFF]') :
+              f.key === 'cross_chain'  ? (active ? 'bg-[#F78166]/20 border-[#F78166]/50 text-[#F78166]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#F78166]/30 hover:text-[#F78166]') :
+              /* All */                  (active ? 'bg-[#E6EDF3]/10 border-[#8B949E]/50 text-[#E6EDF3]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#8B949E]/40 hover:text-[#E6EDF3]');
+
+            return (
+              <button
+                key={String(f.key)}
+                onClick={() => setTypeFilter(f.key)}
+                className={clsx(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
+                  typeBg
+                )}
+              >
+                {f.label}
+                {count > 0 && (
+                  <span className="text-[9px] opacity-70">{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* Quote currency filters */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <span className="text-[10px] text-[#484F58] font-sans mr-1 shrink-0">Quote</span>
+          {QUOTE_FILTERS.map(f => {
+            const count = f.key === null ? gaps.length : gaps.filter(g => g.quoteCurrency === f.key).length;
+            if (f.key !== null && count === 0) return null;
+            const active = quoteFilter === f.key;
+            return (
+              <button
+                key={String(f.key)}
+                onClick={() => setQuoteFilter(f.key)}
+                className={clsx(
+                  'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
+                  active
+                    ? 'bg-[#388BFD]/15 border-[#388BFD]/40 text-[#388BFD]'
+                    : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]'
+                )}
+              >
+                {f.label}
+                {count > 0 && f.key !== null && (
+                  <span className="text-[9px] opacity-70">{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Table header row (count badge) ── */}
       <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#21262D] shrink-0">
         <span className="text-[12px] font-sans text-[#388BFD]">
           Arbitrage opportunities
@@ -120,7 +212,10 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
             <>
               <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
               <span className="bg-[#388BFD]/10 text-[#388BFD] border border-[#388BFD]/20 text-[11px] px-2 py-0.5 rounded-full font-medium font-sans">
-                {gaps.length} signal{gaps.length !== 1 ? "s" : ""}
+                {filteredGaps.length !== gaps.length
+                  ? `${filteredGaps.length} / ${gaps.length}`
+                  : `${gaps.length}`}{' '}
+                signal{filteredGaps.length !== 1 ? 's' : ''}
               </span>
               {selectedSignalId && (
                 <span className="text-[11px] font-sans text-[#484F58]">
@@ -171,8 +266,22 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                   </div>
                 </td>
               </tr>
+            ) : filteredGaps.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="px-4 py-6">
+                  <div className="flex flex-col items-center gap-2 text-[#484F58]">
+                    <span className="text-[11px] font-sans text-[#8B949E]">No signals match the active filters</span>
+                    <button
+                      onClick={() => { setTypeFilter(null); setQuoteFilter(null); }}
+                      className="text-[11px] font-mono text-[#388BFD] hover:underline"
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                </td>
+              </tr>
             ) : (
-              gaps.map((gap) => {
+              filteredGaps.map((gap) => {
                 const key = gap.id;
                 const isFreeTier = gap._isFreeTier;
                 const tier = computeConfidence(gap.spreadPercent, gap.durationMs);
@@ -190,8 +299,11 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
                                       "border-l-[#21262D]";
 
                 const typeBadgeClass =
+                  gap.type === 'cex_cex'      ? 'bg-[#388BFD]/12 text-[#388BFD]' :
                   gap.type === 'spot_futures' ? 'bg-[#3FB950]/12 text-[#3FB950]' :
                   gap.type === 'dex_cex'      ? 'bg-[#D29922]/12 text-[#D29922]' :
+                  gap.type === 'triangular'   ? 'bg-[#BC8CFF]/12 text-[#BC8CFF]' :
+                  gap.type === 'cross_chain'  ? 'bg-[#F78166]/12 text-[#F78166]' :
                                                 'bg-[#388BFD]/12 text-[#388BFD]';
 
                 return (

@@ -344,7 +344,9 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
     sellPrice:       typeof raw.sellPrice       === 'number' ? raw.sellPrice       : 0,
     durationMs:      typeof raw.durationMs      === 'number' ? raw.durationMs      : 0,
     maxTradeableUsd: typeof raw.maxTradeableUsd === 'number' ? raw.maxTradeableUsd : 0,
-    detectedAt:      typeof raw.detectedAt      === 'number' ? raw.detectedAt      : 0,
+    detectedAt:      typeof raw.detectedAt      === 'number' ? raw.detectedAt
+                   : typeof raw.detectedAt      === 'string' && raw.detectedAt !== '' ? parseInt(raw.detectedAt as string, 10) || 0
+                   : 0,
     isActive:        typeof raw.isActive        === 'boolean' ? raw.isActive       : true,
     profitSimulation: raw.profitSimulation ? (raw.profitSimulation as Record<string, unknown>) : null,
     depthAnalysis:    raw.depthAnalysis    ? (raw.depthAnalysis    as Record<string, unknown>) : null,
