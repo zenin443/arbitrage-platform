@@ -204,56 +204,7 @@ function durationColor(ms: number): string {
   return "text-[#F85149]";
 }
 
-// ─── SparklineSVG ─────────────────────────────────────────────────────────────
-
-function SparklineSVG({ data, color, id }: { data: number[]; color: string; id: string }) {
-  if (data.length < 2) return null;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const w = 200, h = 30;
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 4) - 2;
-    return `${x},${y}`;
-  });
-  const pathD = `M${points.join(" L")}`;
-  const areaD = `${pathD} L${w},${h} L0,${h}Z`;
-  const gradId = `sparkfade-${id}`;
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="absolute bottom-0 left-0 right-0"
-      style={{ height: "30px", width: "100%", opacity: 0.15 }}
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#${gradId})`} />
-      <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-// ─── StatDeltaBadge ───────────────────────────────────────────────────────────
-
-function StatDeltaBadge({ history }: { history: number[] }) {
-  if (history.length < 2) return null;
-  const prev = history[history.length - 2];
-  const curr = history[history.length - 1];
-  if (prev === 0) return null;
-  const deltaPct = ((curr - prev) / Math.abs(prev)) * 100;
-  const isUp = curr >= prev;
-  return (
-    <span className={`text-[10px] font-mono ${isUp ? "text-[#3FB950]" : "text-[#F85149]"}`}>
-      {isUp ? "+" : ""}{deltaPct.toFixed(1)}%
-    </span>
-  );
-}
+// ─── DepthDetailPanel (see below) ─────────────────────────────────────────────
 
 // ─── DepthDetailPanel ─────────────────────────────────────────────────────────
 
@@ -766,19 +717,6 @@ export default function IntelligencePage() {
     };
   }, [fetchStats, fetchProfitable, fetchAlertConfig, fetchPrices]);
 
-  // ── Duration buckets ──
-  const buckets = stats?.durationBuckets;
-  const bucketTotal = buckets
-    ? buckets.under5s + buckets.under30s + buckets.under1m + buckets.under5m + buckets.over5m
-    : 0;
-  function bucketPct(n: number): number {
-    return bucketTotal > 0 ? Math.round((n / bucketTotal) * 100) : 0;
-  }
-  const pctUnder5s  = buckets ? bucketPct(buckets.under5s) : 0;
-  const pctUnder30s = buckets ? bucketPct(buckets.under30s) : 0;
-  const pctUnder1m  = buckets ? bucketPct(buckets.under1m) : 0;
-  const pctOver1m   = buckets ? bucketPct(buckets.under5m + buckets.over5m) : 0;
-
   // ── Gap type breakdown ──
   const typeCounts = profitableGaps.reduce((acc, g) => {
     acc[g.type] = (acc[g.type] || 0) + 1;
@@ -825,33 +763,6 @@ export default function IntelligencePage() {
   }, [profitableGaps]);
 
   // ── Exchange pricing bias (fixed: handles array or {ticks:[]}) ──
-  const pricingBias = useMemo(() => {
-    if (ticks.length === 0) return [];
-    const bySymbol: Record<string, { ex: string; price: number }[]> = {};
-    ticks.forEach(t => {
-      const sym = t.symbol || t.s;
-      const ex  = t.exchangeId || t.exchange || t.e;
-      const mid = ((t.bid || 0) + (t.ask || 0)) / 2;
-      if (mid > 0 && ex && sym) {
-        if (!bySymbol[sym]) bySymbol[sym] = [];
-        bySymbol[sym].push({ ex, price: mid });
-      }
-    });
-    const exStats: Record<string, { below: number; total: number }> = {};
-    Object.values(bySymbol).forEach(entries => {
-      const avg = entries.reduce((s, e) => s + e.price, 0) / entries.length;
-      entries.forEach(({ ex, price }) => {
-        if (!exStats[ex]) exStats[ex] = { below: 0, total: 0 };
-        exStats[ex].total++;
-        if (price < avg) exStats[ex].below++;
-      });
-    });
-    return Object.entries(exStats)
-      .filter(([, d]) => d.total >= 3)
-      .map(([ex, d]) => ({ ex, cheapPct: Math.round((d.below / d.total) * 100) }))
-      .sort((a, b) => b.cheapPct - a.cheapPct)
-      .slice(0, 7);
-  }, [ticks]);
 
   // ── Type profitability ──
   const typeProfitability = useMemo(() => {
@@ -1022,15 +933,10 @@ export default function IntelligencePage() {
     { key: "under05", count: spreadBuckets.under05, label: "0.3-0.5", bg: "linear-gradient(180deg, rgba(63,185,80,0.55) 0%, rgba(63,185,80,0.22) 100%)",   border: "rgba(63,185,80,0.65)",  color: "#3FB950" },
     { key: "over05",  count: spreadBuckets.over05,  label: ">0.5",    bg: "linear-gradient(180deg, rgba(56,139,253,0.38) 0%, rgba(56,139,253,0.12) 100%)", border: "rgba(56,139,253,0.45)", color: "#388BFD" },
   ];
-  const tallestBucketKey = spreadHistBuckets.reduce(
-    (prev, curr) => curr.count > prev.count ? curr : prev,
-    spreadHistBuckets[0]
-  ).key;
 
   // ── Type profitability rank helpers ──
   const profitTypes   = typeProfitability.filter(t => t.count > 0);
   const maxSpreadType = profitTypes.length ? profitTypes.reduce((a, b) => a.avgSpread > b.avgSpread ? a : b).type : "";
-  const minSpreadType = profitTypes.length > 1 ? profitTypes.reduce((a, b) => a.avgSpread < b.avgSpread ? a : b).type : "";
 
   // ── Stat cards — identical card style to Dashboard ──
   const _gapsDetected   = stats?.totalGapsLast1h ?? 0;
