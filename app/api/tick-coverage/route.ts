@@ -19,8 +19,9 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
     const data = await res.json();
     return NextResponse.json(data);
   } catch (err) {
+    console.error('[api/tick-coverage] Price server unavailable:', err);
     return NextResponse.json(
-      { error: 'Price server unavailable', detail: String(err) },
+      { error: 'Price server unavailable' },
       { status: 503 }
     );
   }
