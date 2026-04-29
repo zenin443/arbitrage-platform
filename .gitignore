@@ -36,3 +36,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# live runtime bot data — written continuously by price server, never commit
+server/data/magnus-alpha.json
+server/data/magnus-beta-1k.json
+server/data/magnus-beta-10k.json
+server/data/magnus-rate-harvest.json
