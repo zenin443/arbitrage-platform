@@ -1,3 +1,5 @@
+import 'dotenv/config'
+
 process.on('uncaughtException', (error) => {
   console.error('[FATAL] Uncaught exception:', error.message)
   console.error(error.stack)
@@ -56,7 +58,7 @@ import { DexPrice, CexDexOpportunity } from './adapters/dex/base'
 import { startNewListingScanner, getNewListings, getNewListingStats } from './scanners/new-listing-scanner'
 import { startAlertEngine, getAlertConfig, updateAlertConfig, getRecentAlerts, getAlertStats } from './services/alert-engine'
 import { startTradingIntelligence, getActiveGaps, getGapHistory, getTradingStats, getProfitableGaps } from './services/trading-intelligence'
-import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider } from './services/orderbook-fetcher'
+import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider, getOrFetchRawBooks } from './services/orderbook-fetcher'
 import { startTriangularEngine, getTriangularRoutes, getCrossPairCount } from './engines/triangularArbitrage'
 import { startCrossChainEngine, getCrossChainOpportunities } from './engines/crossChainArbitrage'
 import { startStablecoinEngine } from './engines/stablecoinArbitrage'
@@ -691,12 +693,14 @@ const httpServer = http.createServer(async (req, res) => {
       json(res, 400, { error: 'Missing symbol, buyExchange, or sellExchange params' })
       return
     }
-    const analysis = getCachedDepthAnalysis(
-      symbol,
-      buyExchange,
-      sellExchange
-    )
-    json(res, 200, analysis ?? { error: 'No depth data available yet', symbol, buyExchange, sellExchange })
+    try {
+      const result = await getOrFetchRawBooks(symbol, buyExchange, sellExchange)
+      json(res, 200, result ?? { error: 'No depth data available yet', symbol, buyExchange, sellExchange })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[Orderbook] fetch error for ${symbol} ${buyExchange}/${sellExchange}:`, msg)
+      json(res, 200, { error: 'Exchange API error', symbol, buyExchange, sellExchange })
+    }
     return
   }
 

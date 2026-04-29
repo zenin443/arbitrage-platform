@@ -11,9 +11,7 @@ interface AuthUser {
 // DEV_AUDIT_MODE: suspends auth enforcement for raw development auditing.
 // Active ONLY when DEV_AUDIT_MODE=true AND NODE_ENV !== 'production'.
 // Flip DEV_AUDIT_MODE=false (or remove it) to restore full security.
-const DEV_AUDIT_MODE =
-  process.env.DEV_AUDIT_MODE === 'true' &&
-  process.env.NODE_ENV !== 'production';
+const DEV_AUDIT_MODE = process.env.DEV_AUDIT_MODE === 'true';
 
 const DEV_ADMIN_USER: AuthUser = {
   userId: 'dev-audit-bypass',

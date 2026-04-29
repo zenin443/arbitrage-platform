@@ -286,7 +286,7 @@ function DepthDetailPanel({ gap }: { gap: GapRecord }) {
   if (gap._isFreeTier) {
     return (
       <tr>
-        <td colSpan={6} className="px-3 py-2 bg-[#0D1117] border-t border-[#21262D]">
+        <td colSpan={7} className="px-3 py-2 bg-[#0D1117] border-t border-[#21262D]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-mono text-[#484F58]">
               Order book depth · profit simulation · exact prices
@@ -563,17 +563,7 @@ const GapRow = React.memo(function GapRow({
             </>
           )}
         </td>
-        {/* Max USD — position sizing */}
-        <td className="text-[10px] font-mono px-2 py-1 whitespace-nowrap">
-          {isFreeTier || !gap.maxTradeableUsd ? (
-            <span className="text-[#484F58]">—</span>
-          ) : (
-            <span className={gap.maxTradeableUsd >= 10_000 ? "text-[#3FB950]" : gap.maxTradeableUsd >= 1_000 ? "text-[#D29922]" : "text-[#8B949E]"}>
-              {fmtUsd(gap.maxTradeableUsd, 0)}
-            </span>
-          )}
-        </td>
-        {/* Sim P&L @$1K — simulated profit at $1,000 trade size */}
+        {/* Est. Profit @$1K — simulated profit at $1,000 trade size */}
         <td className="text-[10px] font-mono px-2 py-1 whitespace-nowrap">
           {isFreeTier || !gap.profitSimulation ? (
             <span className="text-[#484F58]">—</span>
@@ -593,10 +583,12 @@ const GapRow = React.memo(function GapRow({
             <span className="text-[10px] font-mono text-[#484F58]">—</span>
           ) : (
             <span
-              className={`text-[10px] px-1 py-0 rounded-sm font-mono ${
-                score >= scoreThresholds.high ? "text-[#3FB950]" :
-                score >= scoreThresholds.med  ? "text-[#D29922]" :
-                "text-[#484F58]"
+              className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded ${
+                score >= scoreThresholds.high
+                  ? "bg-[#3FB950]/15 text-[#3FB950]"
+                  : score >= scoreThresholds.med
+                  ? "bg-[#D29922]/15 text-[#D29922]"
+                  : "bg-[#484F58]/15 text-[#484F58]"
               }`}
             >
               {score >= scoreThresholds.high ? "HIGH" : score >= scoreThresholds.med ? "MED" : "LOW"}
@@ -609,7 +601,7 @@ const GapRow = React.memo(function GapRow({
   );
 }, gapRowPropsEqual);
 
-const TABLE_HEADERS = ["Symbol", "Type", "Spread", "Route", "Max USD", "Sim P&L", "Duration", "Score"];
+const TABLE_HEADERS = ["Symbol", "Type", "Spread", "Route", "Est. Profit", "Duration", "Score"];
 
 interface PriceTick {
   symbol?: string; s?: string;
@@ -644,7 +636,6 @@ export default function IntelligencePage() {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [expandedModal, setExpandedModal] = useState<string | null>(null);
-  const [leftTab, setLeftTab] = useState<"pulse" | "routes" | "types" | "bias">("pulse");
   const closeModal = useCallback(() => setExpandedModal(null), []);
 
   const [statHistory, setStatHistory] = useState<{
@@ -1085,21 +1076,68 @@ export default function IntelligencePage() {
   const maxSpreadType = profitTypes.length ? profitTypes.reduce((a, b) => a.avgSpread > b.avgSpread ? a : b).type : "";
   const minSpreadType = profitTypes.length > 1 ? profitTypes.reduce((a, b) => a.avgSpread < b.avgSpread ? a : b).type : "";
 
-  return (
-    <div className="flex flex-col h-screen bg-[#0D1117] text-[#E6EDF3] overflow-hidden">
+  // ── Stat cards — identical card style to Dashboard ──
+  const _gapsDetected   = stats?.totalGapsLast1h ?? 0;
+  const _gaps24h        = stats?.totalGapsLast24h ?? 0;
+  const _profCount      = stats?.profitableGapsCount ?? 0;
+  const _profRate       = stats?.profitableGapsPercent ?? 0;
+  const _avgSpread      = stats?.avgSpreadPercent ?? 0;
+  const _bestSpreadVal  = stats?.bestSpreadSeen?.spreadPercent ?? 0;
+  const _bestSpreadSym  = stats?.bestSpreadSeen?.symbol ?? "";
 
-      {/* ── Top Nav ── */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-2 border-b border-[#21262D] flex-shrink-0" style={{ background: "linear-gradient(180deg, #1C2128 0%, #161B22 100%)" }}>
+  const intelStatCards = [
+    {
+      label: "Gaps Detected",
+      value: _gapsDetected > 0 ? formatNumber(_gapsDetected) : "—",
+      subtitle: `${_gaps24h > 0 ? formatNumber(_gaps24h) : "—"} last 24h`,
+      glow: "bg-[#3FB950]/5", glowBorder: _gapsDetected > 0 ? "hover:border-[#3FB950]/40" : "",
+      pulse: _gapsDetected > 0, pulseColor: "#3FB950",
+      valueColor: _gapsDetected > 0 ? "text-[#3FB950]" : "text-[#E6EDF3]",
+    },
+    {
+      label: "Profitable",
+      value: _profCount > 0 ? formatNumber(_profCount) : "—",
+      subtitle: `${_profRate}% conversion rate`,
+      glow: _profCount > 0 ? "bg-[#3FB950]/5" : "bg-transparent",
+      glowBorder: _profCount > 0 ? "hover:border-[#3FB950]/40" : "",
+      pulse: _profCount > 0, pulseColor: "#3FB950",
+      valueColor: _profCount > 0 ? "text-[#3FB950]" : "text-[#E6EDF3]",
+    },
+    {
+      label: "Avg Net Spread",
+      value: _avgSpread > 0 ? formatPercent(_avgSpread, 3) : "—",
+      subtitle: "after fees",
+      glow: _avgSpread >= 0.2 ? "bg-[#3FB950]/5" : _avgSpread > 0 ? "bg-[#D29922]/5" : "bg-transparent",
+      glowBorder: _avgSpread >= 0.2 ? "hover:border-[#3FB950]/40" : "",
+      pulse: false, pulseColor: "#3FB950",
+      valueColor: _avgSpread >= 0.2 ? "text-[#3FB950]" : _avgSpread >= 0.05 ? "text-[#D29922]" : "text-[#E6EDF3]",
+    },
+    {
+      label: "Best Spread",
+      value: _bestSpreadVal > 0 ? formatPercent(_bestSpreadVal, 3) : "—",
+      subtitle: _bestSpreadSym || "no data yet",
+      glow: _bestSpreadVal > 0 ? "bg-[#388BFD]/5" : "bg-transparent",
+      glowBorder: _bestSpreadVal > 0 ? "hover:border-[#388BFD]/40" : "",
+      pulse: _bestSpreadVal >= 0.5, pulseColor: "#388BFD",
+      valueColor: _bestSpreadVal >= 0.5 ? "text-[#388BFD]" : _bestSpreadVal >= 0.2 ? "text-[#3FB950]" : "text-[#E6EDF3]",
+    },
+  ];
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
+
+      {/* ── Top nav — identical structure to Dashboard ── */}
+      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
         <div className="flex items-center gap-3">
           <ZapIcon className="h-4 w-4 text-[#388BFD]" />
-          <span className="text-[13px] font-medium text-[#388BFD]">Arbitrage Terminal</span>
-          <span className="text-[#484F58] select-none">|</span>
-          <span className="text-[11px] text-[#484F58] font-mono">v0.7.4</span>
+          <span className="text-[14px] font-medium font-sans text-[#388BFD]">Arbitrage Terminal</span>
+          <span className="text-[#484F58] select-none mx-1">|</span>
+          <span className="text-[12px] text-[#484F58] font-mono">v0.7.4</span>
         </div>
-        <div className="flex items-center gap-1 text-[11px]">
+        <div className="flex items-center gap-1 text-xs overflow-x-auto">
           <div className="flex items-center gap-1 mr-2">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
-            <span className="text-[#3FB950] font-mono">LIVE</span>
+            <span className="animate-pulse bg-[#3FB950] rounded-full w-1.5 h-1.5" />
+            <span className="text-[#3FB950] font-mono text-[11px]">LIVE</span>
           </div>
           {!isRealtime && (
             <span className="text-[10px] font-mono text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/30 rounded px-1.5 py-0.5 mr-1">
@@ -1107,24 +1145,24 @@ export default function IntelligencePage() {
             </span>
           )}
           {connectionStatus === 'connecting' && (
-            <span className="text-[11px] text-[#D29922] font-mono mr-1">Connecting…</span>
+            <span className="text-[#D29922] font-mono text-[11px] mr-1">Connecting…</span>
           )}
           {connectionStatus === 'error' && (
-            <span className="text-[11px] text-[#F85149] font-mono mr-1">Backend unavailable</span>
+            <span className="text-[#F85149] font-mono text-[11px] mr-1">Backend unavailable</span>
           )}
-          <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px]">
+          <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px] whitespace-nowrap">
             Intelligence
           </Link>
-          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
+          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
             Magnus
           </Link>
-          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
+          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
             DEX Markets
           </Link>
-          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
+          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
             Funding Rates
           </Link>
-          <Link href="/dashboard" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
+          <Link href="/dashboard" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
             Dashboard
           </Link>
           <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
@@ -1133,9 +1171,6 @@ export default function IntelligencePage() {
           <NavAuthButton />
         </div>
       </header>
-
-      {/* ── Ad pill — only for free users ── */}
-      <AdBanner zone="pill" />
 
       {/* ── 3-column layout ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1146,147 +1181,123 @@ export default function IntelligencePage() {
             className="flex-shrink-0 border-r border-[#21262D] flex flex-col items-center pt-2 gap-3 z-20"
             style={{ width: 28, background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)" }}
           >
-            <button
-              onClick={() => setLeftCollapsed(false)}
-              className="text-[#484F58] hover:text-[#388BFD] transition-colors"
-              title="Expand sidebar"
-            >
+            <button onClick={() => setLeftCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors" title="Expand sidebar">
               <PanelLeftOpen className="h-3.5 w-3.5" />
             </button>
-            {/* Vertical label */}
-            <span
-              className="text-[9px] uppercase tracking-widest text-[#484F58] font-mono select-none"
-              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-            >
-              Intel
-            </span>
+            <span className="text-[9px] uppercase tracking-widest text-[#484F58] font-mono select-none"
+              style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>Intel</span>
           </aside>
         ) : (
-        <aside
-          className="flex-shrink-0 border-r border-[#21262D] flex flex-col overflow-y-auto relative"
-          style={{
-            width: `${leftWidth}px`,
-            minWidth: "clamp(160px, 13vw, 200px)",
-            maxWidth: "260px",
-            background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)",
-          }}
-        >
-          <div
-            className="absolute right-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-            onMouseDown={startLeftDrag}
-          />
+          <aside
+            className="flex-shrink-0 border-r border-[#21262D] flex flex-col overflow-y-auto relative"
+            style={{
+              width: `${leftWidth}px`,
+              minWidth: "clamp(156px, 12vw, 196px)",
+              maxWidth: "224px",
+              background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)",
+            }}
+          >
+            <div className="absolute right-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
+              onMouseDown={startLeftDrag} />
 
-          {/* Market pulse */}
-          {/* Sidebar header with tab nav */}
-          <div className="flex-shrink-0 border-b border-[#21262D]" style={{ background: "linear-gradient(180deg, #1C2128 0%, #161B22 100%)" }}>
-            <div className="flex items-center justify-between px-2 pt-1.5 pb-0">
-              <span className="text-[9px] font-mono uppercase tracking-widest text-[#484F58]">Intel</span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setExpandedModal(`left-${leftTab}`)}
-                  className="text-[#484F58] hover:text-[#388BFD] transition-colors"
-                  title="Expand panel"
-                >
-                  <Maximize2 className="h-3 w-3" />
-                </button>
-                <button onClick={() => setLeftCollapsed(true)} className="text-[#484F58] hover:text-[#8B949E] transition-colors" title="Collapse">
-                  <PanelLeftClose className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-            <div className="flex">
-              {(["pulse", "routes", "types", "bias"] as const).map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setLeftTab(tab)}
-                  className={`flex-1 text-[8px] uppercase font-mono py-1.5 transition-colors border-b-2 ${
-                    leftTab === tab
-                      ? "text-[#388BFD] border-[#388BFD]"
-                      : "text-[#484F58] border-transparent hover:text-[#8B949E]"
+            {/* Market tabs — ALL | USDT | USDC | BTC — same style as Dashboard */}
+            <div className="flex border-b border-[#21262D] flex-shrink-0" style={{ background: "#161B22" }}>
+              {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => (
+                <button key={q}
+                  onClick={() => setQuoteFilter(q)}
+                  className={`flex-1 text-[9px] font-mono py-1.5 transition-colors border-b-2 ${
+                    quoteFilter === q ? "text-[#3FB950] border-[#3FB950]" : "text-[#484F58] border-transparent hover:text-[#8B949E]"
                   }`}
-                >
-                  {tab}
-                </button>
+                >{q}</button>
               ))}
+              <button onClick={() => setLeftCollapsed(true)}
+                className="px-1.5 text-[#484F58] hover:text-[#8B949E] transition-colors border-b-2 border-transparent">
+                <PanelLeftClose className="h-3 w-3" />
+              </button>
             </div>
-          </div>
 
-          {/* Tab: PULSE */}
-          {leftTab === "pulse" && (
-            <div className="p-2 space-y-3 overflow-y-auto flex-1">
+            {/* Pulse — 2 numbers + duration bar */}
+            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-2">
               <div className="grid grid-cols-2 gap-1.5">
-                <div className="rounded border border-[#21262D] py-2 text-center" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-                  <div className="text-[20px] text-[#3FB950] font-medium font-mono leading-none">{formatNumber(stats?.totalGapsLast1h ?? 0)}</div>
-                  <div className="text-[8px] text-[#484F58] font-mono mt-1">gaps/hr</div>
+                <div className="rounded border border-[#21262D] py-1.5 text-center"
+                  style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
+                  <div className="text-[18px] text-[#3FB950] font-medium font-mono leading-none">{formatNumber(stats?.totalGapsLast1h ?? 0)}</div>
+                  <div className="text-[8px] text-[#484F58] font-mono mt-0.5">gaps/hr</div>
                 </div>
-                <div className="rounded border border-[#21262D] py-2 text-center" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-                  <div className="text-[20px] text-[#E6EDF3] font-medium font-mono leading-none">{profitableGaps.length}</div>
-                  <div className="text-[8px] text-[#484F58] font-mono mt-1">tracked</div>
+                <div className="rounded border border-[#21262D] py-1.5 text-center"
+                  style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
+                  <div className="text-[18px] text-[#E6EDF3] font-medium font-mono leading-none">{profitableGaps.length}</div>
+                  <div className="text-[8px] text-[#484F58] font-mono mt-0.5">tracked</div>
                 </div>
               </div>
-              {/* Duration bar */}
               {buckets && (
-                <div>
-                  <div className="text-[8px] font-mono uppercase tracking-widest text-[#484F58] mb-1.5">Duration split</div>
-                  <div className="flex h-[5px] rounded overflow-hidden mb-1.5">
+                <div className="mt-1.5">
+                  <div className="flex h-[4px] rounded overflow-hidden mb-1">
                     <div className="bg-[#F85149]" style={{ width: `${pctUnder5s}%` }} />
                     <div className="bg-[#D29922]" style={{ width: `${pctUnder30s}%` }} />
                     <div className="bg-[#3FB950]" style={{ width: `${pctUnder1m}%` }} />
                     <div className="bg-[#388BFD]" style={{ width: `${pctOver1m}%` }} />
                   </div>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2">
                     {[{ bg: "#F85149", label: "<5s" }, { bg: "#D29922", label: "<30s" }, { bg: "#3FB950", label: "<1m" }, { bg: "#388BFD", label: ">1m" }].map(b => (
-                      <div key={b.label} className="flex items-center gap-1">
+                      <div key={b.label} className="flex items-center gap-0.5">
                         <div className="w-[3px] h-[3px] rounded-sm flex-shrink-0" style={{ background: b.bg }} />
-                        <span className="text-[8px] text-[#484F58] font-mono">{b.label}</span>
+                        <span className="text-[7px] text-[#484F58] font-mono">{b.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-          )}
 
-          {/* Tab: ROUTES */}
-          {leftTab === "routes" && (
-            <div className="p-2 overflow-y-auto flex-1">
-              <div className="text-[8px] font-mono uppercase tracking-widest text-[#484F58] mb-2">Top routes</div>
+            {/* Top Routes — always visible, 5 rows */}
+            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Top Routes</span>
+                <InfoCorner text={TIP.topRoutes} />
+              </div>
               <ErrorBoundary name="Top routes">
                 {!stats?.exchangePairRanking?.length ? (
-                  <WidgetSkeleton type="list" rows={5} />
+                  <WidgetSkeleton type="list" rows={4} />
                 ) : (
                   <div>
-                    {stats.exchangePairRanking.slice(0, 7).map((pair, i) => (
-                      <div key={`${pair.buyExchange}-${pair.sellExchange}`} className="flex items-center justify-between border-b border-[#21262D]/25" style={{ height: 22 }}>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-mono text-[#484F58] w-3">{i + 1}</span>
-                          <span className="text-[10px] font-mono text-[#E6EDF3]">{shortEx(pair.buyExchange)}<span className="text-[#484F58]">→</span>{shortEx(pair.sellExchange)}</span>
+                    {stats.exchangePairRanking.slice(0, 5).map((pair, i) => (
+                      <div key={`${pair.buyExchange}-${pair.sellExchange}`}
+                        className="flex items-center justify-between border-b border-[#21262D]/25" style={{ height: 20 }}>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[8px] font-mono text-[#484F58] w-3">{i + 1}</span>
+                          <span className="text-[9px] font-mono">
+                            <span className="text-[#388BFD]">{shortEx(pair.buyExchange)}</span>
+                            <span className="text-[#484F58]">→</span>
+                            <span className="text-[#F85149]">{shortEx(pair.sellExchange)}</span>
+                          </span>
                         </div>
-                        <span className={`text-[10px] font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>{pair.gapCount}</span>
+                        <span className={`text-[9px] font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>{pair.gapCount}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </ErrorBoundary>
             </div>
-          )}
 
-          {/* Tab: TYPES */}
-          {leftTab === "types" && (
-            <div className="p-2 overflow-y-auto flex-1 space-y-3">
-              <div className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Gap type mix</div>
+            {/* Gap Types — always visible */}
+            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Gap Types</span>
+                <InfoCorner text={TIP.gapTypes} />
+              </div>
               <ErrorBoundary name="Gap types">
                 {profitableGaps.length === 0 ? <WidgetSkeleton type="list" rows={3} /> : (
-                  <div className="space-y-3">
+                  <div className="space-y-1.5">
                     {[
-                      { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#3FB950", grad: "linear-gradient(90deg, rgba(63,185,80,0.85) 0%, rgba(63,185,80,0.3) 100%)" },
-                      { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#D29922", grad: "linear-gradient(90deg, rgba(210,153,34,0.85) 0%, rgba(210,153,34,0.3) 100%)" },
-                      { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#388BFD", grad: "linear-gradient(90deg, rgba(56,139,253,0.85) 0%, rgba(56,139,253,0.3) 100%)" },
+                      { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#388BFD", grad: "linear-gradient(90deg, rgba(56,139,253,0.8) 0%, rgba(56,139,253,0.3) 100%)" },
+                      { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#3FB950", grad: "linear-gradient(90deg, rgba(63,185,80,0.8) 0%, rgba(63,185,80,0.3) 100%)" },
+                      { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#A371F7", grad: "linear-gradient(90deg, rgba(163,113,247,0.8) 0%, rgba(163,113,247,0.3) 100%)" },
                     ].map(row => (
                       <div key={row.label}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-[10px] font-mono text-[#8B949E]">{row.label}</span>
-                          <span className="text-[10px] font-mono" style={{ color: row.color }}>{row.count} <span className="text-[#484F58]">({row.pct}%)</span></span>
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-[9px] font-mono text-[#8B949E]">{row.label}</span>
+                          <span className="text-[9px] font-mono" style={{ color: row.color }}>{row.pct}%</span>
                         </div>
                         <div className="h-[3px] bg-[#21262D] rounded overflow-hidden">
                           <div className="h-full rounded transition-all duration-500" style={{ width: `${row.pct}%`, background: row.grad }} />
@@ -1297,174 +1308,103 @@ export default function IntelligencePage() {
                 )}
               </ErrorBoundary>
             </div>
-          )}
 
-          {/* Tab: BIAS */}
-          {leftTab === "bias" && (
-            <div className="p-2 overflow-y-auto flex-1 space-y-3">
-              <div>
-                <div className="text-[8px] font-mono uppercase tracking-widest text-[#484F58] mb-1.5">Pricing bias</div>
-                <ErrorBoundary name="Pricing bias">
-                  {pricingBias.length === 0 ? (
-                    <EmptyState title="Calculating" subtitle="Requires tick data" />
-                  ) : (
-                    <>
-                      <div className="flex justify-between text-[8px] font-mono text-[#484F58] mb-1.5"><span>← Buy</span><span>Sell →</span></div>
-                      <div className="space-y-1">
-                        {pricingBias.map(({ ex, cheapPct }) => (
-                          <div key={ex} className="flex items-center gap-1.5" style={{ height: 18 }}>
-                            <span className={`text-[9px] font-mono w-7 flex-shrink-0 ${cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#8B949E]"}`}>{shortEx(ex)}</span>
-                            <div className="flex-1 flex h-[5px] relative">
-                              <div className="absolute top-0 bottom-0 w-px bg-[#484F58]/30" style={{ left: "50%" }} />
-                              <div className="w-1/2 flex justify-end overflow-hidden">
-                                <div className="h-full bg-[#3FB950] rounded-l" style={{ width: `${cheapPct}%`, opacity: cheapPct > 55 ? 0.6 : 0.2 }} />
-                              </div>
-                              <div className="w-1/2 overflow-hidden">
-                                <div className="h-full bg-[#F85149] rounded-r" style={{ width: `${100 - cheapPct}%`, opacity: cheapPct < 45 ? 0.6 : 0.2 }} />
-                              </div>
-                            </div>
-                            <span className="text-[8px] font-mono text-[#484F58] w-6 text-right flex-shrink-0">{cheapPct}%</span>
+            {/* Pricing Bias — always visible */}
+            <div className="flex-shrink-0 border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58]">Pricing Bias</span>
+                <InfoCorner text={TIP.pricingBias} />
+              </div>
+              <ErrorBoundary name="Pricing bias">
+                {pricingBias.length === 0 ? (
+                  <div className="text-[8px] font-mono text-[#484F58] py-1 text-center">Calculating…</div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {pricingBias.slice(0, 5).map(({ ex, cheapPct }) => (
+                      <div key={ex} className="flex items-center gap-1.5" style={{ height: 16 }}>
+                        <span className={`text-[8px] font-mono w-6 flex-shrink-0 ${cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#8B949E]"}`}>
+                          {shortEx(ex)}
+                        </span>
+                        <div className="flex-1 flex h-[4px] relative">
+                          <div className="absolute top-0 bottom-0 w-px bg-[#484F58]/30" style={{ left: "50%" }} />
+                          <div className="w-1/2 flex justify-end overflow-hidden">
+                            <div className="h-full bg-[#3FB950] rounded-l" style={{ width: `${cheapPct}%`, opacity: cheapPct > 55 ? 0.7 : 0.2 }} />
                           </div>
-                        ))}
+                          <div className="w-1/2 overflow-hidden">
+                            <div className="h-full bg-[#F85149] rounded-r" style={{ width: `${100 - cheapPct}%`, opacity: cheapPct < 45 ? 0.7 : 0.2 }} />
+                          </div>
+                        </div>
+                        <span className="text-[7px] font-mono text-[#484F58] w-5 text-right flex-shrink-0">{cheapPct}%</span>
                       </div>
-                    </>
-                  )}
-                </ErrorBoundary>
+                    ))}
+                  </div>
+                )}
+              </ErrorBoundary>
+            </div>
+
+            {/* Bottom: Magnus compact card + ad */}
+            <div className="mt-auto">
+              <div className="border-t border-[#21262D]/50 px-2 py-1.5">
+                <MagnusAICard />
+              </div>
+              <div className="border-t border-[#21262D]/30 px-1.5 py-1 flex-shrink-0">
+                <AdBanner zone="contextual-signal" context={{ exchange: "okx" }} />
               </div>
             </div>
-          )}
-
-          {/* Ad — footer of sidebar */}
-          <div className="mt-auto border-t border-[#21262D]/30 flex-shrink-0 px-1.5 py-1">
-            <AdBanner zone="contextual-signal" context={{ exchange: "okx" }} />
-          </div>
-        </aside>
+          </aside>
         )}
 
         {/* ════ CENTER MAIN ════ */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden p-3 gap-2">
 
-          {/* ── KPI bar ── */}
-          <div
-            className="flex-shrink-0 flex items-center gap-0 px-3 border-b border-[#21262D] overflow-x-auto"
-            style={{ height: 52, background: "linear-gradient(180deg, #1C2128 0%, #161B22 100%)" }}
-          >
-            {(() => {
-              const profitableActive = (stats?.profitableGapsCount ?? 0) > 0;
-              const spreadVal = stats?.avgSpreadPercent ?? 0;
-              const durMs = stats?.avgGapDurationMs ?? 0;
-              const sim24h = stats?.totalSimulatedProfit24h ?? 0;
-              const bestSp = stats?.bestSpreadSeen?.spreadPercent ?? 0;
-              const bestSym = stats?.bestSpreadSeen?.symbol ?? "";
-              const kpis = [
-                {
-                  label: "GAPS/HR", value: formatNumber(stats?.totalGapsLast1h ?? 0),
-                  sub: `${formatNumber(stats?.totalGapsLast24h ?? 0)} 24h`,
-                  color: "#8B949E", sparkData: statHistory.gaps, ping: false,
-                },
-                {
-                  label: "PROFITABLE", value: formatNumber(stats?.profitableGapsCount ?? 0),
-                  sub: `${stats?.profitableGapsPercent ?? 0}% rate`,
-                  color: profitableActive ? "#3FB950" : "#8B949E", sparkData: statHistory.profitable, ping: profitableActive,
-                },
-                {
-                  label: "AVG SPREAD", value: formatPercent(spreadVal, 3),
-                  sub: "after fees",
-                  color: spreadVal >= 0.2 ? "#3FB950" : spreadVal >= 0.05 ? "#D29922" : "#8B949E", sparkData: statHistory.spread, ping: false,
-                },
-                {
-                  label: "GAP LIFE", value: formatDuration(durMs),
-                  sub: "avg open",
-                  color: durMs >= 60_000 ? "#3FB950" : durMs >= 30_000 ? "#D29922" : "#F85149", sparkData: statHistory.duration, ping: false,
-                },
-                {
-                  label: "SIM PROFIT 24H", value: fmtUsd(sim24h),
-                  sub: `1h: ${fmtUsd(stats?.totalSimulatedProfit1h ?? 0)}`,
-                  color: sim24h >= 0 ? "#3FB950" : "#F85149", sparkData: statHistory.profitable, ping: false,
-                },
-                {
-                  label: "BEST SPREAD", value: bestSp > 0 ? formatPercent(bestSp, 3) : "—",
-                  sub: bestSym || "no data",
-                  color: bestSp >= 0.5 ? "#388BFD" : bestSp >= 0.2 ? "#3FB950" : "#D29922", sparkData: statHistory.spread, ping: bestSp >= 0.5,
-                },
-              ];
-              return kpis.map((k, i) => (
-                <div key={k.label} className="flex items-center flex-shrink-0">
-                  {i > 0 && <div className="w-px h-3.5 bg-[#21262D] mx-2.5 flex-shrink-0" />}
-                  <div className="flex flex-col gap-0">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[8px] font-mono uppercase tracking-widest text-[#484F58] whitespace-nowrap">{k.label}</span>
-                      {k.ping && <span className="h-1 w-1 rounded-full bg-[#388BFD] animate-pulse flex-shrink-0" />}
-                    </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-[12px] font-mono font-medium tabular-nums whitespace-nowrap" style={{ color: k.color }}>{k.value}</span>
-                      <StatDeltaBadge history={k.sparkData} />
-                    </div>
-                    <span className="text-[8px] font-mono text-[#484F58] whitespace-nowrap leading-none">{k.sub}</span>
-                  </div>
-                </div>
-              ));
-            })()}
-
-            {/* Right side: filter + sidebar toggles */}
-            <div className="ml-auto flex items-center gap-3">
-              {filterSymbol && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[9px] font-mono text-[#484F58]">SYM</span>
-                  <span className="text-[9px] font-mono bg-[#3FB950]/10 border border-[#3FB950]/25 text-[#3FB950] px-1.5 rounded">{filterSymbol}</span>
-                  <button onClick={() => setFilterSymbol(null)} className="text-[#484F58] hover:text-[#F85149] text-[9px] transition-colors">✕</button>
-                </div>
-              )}
-              <div className="flex items-center gap-1">
-                <span className="text-[9px] font-mono text-[#484F58]">MIN</span>
-                <input
-                  type="number" step="0.01" min="0"
-                  value={filterInput}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="w-10 text-[10px] font-mono bg-[#0D1117] border border-[#21262D] rounded px-1 py-0 text-center text-[#E6EDF3] focus:outline-none focus:border-[#388BFD] transition-colors"
-                  style={{ height: 20 }}
-                />
-                <span className="text-[9px] font-mono text-[#484F58]">%</span>
-              </div>
-              {leftCollapsed && (
-                <button onClick={() => setLeftCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors" title="Open Intel panel">
-                  <PanelLeftOpen className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {rightCollapsed && (
-                <button onClick={() => setRightCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors" title="Open Stats panel">
-                  <PanelRightOpen className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
+          {/* Ad pill */}
+          <div className="shrink-0">
+            <AdBanner zone="pill" />
           </div>
 
-          {/* ── Widget row: Heatmap · Spread Distribution ── */}
-          <div
-            className="flex-shrink-0"
-            style={{ display: "grid", gridTemplateColumns: "3fr 1fr", gap: "4px", height: 152, padding: "2px 6px" }}
-          >
-            {/* ── Matrix Heatmap: symbol × exchange ── */}
+          {/* 4 Stat cards — IDENTICAL to Dashboard card style */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
+            {intelStatCards.map(card => (
+              <div key={card.label}
+                className={`relative bg-gradient-to-br from-[#161B22] to-[#0D1117] border border-[#21262D] rounded-lg p-2.5 overflow-hidden transition-colors ${card.glowBorder}`}
+              >
+                <div className={`absolute top-0 right-0 w-12 h-12 rounded-full blur-xl pointer-events-none ${card.glow}`} />
+                {card.pulse && (
+                  <span className="absolute top-2 right-2 flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ backgroundColor: card.pulseColor }} />
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: card.pulseColor }} />
+                  </span>
+                )}
+                <div className="flex items-start justify-between mb-0.5">
+                  <span className="text-[11px] font-sans text-[#8B949E]">{card.label}</span>
+                </div>
+                <div className={`text-[20px] font-mono font-medium tabular-nums mt-0.5 ${card.valueColor}`}>{card.value}</div>
+                <div className="text-[11px] text-[#484F58] font-sans truncate mt-0.5">{card.subtitle}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 3-column widget row — Heatmap | Spread Dist | Type Profit */}
+          <div className="shrink-0 grid gap-2" style={{ gridTemplateColumns: "5fr 3fr 2.5fr", height: 172 }}>
+
+            {/* Heatmap */}
             <ErrorBoundary name="Arbitrage heatmap">
-            <div
-              className="overflow-hidden border border-[#21262D] rounded-md flex flex-col p-1.5"
-              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}
-            >
+            <div className="border border-[#21262D] rounded-lg overflow-hidden flex flex-col p-1.5"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}>
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Arb heatmap · click to filter</span>
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Arb Heatmap · click to filter</span>
                 <div className="flex items-center gap-1">
                   <InfoCorner text={TIP.heatmap} />
-                  <button
-                    onClick={() => setExpandedModal("heatmap")}
-                    className="text-[#484F58] hover:text-[#E6EDF3] transition-colors"
-                    title="Expand heatmap"
-                  >
+                  {filterSymbol && (
+                    <button onClick={() => setFilterSymbol(null)}
+                      className="text-[8px] font-mono text-[#F85149] hover:opacity-80 px-1">✕{filterSymbol}</button>
+                  )}
+                  <button onClick={() => setExpandedModal("heatmap")} className="text-[#484F58] hover:text-[#E6EDF3] transition-colors" title="Expand heatmap">
                     <Maximize2 className="h-3 w-3" />
                   </button>
                 </div>
               </div>
               {profitableGaps.length === 0 ? (
-                // U6: animated pulse skeleton during first fetch; never re-shown once data arrives
                 <div className="flex-1 flex flex-col gap-[3px] p-1 justify-center">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="flex gap-[2px]" style={{ opacity: 0.4 + i * 0.05 }}>
@@ -1477,7 +1417,6 @@ export default function IntelligencePage() {
                 </div>
               ) : (
                 <div className="flex-1 min-h-0 flex flex-col justify-between">
-                  {/* Exchange column headers */}
                   <div className="flex mb-[2px]" style={{ marginLeft: 30 }}>
                     {HEATMAP_EXS.map(ex => (
                       <div key={ex} className="flex-1 text-center">
@@ -1485,13 +1424,11 @@ export default function IntelligencePage() {
                       </div>
                     ))}
                   </div>
-                  {/* Symbol rows */}
                   <div className="flex flex-col gap-[2px]">
                     {HEATMAP_SYMS.map(sym => {
                       const isSelected = filterSymbol === sym;
                       return (
                         <div key={sym} className="flex items-center gap-[2px]">
-                          {/* Symbol label */}
                           <span
                             className={`text-[8px] font-mono text-right pr-1 flex-shrink-0 cursor-pointer ${isSelected ? "text-[#3FB950]" : "text-[#8B949E]"}`}
                             style={{ width: 28 }}
@@ -1538,63 +1475,39 @@ export default function IntelligencePage() {
             </div>
             </ErrorBoundary>
 
-            {/* ── Spread Distribution Histogram ── */}
+            {/* Spread Distribution */}
             <ErrorBoundary name="Spread distribution">
-            <div
-              className="overflow-hidden border border-[#21262D] rounded-md flex flex-col p-1.5"
-              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}
-            >
+            <div className="border border-[#21262D] rounded-lg overflow-hidden flex flex-col p-1.5"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}>
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Spread dist.</span>
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Spread Dist</span>
                 <div className="flex items-center gap-1">
                   <InfoCorner text={TIP.spreadDist} />
-                  <button
-                    onClick={() => setExpandedModal("spread")}
-                    className="text-[#484F58] hover:text-[#E6EDF3] transition-colors"
-                    title="Expand spread distribution"
-                  >
+                  <button onClick={() => setExpandedModal("spread")} className="text-[#484F58] hover:text-[#E6EDF3] transition-colors">
                     <Maximize2 className="h-3 w-3" />
                   </button>
                 </div>
               </div>
               {profitableGaps.length === 0 ? (
-                // U6: shimmer bars match histogram shape during first load
                 <div className="flex items-end gap-[2px] flex-1 px-1 pb-1">
-                  {[40, 70, 100, 80, 55, 30, 20].map((h, i) => (
+                  {[40, 70, 100, 80, 55].map((h, i) => (
                     <div key={i} className="flex-1 rounded-t bg-[#21262D] animate-pulse" style={{ height: `${h}%`, animationDelay: `${i * 80}ms` }} />
                   ))}
                 </div>
               ) : (
                 <>
-                  <div className="flex items-end gap-[2px] flex-1 min-h-0" style={{ minHeight: 0 }}>
+                  <div className="flex items-end gap-[2px] flex-1 min-h-0">
                     {spreadHistBuckets.map(b => (
                       <div key={b.key} className="flex flex-col items-center flex-1 h-full justify-end">
-                        <span className="font-mono text-[#8B949E] mb-0.5 leading-none text-[9px]">
-                          {b.count > 0 ? b.count : ""}
-                        </span>
-                        <div
-                          className="w-full rounded-t"
-                          style={{
-                            height: `${Math.max(2, (b.count / maxBucket) * 46)}px`,
-                            background: b.bg,
-                            border: `0.5px solid ${b.border}`,
-                          }}
-                        />
+                        <span className="font-mono text-[#8B949E] mb-0.5 leading-none text-[8px]">{b.count > 0 ? b.count : ""}</span>
+                        <div className="w-full rounded-t"
+                          style={{ height: `${Math.max(2, (b.count / maxBucket) * 50)}px`, background: b.bg, border: `0.5px solid ${b.border}` }} />
                       </div>
                     ))}
                   </div>
                   <div className="flex mt-1 flex-shrink-0">
                     {spreadHistBuckets.map(b => (
-                      <span
-                        key={b.key}
-                        className="flex-1 text-center text-[9px] font-mono"
-                        style={{
-                          color: b.color,
-                          fontWeight: b.key === tallestBucketKey ? 500 : 400,
-                        }}
-                      >
-                        {b.label}
-                      </span>
+                      <span key={b.key} className="flex-1 text-center text-[8px] font-mono" style={{ color: b.color }}>{b.label}</span>
                     ))}
                   </div>
                 </>
@@ -1602,53 +1515,105 @@ export default function IntelligencePage() {
             </div>
             </ErrorBoundary>
 
+            {/* Type Profit */}
+            <ErrorBoundary name="Type profitability">
+            <div className="border border-[#21262D] rounded-lg overflow-hidden flex flex-col p-1.5"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}>
+              <div className="flex justify-between items-center mb-1 flex-shrink-0">
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Type Profit</span>
+                <InfoCorner text={TIP.typeProfitability} />
+              </div>
+              {profitableGaps.length === 0 ? (
+                <WidgetSkeleton type="list" rows={3} />
+              ) : (
+                <div className="flex-1 space-y-2 pt-1">
+                  {typeProfitability.map(t => {
+                    const maxSp = Math.max(...typeProfitability.map(x => x.avgSpread), 0.01);
+                    const barPct = t.count > 0 ? (t.avgSpread / maxSp) * 100 : 0;
+                    return (
+                      <div key={t.type}>
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-[9px] font-mono font-medium" style={{ color: t.color }}>{t.label}</span>
+                          <span className="text-[8px] font-mono text-[#8B949E]">{t.count > 0 ? formatPercent(t.avgSpread, 2) : "—"}</span>
+                        </div>
+                        <div className="h-[4px] bg-[#21262D] rounded overflow-hidden">
+                          <div className="h-full rounded transition-all duration-500"
+                            style={{ width: `${barPct}%`, background: t.color,
+                              boxShadow: t.type === maxSpreadType ? `0 0 4px ${t.color}60` : "none" }} />
+                        </div>
+                        <div className="text-[7px] font-mono text-[#484F58] mt-0.5">{t.count} gaps</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            </ErrorBoundary>
 
-          </div>
+          </div>{/* end 3-col widget row */}
 
-          {/* Ad banner — only for free users */}
-          <div className="flex-shrink-0">
-            <AdBanner zone="horizontal" />
+          {/* Live signals subtitle — matches Dashboard */}
+          <div className="flex justify-between items-center shrink-0">
+            <span className="text-[11px] text-[#8B949E] font-sans">
+              Live gaps · polled every 3s · net spread after all fees
+            </span>
+            <span className="text-[11px] text-[#484F58] font-sans hidden lg:block">
+              click any row to expand orderbook →
+            </span>
           </div>
 
           {/* ── Live gaps table ── */}
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ padding: "0 var(--pad-md, 6px)" }}>
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1">
 
-            {/* Quote currency filter pills */}
-            <div className="flex items-center gap-1 py-1 flex-shrink-0">
-              {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => {
-                const isActive = quoteFilter === q;
-                const count = q === "ALL" ? profitableGaps.filter(g => g.spreadPercent >= minSpread).length : quoteCounts[q];
-                return (
-                  <button
-                    key={q}
-                    onClick={() => setQuoteFilter(q)}
-                    className="text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors"
-                    style={{
-                      background:   isActive ? "rgba(63,185,80,0.12)" : "transparent",
-                      color:        isActive ? "#3FB950" : "#484F58",
-                      borderColor:  isActive ? "rgba(63,185,80,0.35)" : "rgba(33,38,45,0.8)",
-                    }}
-                  >
-                    {q} <span style={{ opacity: 0.7 }}>({count})</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Table toolbar */}
-            <div className="flex items-center justify-between py-1 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] font-mono uppercase tracking-widest text-[#3FB950]">Live gaps</span>
-                <span className="text-[9px] font-mono bg-[#3FB950]/10 border border-[#3FB950]/20 text-[#3FB950] px-1.5 rounded">{filteredGaps.length}</span>
+            {/* Market filter tabs + toolbar on one line — matching Dashboard style */}
+            <div className="flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-1">
+                {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => {
+                  const isActive = quoteFilter === q;
+                  const count = q === "ALL" ? profitableGaps.filter(g => g.spreadPercent >= minSpread).length : quoteCounts[q];
+                  return (
+                    <button key={q} onClick={() => setQuoteFilter(q)}
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors"
+                      style={{
+                        background:  isActive ? "rgba(63,185,80,0.12)" : "transparent",
+                        color:       isActive ? "#3FB950" : "#484F58",
+                        borderColor: isActive ? "rgba(63,185,80,0.35)" : "rgba(33,38,45,0.8)",
+                      }}
+                    >{q} <span style={{ opacity: 0.7 }}>({count})</span></button>
+                  );
+                })}
+                <div className="flex items-center gap-1 ml-2">
+                  <span className="text-[9px] font-mono text-[#484F58]">MIN</span>
+                  <input type="number" step="0.01" min="0" value={filterInput}
+                    onChange={(e) => handleFilterChange(e.target.value)}
+                    className="w-10 text-[10px] font-mono bg-[#0D1117] border border-[#21262D] rounded px-1 py-0 text-center text-[#E6EDF3] focus:outline-none focus:border-[#388BFD] transition-colors"
+                    style={{ height: 20 }} />
+                  <span className="text-[9px] font-mono text-[#484F58]">%</span>
+                </div>
+                {filterSymbol && (
+                  <div className="flex items-center gap-1 ml-1">
+                    <span className="text-[9px] font-mono bg-[#3FB950]/10 border border-[#3FB950]/25 text-[#3FB950] px-1.5 rounded">{filterSymbol}</span>
+                    <button onClick={() => setFilterSymbol(null)} className="text-[#484F58] hover:text-[#F85149] text-[9px] transition-colors">✕</button>
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => setExpandedModal("table")}
-                className="flex items-center gap-1 text-[9px] font-mono text-[#484F58] hover:text-[#388BFD] transition-colors"
-                title="Expand table full-screen"
-              >
-                <Maximize2 className="h-3 w-3" />
-                <span>Full view</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-[#3FB950]">Live gaps</span>
+                  <span className="text-[9px] font-mono bg-[#3FB950]/10 border border-[#3FB950]/20 text-[#3FB950] px-1.5 rounded">{filteredGaps.length}</span>
+                  <span className="text-[9px] font-mono text-[#484F58]">{lastUpdated}</span>
+                </div>
+                <button onClick={() => setExpandedModal("table")}
+                  className="flex items-center gap-1 text-[9px] font-mono text-[#484F58] hover:text-[#388BFD] transition-colors">
+                  <Maximize2 className="h-3 w-3" />
+                  <span>Full view</span>
+                </button>
+                {rightCollapsed && (
+                  <button onClick={() => setRightCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
+                    <PanelRightOpen className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Scrollable table */}
@@ -1715,234 +1680,149 @@ export default function IntelligencePage() {
             </ErrorBoundary>
 
             {/* Footer note */}
-            <div className="text-[10px] text-right py-1 text-[#484F58] border-t border-[#21262D] flex-shrink-0">
-              All spreads net of fees
-            </div>
+            <p className="text-[11px] text-[#484F58] font-sans text-right shrink-0 hidden lg:block">
+              All spreads net of taker fees + withdrawal fees · Notional trade size $1,000 USDT
+            </p>
           </div>
         </main>
 
         {/* ════ RIGHT SIDEBAR ════ */}
         {rightCollapsed ? (
-          <aside
-            className="flex-shrink-0 border-l border-[#21262D] flex flex-col items-center pt-2 gap-3 z-20"
-            style={{ width: 28, background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)" }}
-          >
-            <button
-              onClick={() => setRightCollapsed(false)}
-              className="text-[#484F58] hover:text-[#388BFD] transition-colors"
-              title="Expand sidebar"
-            >
+          <aside className="flex-shrink-0 border-l border-[#21262D] flex flex-col items-center pt-2 gap-3 z-20"
+            style={{ width: 28, background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)" }}>
+            <button onClick={() => setRightCollapsed(false)} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
               <PanelRightOpen className="h-3.5 w-3.5" />
             </button>
-            <span
-              className="text-[9px] uppercase tracking-widest text-[#484F58] font-mono select-none"
-              style={{ writingMode: "vertical-rl" }}
-            >
-              Stats
-            </span>
+            <span className="text-[9px] uppercase tracking-widest text-[#484F58] font-mono select-none"
+              style={{ writingMode: "vertical-rl" }}>Stats</span>
           </aside>
         ) : (
-        <aside
-          className="flex-shrink-0 border-l border-[#21262D] flex flex-col overflow-y-auto relative"
-          style={{
-            width: `${rightWidth}px`,
-            minWidth: "clamp(180px, 14vw, 210px)",
-            maxWidth: "300px",
-            background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)",
-          }}
-        >
-          <div
-            className="absolute left-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-            onMouseDown={startRightDrag}
-          />
+          <aside className="flex-shrink-0 border-l border-[#21262D] flex flex-col overflow-y-auto relative"
+            style={{
+              width: `${rightWidth}px`,
+              minWidth: "clamp(176px, 13vw, 210px)",
+              maxWidth: "256px",
+              background: "linear-gradient(180deg, #161B22 0%, #0F1319 100%)",
+            }}
+          >
+            <div className="absolute left-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
+              onMouseDown={startRightDrag} />
 
-          {/* ── Dense leaderboard: Most gapped assets ── */}
-          <ErrorBoundary name="Most gapped assets">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Most gapped assets</span>
-              <div className="flex items-center gap-1">
-                <InfoCorner text={TIP.mostGapped} />
-                <button
-                  onClick={() => setExpandedModal("leaderboard")}
-                  className="text-[#484F58] hover:text-[#388BFD] transition-colors"
-                  title="Expand leaderboard"
-                >
-                  <Maximize2 className="h-3 w-3" />
-                </button>
-                <button
-                  onClick={() => setRightCollapsed(true)}
-                  className="text-[#484F58] hover:text-[#8B949E] transition-colors"
-                  title="Collapse sidebar"
-                >
-                  <PanelRightClose className="h-3 w-3" />
-                </button>
-              </div>
+            {/* Header with collapse */}
+            <div className="flex items-center justify-between px-2 py-1.5 border-b border-[#21262D] flex-shrink-0"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #161B22 100%)" }}>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-[#484F58]">Stats</span>
+              <button onClick={() => setRightCollapsed(true)} className="text-[#484F58] hover:text-[#8B949E] transition-colors">
+                <PanelRightClose className="h-3 w-3" />
+              </button>
             </div>
-            {!leaderboard.length ? (
-              <WidgetSkeleton type="list" rows={5} />
-            ) : (
-              <div style={{ fontSize: "11px" }}>
-                {leaderboard.map((item, i) => (
-                  <div
-                    key={item.coin}
-                    className="flex items-center gap-2 hover:bg-[#161B22]/60"
-                    style={{ fontSize: "11px", height: "22px" }}
-                  >
-                    <span
-                      className={`font-mono w-[14px] text-right flex-shrink-0 ${i === 0 ? "text-[#D29922]" : "text-[#484F58]"}`}
-                      style={{ fontSize: "10px" }}
-                    >
-                      {i + 1}
-                    </span>
-                    <span
-                      className={`font-mono flex-1 ${
-                        i === 0 ? "text-[#E6EDF3] font-medium" : i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"
-                      }`}
-                    >
-                      {item.coin}
-                    </span>
-                    <span className="font-mono text-[#3FB950] w-[20px] text-right">{item.count}</span>
-                    <span className="font-mono text-[#484F58] w-[42px] text-right">{item.maxSpread.toFixed(3)}%</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </ErrorBoundary>
 
-          {/* Price variance index */}
-          <ErrorBoundary name="Price variance">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Price variance</span>
-              <div className="flex items-center gap-1">
-                <InfoCorner text={TIP.priceVariance} />
-                <button
-                  onClick={() => setExpandedModal("priceVariance")}
-                  className="text-[#484F58] hover:text-[#388BFD] transition-colors"
-                  title="Expand price variance"
-                >
+            {/* Most Gapped Assets — compact mini-rows matching Dashboard active-gaps style */}
+            <ErrorBoundary name="Most gapped assets">
+            <div className="border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Most Gapped</span>
+                  <InfoCorner text={TIP.mostGapped} />
+                </div>
+                <button onClick={() => setExpandedModal("leaderboard")} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
                   <Maximize2 className="h-3 w-3" />
                 </button>
               </div>
+              {!leaderboard.length ? (
+                <WidgetSkeleton type="list" rows={5} />
+              ) : (
+                <div>
+                  {leaderboard.map((item, i) => (
+                    <div key={item.coin} className="flex items-center gap-1.5 hover:bg-[#1C2128]/60" style={{ height: 20 }}>
+                      <span className={`text-[9px] font-mono w-3 text-right flex-shrink-0 ${i === 0 ? "text-[#D29922]" : "text-[#484F58]"}`}>{i + 1}</span>
+                      <span className={`text-[10px] font-mono flex-1 ${i === 0 ? "text-[#E6EDF3] font-medium" : i < 3 ? "text-[#C9D1D9]" : "text-[#8B949E]"}`}>
+                        {item.coin}
+                      </span>
+                      <span className="text-[10px] font-mono text-[#3FB950] w-5 text-right">{item.count}</span>
+                      <span className="text-[9px] font-mono text-[#484F58] w-10 text-right">{item.maxSpread.toFixed(3)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            {priceVariance.length === 0 ? (
-              <EmptyState title="Calculating price variance" subtitle="Requires multi-exchange price data" />
-            ) : (
-              <div className="space-y-0">
-                {priceVariance.map((item, i) => {
-                  const isExtreme = item.variance > 5;
-                  const maxVar    = priceVariance[0].variance;
-                  const barWidth  = maxVar > 0 ? (item.variance / maxVar) * 100 : 0;
-                  return (
-                    <div
-                      key={item.symbol}
-                      className="flex items-center gap-1 py-[1px]"
-                      style={{ height: "20px" }}
-                    >
-                      <span
-                        className={`text-[10px] font-mono w-[45px] flex-shrink-0 ${
-                          isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
-                        }`}
-                      >
-                        {item.symbol}
+            </ErrorBoundary>
+
+            {/* Price Variance */}
+            <ErrorBoundary name="Price variance">
+            <div className="border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Price Variance</span>
+                  <InfoCorner text={TIP.priceVariance} />
+                </div>
+                <button onClick={() => setExpandedModal("priceVariance")} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
+                  <Maximize2 className="h-3 w-3" />
+                </button>
+              </div>
+              {priceVariance.length === 0 ? (
+                <div className="text-[9px] font-mono text-[#484F58] py-1 text-center">Calculating…</div>
+              ) : (
+                <div className="space-y-0">
+                  {priceVariance.map((item, i) => {
+                    const isExtreme = item.variance > 5;
+                    const barWidth  = priceVariance[0].variance > 0 ? (item.variance / priceVariance[0].variance) * 100 : 0;
+                    return (
+                      <div key={item.symbol} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
+                        <span className={`text-[10px] font-mono w-[40px] flex-shrink-0 ${isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"}`}>
+                          {item.symbol}
+                        </span>
+                        <div className="flex-1 h-[4px] bg-[#21262D] rounded overflow-hidden">
+                          <div className="h-full rounded"
+                            style={{ width: `${barWidth}%`, background: isExtreme ? "linear-gradient(90deg, #3FB950, #F85149)" : i < 2 ? "#D29922" : "#484F58" }} />
+                        </div>
+                        <span className={`text-[10px] font-mono w-[30px] text-right flex-shrink-0 ${isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"}`}>
+                          {item.variance.toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            </ErrorBoundary>
+
+            {/* Exchange Coverage */}
+            <ErrorBoundary name="Exchange coverage">
+            <div className="border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Exchange Coverage</span>
+                <InfoCorner text={TIP.exchangeCoverage} />
+              </div>
+              {exchangeCoverage.length === 0 ? (
+                <WidgetSkeleton type="list" rows={4} />
+              ) : (
+                <div className="space-y-0">
+                  {exchangeCoverage.map((ex, i) => (
+                    <div key={ex.name} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
+                      <span className={`text-[10px] font-mono flex-shrink-0 ${i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}`} style={{ width: "32px" }}>
+                        {shortEx(ex.name)}
                       </span>
                       <div className="flex-1 h-[4px] bg-[#21262D] rounded overflow-hidden">
-                        <div
-                          className="h-full rounded"
-                          style={{
-                            width: `${barWidth}%`,
-                            background: isExtreme
-                              ? "linear-gradient(90deg, #3FB950, #F85149)"
-                              : i < 2 ? "#D29922" : "#484F58",
-                          }}
-                        />
+                        <div className="h-full rounded transition-all duration-500"
+                          style={{ width: `${Math.round((ex.symbols / maxExSymbols) * 100)}%`,
+                            background: i < 3 ? "linear-gradient(90deg, rgba(63,185,80,0.5), #3FB950)" : i < 6 ? "linear-gradient(90deg, rgba(56,139,253,0.4), #388BFD)" : "rgba(139,148,158,0.4)" }} />
                       </div>
-                      <span
-                        className={`text-[10px] font-mono w-[35px] text-right flex-shrink-0 ${
-                          isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
-                        }`}
-                      >
-                        {item.variance.toFixed(1)}%
+                      <span className={`text-[10px] font-mono ${i < 3 ? "text-[#3FB950]" : "text-[#8B949E]"}`} style={{ width: "18px", textAlign: "right" }}>
+                        {ex.symbols}
                       </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          </ErrorBoundary>
-
-          {/* ── Gradient coverage bars ── */}
-          <ErrorBoundary name="Exchange coverage">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Exchange coverage</span>
-              <InfoCorner text={TIP.exchangeCoverage} />
+                  ))}
+                </div>
+              )}
             </div>
-            {exchangeCoverage.length === 0 ? (
-              <WidgetSkeleton type="list" rows={5} />
-            ) : (
-              <div className="space-y-0">
-                {exchangeCoverage.map((ex, i) => (
-                  <div key={ex.name} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
-                    <span
-                      className={`text-[10px] font-mono flex-shrink-0 ${i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}`}
-                      style={{ width: "35px" }}
-                    >
-                      {shortEx(ex.name)}
-                    </span>
-                    <div className="flex-1 h-[5px] bg-[#21262D] rounded overflow-hidden">
-                      <div
-                        className="h-full rounded"
-                        style={{
-                          width: `${Math.round((ex.symbols / maxExSymbols) * 100)}%`,
-                          background: i < 3
-                            ? "linear-gradient(90deg, rgba(63,185,80,0.5), #3FB950)"
-                            : i < 6
-                            ? "linear-gradient(90deg, rgba(56,139,253,0.4), #388BFD)"
-                            : "rgba(139,148,158,0.4)",
-                          transition: "width 0.5s",
-                        }}
-                      />
-                    </div>
-                    <span
-                      className={`text-[10px] font-mono ${i < 3 ? "text-[#3FB950]" : "text-[#8B949E]"}`}
-                      style={{ width: "18px", textAlign: "right" }}
-                    >
-                      {ex.symbols}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </ErrorBoundary>
+            </ErrorBoundary>
 
-          {/* Magnus AI card */}
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <MagnusAICard />
-          </div>
-
-          {/* Ad zone — only for free users */}
-          <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
-            <AdBanner zone="contextual-signal" context={{ exchange: "binance" }} />
-          </div>
-
-          {/* Upgrade nudge — shown to free users */}
-          {!isRealtime && (
-            <div style={{ padding: "4px 6px" }}>
-              <div className="bg-[#D29922]/4 border border-[#21262D]/30 rounded-md p-1 text-center">
-                <div className="text-[10px] text-[#D29922] font-medium">Upgrade to Pro</div>
-                <div className="text-[10px] text-[#484F58] mt-0.5">Real-time alerts + Magnus AI</div>
-                <a href="/pricing" className="text-[10px] text-[#D29922] block mt-0.5">
-                  View plans →
-                </a>
-              </div>
+            {/* Magnus AI card */}
+            <div className="px-2 py-1.5">
+              <MagnusAICard />
             </div>
-          )}
-        </aside>
+          </aside>
         )}
 
       </div>
@@ -2024,140 +1904,6 @@ export default function IntelligencePage() {
               ))}
             </div>
             <p className="text-[10px] font-mono text-[#484F58] mt-4">{TIP.spreadDist}</p>
-          </div>
-        </ExpandedModal>
-      )}
-
-      {/* Left sidebar — Pulse tab modal */}
-      {expandedModal === "left-pulse" && (
-        <ExpandedModal title="Market Pulse" subtitle="live throughput · gap activity" onClose={closeModal}>
-          <div className="p-6 grid grid-cols-3 gap-4">
-            <div className="rounded-lg border border-[#21262D] p-4 text-center" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-              <div className="text-[32px] text-[#3FB950] font-mono font-medium">{formatNumber(stats?.totalGapsLast1h ?? 0)}</div>
-              <div className="text-[10px] text-[#484F58] font-mono mt-1">gaps detected / hour</div>
-            </div>
-            <div className="rounded-lg border border-[#21262D] p-4 text-center" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-              <div className="text-[32px] text-[#E6EDF3] font-mono font-medium">{formatNumber(stats?.totalGapsLast24h ?? 0)}</div>
-              <div className="text-[10px] text-[#484F58] font-mono mt-1">gaps detected / 24h</div>
-            </div>
-            <div className="rounded-lg border border-[#21262D] p-4 text-center" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-              <div className="text-[32px] text-[#388BFD] font-mono font-medium">{profitableGaps.length}</div>
-              <div className="text-[10px] text-[#484F58] font-mono mt-1">currently tracked</div>
-            </div>
-            {buckets && (
-              <div className="col-span-3 rounded-lg border border-[#21262D] p-4" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-                <div className="text-[9px] font-mono uppercase tracking-widest text-[#484F58] mb-3">Duration distribution</div>
-                <div className="flex h-8 rounded overflow-hidden gap-0.5">
-                  {[
-                    { pct: pctUnder5s, bg: "#F85149", label: `<5s (${pctUnder5s}%)` },
-                    { pct: pctUnder30s, bg: "#D29922", label: `<30s (${pctUnder30s}%)` },
-                    { pct: pctUnder1m, bg: "#3FB950", label: `<1m (${pctUnder1m}%)` },
-                    { pct: pctOver1m, bg: "#388BFD", label: `>1m (${pctOver1m}%)` },
-                  ].map((b, bi) => b.pct > 0 && (
-                    <div key={bi} className="flex items-center justify-center text-[9px] font-mono text-[#0D1117] font-medium rounded" style={{ width: `${b.pct}%`, background: b.bg }}>
-                      {b.pct > 12 ? b.label : ""}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </ExpandedModal>
-      )}
-
-      {/* Left sidebar — Routes tab modal */}
-      {expandedModal === "left-routes" && (
-        <ExpandedModal title="Top Exchange Routes" subtitle="ranked by gap count · avg spread · simulated profit" onClose={closeModal} wide>
-          <div className="p-4 overflow-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#21262D]">
-                  {["#", "Route", "Gaps", "Avg Spread", "Sim Profit"].map(h => (
-                    <th key={h} className="text-left text-[9px] font-mono uppercase tracking-widest text-[#484F58] px-3 py-2">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(stats?.exchangePairRanking ?? []).map((pair, i) => (
-                  <tr key={`${pair.buyExchange}-${pair.sellExchange}`} className="border-b border-[#21262D]/30 hover:bg-[#161B22]/40">
-                    <td className="text-[10px] font-mono text-[#484F58] px-3 py-2.5">{i + 1}</td>
-                    <td className="text-[11px] font-mono px-3 py-2.5">
-                      <span className="text-[#388BFD]">{shortEx(pair.buyExchange)}</span>
-                      <span className="text-[#484F58]"> → </span>
-                      <span className="text-[#F85149]">{shortEx(pair.sellExchange)}</span>
-                    </td>
-                    <td className="text-[11px] font-mono px-3 py-2.5 text-[#E6EDF3]">{pair.gapCount}</td>
-                    <td className={`text-[11px] font-mono px-3 py-2.5 ${pair.avgSpread >= 0.2 ? "text-[#3FB950]" : "text-[#D29922]"}`}>
-                      {formatPercent(pair.avgSpread, 3)}
-                    </td>
-                    <td className={`text-[11px] font-mono px-3 py-2.5 ${pair.totalSimProfit >= 0 ? "text-[#3FB950]" : "text-[#F85149]"}`}>
-                      {fmtUsd(pair.totalSimProfit)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </ExpandedModal>
-      )}
-
-      {/* Left sidebar — Types tab modal */}
-      {expandedModal === "left-types" && (
-        <ExpandedModal title="Gap Type Breakdown" subtitle="CEX-CEX · DEX-CEX · Spot-Futures" onClose={closeModal}>
-          <div className="p-6 space-y-5">
-            {[
-              { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#3FB950", grad: "linear-gradient(90deg, rgba(63,185,80,0.8) 0%, rgba(63,185,80,0.3) 100%)", desc: "Both sides centralized — fastest execution, lowest slippage, no on-chain gas cost." },
-              { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#D29922", grad: "linear-gradient(90deg, rgba(210,153,34,0.8) 0%, rgba(210,153,34,0.3) 100%)", desc: "One side decentralized — higher spread potential, gas cost on DEX leg, slower execution." },
-              { label: "Spot-Futures", count: sfCount, pct: sfPct, color: "#388BFD", grad: "linear-gradient(90deg, rgba(56,139,253,0.8) 0%, rgba(56,139,253,0.3) 100%)", desc: "Spot vs perpetual contract price difference. Not affected by funding rate direction." },
-            ].map(row => (
-              <div key={row.label} className="rounded-lg border border-[#21262D] p-4" style={{ background: "linear-gradient(135deg, #1C2128 0%, #0D1117 100%)" }}>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-[14px] font-mono font-medium" style={{ color: row.color }}>{row.label}</span>
-                  <span>
-                    <span className="text-[18px] font-mono font-medium" style={{ color: row.color }}>{row.count}</span>
-                    <span className="text-[10px] font-mono text-[#484F58] ml-1.5">gaps ({row.pct}%)</span>
-                  </span>
-                </div>
-                <div className="h-[5px] bg-[#21262D] rounded overflow-hidden mb-3">
-                  <div className="h-full rounded" style={{ width: `${row.pct}%`, background: row.grad }} />
-                </div>
-                <p className="text-[10px] font-mono text-[#484F58]">{row.desc}</p>
-              </div>
-            ))}
-          </div>
-        </ExpandedModal>
-      )}
-
-      {/* Left sidebar — Bias tab modal */}
-      {expandedModal === "left-bias" && (
-        <ExpandedModal title="Exchange Pricing Bias" subtitle="buy-side vs sell-side tendency per exchange" onClose={closeModal} wide>
-          <div className="p-6">
-            {pricingBias.length === 0 ? (
-              <EmptyState title="Calculating pricing patterns" subtitle="Requires multi-exchange tick data" />
-            ) : (
-              <div className="space-y-3">
-                <div className="flex justify-between text-[9px] font-mono text-[#484F58] mb-3">
-                  <span>← Consistently cheap (buy here)</span>
-                  <span>Consistently expensive (sell here) →</span>
-                </div>
-                {pricingBias.map(({ ex, cheapPct }) => (
-                  <div key={ex} className="flex items-center gap-3">
-                    <span className={`text-[11px] font-mono w-12 flex-shrink-0 ${cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#8B949E]"}`}>
-                      {shortEx(ex)}
-                    </span>
-                    <div className="flex-1 flex h-[8px] relative rounded overflow-hidden bg-[#21262D]">
-                      <div className="absolute top-0 bottom-0 w-px bg-[#484F58]" style={{ left: "50%" }} />
-                      <div className="h-full" style={{ width: `${cheapPct}%`, background: cheapPct > 55 ? "rgba(63,185,80,0.65)" : cheapPct < 45 ? "rgba(248,81,73,0.65)" : "rgba(139,148,158,0.4)" }} />
-                    </div>
-                    <span className="text-[11px] font-mono text-[#8B949E] w-10 text-right flex-shrink-0">{cheapPct}%</span>
-                    <span className={`text-[9px] font-mono w-16 flex-shrink-0 ${cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#484F58]"}`}>
-                      {cheapPct > 55 ? "Buy side" : cheapPct < 45 ? "Sell side" : "Neutral"}
-                    </span>
-                  </div>
-                ))}
-                <p className="text-[9px] font-mono text-[#484F58] pt-3 border-t border-[#21262D]/50">{TIP.pricingBias}</p>
-              </div>
-            )}
           </div>
         </ExpandedModal>
       )}

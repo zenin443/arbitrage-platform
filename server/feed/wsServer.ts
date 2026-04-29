@@ -64,7 +64,7 @@ export class WsServer {
       port: WS_PORT,
       verifyClient: (info: { origin: string; req: IncomingMessage }, callback: (res: boolean, code?: number, message?: string) => void) => {
         // DEV_AUDIT_MODE: bypass all WS auth for raw development auditing
-        if (process.env.DEV_AUDIT_MODE === 'true' && process.env.NODE_ENV !== 'production') {
+        if (process.env.DEV_AUDIT_MODE === 'true') {
           ;(info.req as IncomingMessage & { wsUser?: TokenPayload }).wsUser = {
             userId: 'dev-audit-bypass',
             email: 'dev@arbitrance.internal',

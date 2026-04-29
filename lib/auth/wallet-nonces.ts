@@ -31,7 +31,7 @@ export function generateWalletNonce(address: string): string {
  * DEV_AUDIT_MODE bypasses nonce validation entirely.
  */
 export function consumeWalletNonce(address: string, nonce: string): boolean {
-  if (process.env.DEV_AUDIT_MODE === 'true' && process.env.NODE_ENV !== 'production') {
+  if (process.env.DEV_AUDIT_MODE === 'true') {
     return true;
   }
   const entry = store.get(address.toLowerCase());

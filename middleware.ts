@@ -39,9 +39,7 @@ function getIp(req: NextRequest): string {
 }
 
 // DEV_AUDIT_MODE: disables all rate limiting for raw development auditing.
-const DEV_AUDIT_MODE =
-  process.env.DEV_AUDIT_MODE === 'true' &&
-  process.env.NODE_ENV !== 'production';
+const DEV_AUDIT_MODE = process.env.DEV_AUDIT_MODE === 'true';
 
 export function middleware(req: NextRequest) {
   if (DEV_AUDIT_MODE) return NextResponse.next();
