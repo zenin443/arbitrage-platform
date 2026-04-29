@@ -625,8 +625,8 @@ export default function IntelligencePage() {
   // U6/U7: track first successful load — never set loading→true again on refetch
   const gapsLoadedRef = useRef(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
-  const [minSpread, setMinSpread] = useState<number>(0.2);
-  const [filterInput, setFilterInput] = useState<string>("0.2");
+  const [minSpread, setMinSpread] = useState<number>(0);
+  const [filterInput, setFilterInput] = useState<string>("0");
   const [filterSymbol, setFilterSymbol] = useState<string | null>(null);
   const [quoteFilter, setQuoteFilter] = useState<"ALL" | "USDT" | "USDC" | "BTC">("ALL");
   const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -692,8 +692,22 @@ export default function IntelligencePage() {
     if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/profitable-gaps", { cache: "no-store" });
+      // Always clear loading on first attempt regardless of status
+      if (!gapsLoadedRef.current) {
+        gapsLoadedRef.current = true;
+        setLoading(false);
+      }
       if (!res.ok) return;
-      const raw: unknown[] = await res.json();
+      const json: unknown = await res.json();
+
+      // Defensive unwrap: handle both plain array and wrapped { gaps/data/opportunities: [...] }
+      // shapes — mirrors the same pattern Dashboard uses for /api/opportunities.
+      const raw: unknown[] = Array.isArray(json)
+        ? json
+        : ((json as Record<string, unknown>)?.gaps ??
+           (json as Record<string, unknown>)?.data ??
+           (json as Record<string, unknown>)?.opportunities ??
+           []) as unknown[];
 
       // Normalize both free-tier (4-field) and trader+ response shapes into
       // a uniform GapRecord so the filter and rendering always have valid values.
@@ -702,11 +716,6 @@ export default function IntelligencePage() {
       const scored = [...data].sort((a, b) => computeScore(b) - computeScore(a));
       setProfitableGaps(scored);
       setLastUpdated(now());
-      // U6/U7: only transition to "loaded" once — never re-set loading on refetch
-      if (!gapsLoadedRef.current) {
-        gapsLoadedRef.current = true;
-        setLoading(false);
-      }
       setSymbolHistory(prev => {
         const next = { ...prev };
         data.forEach(g => {
