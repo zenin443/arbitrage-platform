@@ -11,16 +11,21 @@ import { NextRequest, NextResponse } from 'next/server';
 //
 // Plan-aware tier limits are enforced at the individual route level via applyApiRateLimit().
 // This layer only enforces a coarse IP-level ceiling.
+//
+// Same-origin requests (browser tabs polling our own /api/* routes) are exempt.
+// The real-time dashboard polls 4+ endpoints every 3-5 seconds — without exemption
+// a single user with two tabs would exhaust the 120/min budget in under a minute.
+// Scrapers do not send a matching Referer so they remain capped.
 
-const WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS_PER_IP = 120; // per minute — generous enough not to block legit power users
+const WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_IP = 300; // raised from 120 — external cap, same-origin is exempt
 
-interface Window {
+interface RateWindow {
   count: number;
   resetAt: number;
 }
 
-const store = new Map<string, Window>();
+const store = new Map<string, RateWindow>();
 
 // Purge expired windows every 5 minutes
 setInterval(() => {
@@ -36,6 +41,38 @@ function getIp(req: NextRequest): string {
     req.headers.get('x-real-ip') ||
     'unknown'
   );
+}
+
+/**
+ * Returns true when the request originates from the app itself.
+ * Browsers always include a Referer or Origin header for same-origin fetches.
+ * Scrapers either omit it or send a different host.
+ */
+function isSameOrigin(req: NextRequest): boolean {
+  const host = req.headers.get('host');
+  if (!host) return false;
+
+  const referer = req.headers.get('referer');
+  if (referer) {
+    try {
+      return new URL(referer).host === host;
+    } catch {
+      return false;
+    }
+  }
+
+  const origin = req.headers.get('origin');
+  if (origin) {
+    try {
+      return new URL(origin).host === host;
+    } catch {
+      return false;
+    }
+  }
+
+  // No Referer or Origin — could be a server-to-server call or a direct curl.
+  // Treat as external (conservative).
+  return false;
 }
 
 // DEV_AUDIT_MODE: disables all rate limiting for raw development auditing.
@@ -63,6 +100,12 @@ export function middleware(req: NextRequest) {
 
   // Admin routes are authenticated, low-frequency internal calls — exempt from IP rate limiting
   if (pathname.startsWith('/api/admin/')) {
+    return NextResponse.next();
+  }
+
+  // Same-origin browser requests (dashboard, intelligence, magnus polling loops) are exempt.
+  // External scrapers do not send a matching Referer/Origin so they remain rate-limited.
+  if (isSameOrigin(req)) {
     return NextResponse.next();
   }
 
