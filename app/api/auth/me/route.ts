@@ -2,10 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { getAuthUser } from '@/lib/auth/middleware';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const authUser = getAuthUser(req);
   if (!authUser) {
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
+  // DEV_AUDIT_MODE returns a synthetic user — skip DB query (userId is not a real UUID)
+  if (process.env.DEV_AUDIT_MODE === 'true' && authUser.userId === 'dev-audit-bypass') {
+    return NextResponse.json({
+      user: {
+        id: 'dev-audit-bypass',
+        email: authUser.email,
+        name: 'Dev Audit User',
+        plan: authUser.plan,
+        role: authUser.role,
+        walletAddress: null,
+        createdAt: new Date().toISOString(),
+      },
+    });
   }
 
   const client = await pool.connect();
