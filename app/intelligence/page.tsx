@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import Link from "next/link";
-import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon, Maximize2, X } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, Maximize2, X } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
+import StatCard from "@/components/ui/StatCard";
 import { formatNumber } from "@/lib/utils";
 import { formatPercent, formatPrice, formatDuration } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
 import AdBanner from "@/components/AdBanner";
 import MagnusAICard from "@/components/intelligence/MagnusAICard";
-import NavAuthButton from "@/components/NavAuthButton";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import InfoCorner from "@/components/ui/InfoCorner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
@@ -989,50 +989,11 @@ export default function IntelligencePage() {
     <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
 
       {/* ── Top nav — identical structure to Dashboard ── */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
-        <div className="flex items-center gap-3">
-          <ZapIcon className="h-4 w-4 text-[#388BFD]" />
-          <span className="text-[14px] font-medium font-sans text-[#388BFD]">Arbitrage Terminal</span>
-          <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-[12px] text-[#484F58] font-mono">v0.7.4</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs overflow-x-auto">
-          <div className="flex items-center gap-1 mr-2">
-            <span className="animate-pulse bg-[#3FB950] rounded-full w-1.5 h-1.5" />
-            <span className="text-[#3FB950] font-mono text-[11px]">LIVE</span>
-          </div>
-          {!isRealtime && (
-            <span className="text-[10px] font-mono text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/30 rounded px-1.5 py-0.5 mr-1">
-              DELAYED 15s
-            </span>
-          )}
-          {connectionStatus === 'connecting' && (
-            <span className="text-[#D29922] font-mono text-[11px] mr-1">Connecting…</span>
-          )}
-          {connectionStatus === 'error' && (
-            <span className="text-[#F85149] font-mono text-[11px] mr-1">Backend unavailable</span>
-          )}
-          <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px] whitespace-nowrap">
-            Intelligence
-          </Link>
-          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            Magnus
-          </Link>
-          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            DEX Markets
-          </Link>
-          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            Funding Rates
-          </Link>
-          <Link href="/dashboard" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            Dashboard
-          </Link>
-          <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
-            <SettingsIcon className="h-3.5 w-3.5" />
-          </Link>
-          <NavAuthButton />
-        </div>
-      </header>
+      <AppHeader
+        activePage="/intelligence"
+        connectionStatus={connectionStatus}
+        showDelayedBadge={!isRealtime}
+      />
 
       {/* ── 3-column layout ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -1140,22 +1101,18 @@ export default function IntelligencePage() {
           {/* 4 Stat cards — IDENTICAL to Dashboard card style */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
             {intelStatCards.map(card => (
-              <div key={card.label}
-                className={`relative bg-gradient-to-br from-[#161B22] to-[#0D1117] border border-[#21262D] rounded-lg p-2.5 overflow-hidden transition-colors ${card.glowBorder}`}
-              >
-                <div className={`absolute top-0 right-0 w-12 h-12 rounded-full blur-xl pointer-events-none ${card.glow}`} />
-                {card.pulse && (
-                  <span className="absolute top-2 right-2 flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60" style={{ backgroundColor: card.pulseColor }} />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: card.pulseColor }} />
-                  </span>
-                )}
-                <div className="flex items-start justify-between mb-0.5">
-                  <span className="text-[11px] font-sans text-[#8B949E]">{card.label}</span>
-                </div>
-                <div className={`text-[20px] font-mono font-medium tabular-nums mt-0.5 ${card.valueColor}`}>{card.value}</div>
-                <div className="text-[11px] text-[#484F58] font-sans truncate mt-0.5">{card.subtitle}</div>
-              </div>
+              <StatCard
+                key={card.label}
+                label={card.label}
+                value={card.value}
+                sub={card.subtitle}
+                valueColor={card.valueColor}
+                glow={card.glow}
+                glowBorder={card.glowBorder}
+                pulse={card.pulse}
+                pulseColor={card.pulseColor}
+                className="p-2.5"
+              />
             ))}
           </div>
 

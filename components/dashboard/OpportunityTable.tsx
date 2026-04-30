@@ -86,9 +86,10 @@ const QUOTE_FILTERS: Array<{ key: string | null; label: string }> = [
 interface OpportunityTableProps {
   onSelectSignal: (signal: GapRecord) => void;
   selectedSignalId: string | null;
+  onDataUpdate?: (gaps: GapRecord[]) => void;
 }
 
-export default function OpportunityTable({ onSelectSignal, selectedSignalId }: OpportunityTableProps) {
+export default function OpportunityTable({ onSelectSignal, selectedSignalId, onDataUpdate }: OpportunityTableProps) {
   const [gaps, setGaps] = useState<GapRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -104,7 +105,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
         const raw = await res.json();
         // Normalize both free-tier (4-field) and trader+ shapes so every
         // GapRecord always has spreadPercent, buyExchange, sellExchange, etc.
-        setGaps(normalizeApiGapList(Array.isArray(raw) ? raw : []));
+        const normalized = normalizeApiGapList(Array.isArray(raw) ? raw : []);
+        setGaps(normalized);
+        onDataUpdate?.(normalized);
       } catch {
         // keep previous data on transient errors
       } finally {
@@ -145,72 +148,82 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
 
   return (
     <div className="h-full flex flex-col bg-[#0D1117] border border-[#21262D] rounded-lg overflow-hidden">
-      {/* ── Filter bar ── */}
-      <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-[#21262D] bg-[#0D1117] space-y-1.5">
-        {/* Type filters */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] text-[#484F58] font-sans mr-1 shrink-0">Type</span>
-          {TYPE_FILTERS.map(f => {
-            const count = f.key === null ? gaps.length : countByType(f.key);
-            const active = typeFilter === f.key;
-            const typeBg =
-              f.key === 'cex_cex'      ? (active ? 'bg-[#388BFD]/20 border-[#388BFD]/50 text-[#388BFD]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]') :
-              f.key === 'spot_futures' ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/30 hover:text-[#3FB950]') :
-              f.key === 'dex_cex'      ? (active ? 'bg-[#D29922]/20 border-[#D29922]/50 text-[#D29922]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#D29922]/30 hover:text-[#D29922]') :
-              f.key === 'triangular'   ? (active ? 'bg-[#BC8CFF]/20 border-[#BC8CFF]/50 text-[#BC8CFF]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#BC8CFF]/30 hover:text-[#BC8CFF]') :
-              f.key === 'cross_chain'  ? (active ? 'bg-[#F78166]/20 border-[#F78166]/50 text-[#F78166]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#F78166]/30 hover:text-[#F78166]') :
-              /* All */                  (active ? 'bg-[#E6EDF3]/10 border-[#8B949E]/50 text-[#E6EDF3]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#8B949E]/40 hover:text-[#E6EDF3]');
-
-            return (
-              <button
-                key={String(f.key)}
-                onClick={() => setTypeFilter(f.key)}
-                className={clsx(
-                  'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
-                  typeBg
-                )}
-              >
-                {f.label}
-                {count > 0 && (
+      {/* ── Filter bar — grid-aligned labels ── */}
+      <div className="shrink-0 px-3 pt-2 pb-1.5 border-b border-[#21262D] bg-[#0D1117] space-y-1">
+        {/* Type row */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-[#484F58] font-mono w-[72px] shrink-0 text-right pr-2">Type</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {TYPE_FILTERS.map(f => {
+              const count = f.key === null ? gaps.length : countByType(f.key);
+              const active = typeFilter === f.key;
+              const typeBg =
+                f.key === 'cex_cex'      ? (active ? 'bg-[#388BFD]/20 border-[#388BFD]/50 text-[#388BFD]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]') :
+                f.key === 'spot_futures' ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/30 hover:text-[#3FB950]') :
+                f.key === 'dex_cex'      ? (active ? 'bg-[#D29922]/20 border-[#D29922]/50 text-[#D29922]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#D29922]/30 hover:text-[#D29922]') :
+                f.key === 'triangular'   ? (active ? 'bg-[#BC8CFF]/20 border-[#BC8CFF]/50 text-[#BC8CFF]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#BC8CFF]/30 hover:text-[#BC8CFF]') :
+                f.key === 'cross_chain'  ? (active ? 'bg-[#F78166]/20 border-[#F78166]/50 text-[#F78166]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#F78166]/30 hover:text-[#F78166]') :
+                                           (active ? 'bg-[#E6EDF3]/10 border-[#8B949E]/50 text-[#E6EDF3]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#8B949E]/40 hover:text-[#E6EDF3]');
+              return (
+                <button
+                  key={String(f.key)}
+                  onClick={() => setTypeFilter(f.key)}
+                  className={clsx(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
+                    typeBg
+                  )}
+                >
+                  {f.label}
                   <span className="text-[9px] opacity-70">{count}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {/* Quote currency filters */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <span className="text-[10px] text-[#484F58] font-sans mr-1 shrink-0">Quote</span>
-          {QUOTE_FILTERS.map(f => {
-            const count = f.key === null ? gaps.length : gaps.filter(g => g.quoteCurrency === f.key).length;
-            if (f.key !== null && count === 0) return null;
-            const active = quoteFilter === f.key;
-            return (
-              <button
-                key={String(f.key)}
-                onClick={() => setQuoteFilter(f.key)}
-                className={clsx(
-                  'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
-                  active
-                    ? 'bg-[#388BFD]/15 border-[#388BFD]/40 text-[#388BFD]'
-                    : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]'
-                )}
-              >
-                {f.label}
-                {count > 0 && f.key !== null && (
-                  <span className="text-[9px] opacity-70">{count}</span>
-                )}
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Confidence + Time filters */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Confidence filter */}
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-[#484F58] font-sans mr-1 shrink-0">Confidence</span>
+        {/* Quote row */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-[#484F58] font-mono w-[72px] shrink-0 text-right pr-2">Quote</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            {QUOTE_FILTERS.map(f => {
+              const count = f.key === null ? gaps.length : gaps.filter(g => g.quoteCurrency === f.key).length;
+              const active = quoteFilter === f.key;
+              return (
+                <button
+                  key={String(f.key)}
+                  onClick={() => setQuoteFilter(f.key)}
+                  className={clsx(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
+                    active
+                      ? 'bg-[#388BFD]/15 border-[#388BFD]/40 text-[#388BFD]'
+                      : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]'
+                  )}
+                >
+                  {f.label}
+                  {f.key !== null && <span className="text-[9px] opacity-70">{count}</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Confidence row */}
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-[#484F58] font-mono w-[72px] shrink-0 text-right pr-2">Confidence</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            <button
+              onClick={() => setConfidenceFilter(null)}
+              className={clsx(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors',
+                confidenceFilter === null
+                  ? 'bg-[#E6EDF3]/10 border-[#8B949E]/50 text-[#E6EDF3]'
+                  : 'border-[#21262D] text-[#8B949E] hover:border-[#8B949E]/40 hover:text-[#E6EDF3]'
+              )}
+            >
+              All
+            </button>
             {(['high', 'medium', 'low'] as ConfidenceTier[]).map(tier => {
+              const count = gaps.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0) === tier).length;
               const active = confidenceFilter === tier;
               const color =
                 tier === 'high'   ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/40 hover:text-[#3FB950]') :
@@ -219,37 +232,45 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId }: O
               return (
                 <button
                   key={tier}
-                  onClick={() => setConfidenceFilter(confidenceFilter === tier ? null : tier)}
-                  className={clsx('px-2 py-0.5 rounded border text-[10px] font-mono transition-colors capitalize', color)}
+                  onClick={() => setConfidenceFilter(active ? null : tier)}
+                  className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono transition-colors capitalize', color)}
                 >
                   {tier}
+                  <span className="text-[9px] opacity-70">{count}</span>
                 </button>
               );
             })}
-          </div>
 
-          {/* Time detected filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-[#484F58] font-sans shrink-0">Detected within</span>
+            {/* Detected within — inline after confidence divider */}
+            <span className="text-[#21262D] mx-1 select-none">│</span>
+            <span className="text-[10px] text-[#484F58] font-mono shrink-0">Detected within</span>
             <input
               type="number"
               min={0}
               value={maxAgeMinutes === 0 ? '' : maxAgeMinutes}
               onChange={e => setMaxAgeMinutes(e.target.value === '' ? 0 : Math.max(0, parseInt(e.target.value) || 0))}
               placeholder="∞"
-              className="w-12 bg-[#161B22] border border-[#21262D] rounded px-1.5 py-0.5 text-[10px] font-mono text-[#E6EDF3] placeholder-[#484F58] outline-none focus:border-[#388BFD]/50 text-center"
+              className="w-10 bg-[#161B22] border border-[#21262D] rounded px-1 py-0.5 text-[10px] font-mono text-[#E6EDF3] placeholder-[#484F58] outline-none focus:border-[#388BFD]/50 text-center"
             />
-            <span className="text-[10px] text-[#484F58] font-sans shrink-0">min</span>
-            {maxAgeMinutes > 0 && (
-              <button
-                onClick={() => setMaxAgeMinutes(0)}
-                className="text-[10px] text-[#484F58] hover:text-[#F85149] transition-colors font-mono"
-              >
-                ✕
-              </button>
-            )}
+            <span className="text-[10px] text-[#484F58] font-mono shrink-0">min</span>
           </div>
         </div>
+
+        {/* Active filter summary */}
+        {(typeFilter !== null || quoteFilter !== null || confidenceFilter !== null || maxAgeMinutes > 0) && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <span className="w-[72px] shrink-0" />
+            <span className="text-[10px] font-mono text-[#D29922]">
+              {[typeFilter && 'type', quoteFilter && 'quote', confidenceFilter && 'confidence', maxAgeMinutes > 0 && 'time'].filter(Boolean).length} filter{[typeFilter, quoteFilter, confidenceFilter, maxAgeMinutes].filter(Boolean).length !== 1 ? 's' : ''} active
+            </span>
+            <button
+              onClick={() => { setTypeFilter(null); setQuoteFilter(null); setConfidenceFilter(null); setMaxAgeMinutes(0); }}
+              className="text-[10px] font-mono text-[#484F58] hover:text-[#F85149] transition-colors"
+            >
+              Clear all ✕
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Table header row (count badge) ── */}

@@ -7,11 +7,12 @@ import {
   BarChart2, ChevronDown, ChevronUp, RefreshCw, Circle,
   DollarSign, Award, AlertTriangle, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react'
+import AppHeader from '@/components/AppHeader'
+import StatCard from '@/components/ui/StatCard'
 import SignalScoreGauge from '@/components/magnus/SignalScoreGauge'
 import AlgoExplainerCard, { ALGO_DEFINITIONS } from '@/components/magnus/AlgoExplainerCard'
 import SignalHeatmap from '@/components/magnus/SignalHeatmap'
 import StrategyPnlWaterfall from '@/components/magnus/StrategyPnlWaterfall'
-import NavAuthButton from '@/components/NavAuthButton'
 import { getBotById, type BotDefinition } from '@/lib/magnus/botRegistry'
 import { useSimulators } from '@/contexts/SimulatorContext'
 
@@ -117,38 +118,27 @@ function estimateSharpe(wr: number, dd: number): string {
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub, positive }: { label: string; value: string; sub?: string; positive?: boolean }) {
-  return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
-      <div className="text-xs text-gray-500 mb-1 uppercase tracking-wider">{label}</div>
-      <div className={`text-xl font-bold font-mono ${positive === true ? 'text-green-400' : positive === false ? 'text-red-400' : 'text-white'}`}>
-        {value}
-      </div>
-      {sub && <div className="text-xs text-gray-500 mt-0.5">{sub}</div>}
-    </div>
-  )
-}
 
 function RiskMeter({ drawdown, circuitBreaker }: { drawdown: number; circuitBreaker: boolean }) {
-  const pct = Math.min(100, drawdown * 6.67)   // 15% max → 100% meter
-  const color = circuitBreaker ? '#ef4444' : drawdown > 10 ? '#f97316' : drawdown > 5 ? '#f59e0b' : '#22c55e'
+  const pct = Math.min(100, drawdown * 6.67)
+  const color = circuitBreaker ? '#F85149' : drawdown > 10 ? '#F85149' : drawdown > 5 ? '#D29922' : '#3FB950'
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
+    <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-gray-500 uppercase tracking-wider">Risk Meter</span>
+        <span className="text-[10px] text-[#484F58] uppercase tracking-wider font-mono">Risk Meter</span>
         {circuitBreaker && (
-          <span className="text-xs text-red-400 font-bold animate-pulse">CIRCUIT BREAKER</span>
+          <span className="text-[10px] text-[#F85149] font-medium animate-pulse font-mono">CIRCUIT BREAKER</span>
         )}
       </div>
-      <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-2">
+      <div className="h-1.5 bg-[#21262D] rounded-full overflow-hidden mb-2">
         <div
           className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, background: color, boxShadow: `0 0 8px ${color}60` }}
+          style={{ width: `${pct}%`, background: color }}
         />
       </div>
-      <div className="flex justify-between text-xs text-gray-500">
+      <div className="flex justify-between text-[10px] text-[#484F58] font-mono">
         <span>Safe</span>
-        <span className="font-mono" style={{ color }}>DD: {fmtPct(drawdown)}</span>
+        <span style={{ color }}>DD: {fmtPct(drawdown)}</span>
         <span>Halt</span>
       </div>
     </div>
@@ -158,17 +148,17 @@ function RiskMeter({ drawdown, circuitBreaker }: { drawdown: number; circuitBrea
 function TradeRow({ trade, index }: { trade: Trade; index: number }) {
   const profit = trade.netProfit
   return (
-    <tr className={`border-t border-gray-800/50 ${index % 2 === 0 ? 'bg-gray-900/20' : ''}`}>
-      <td className="px-3 py-2 text-xs text-gray-500 font-mono whitespace-nowrap">
+    <tr className={`border-t border-[#21262D]/50 ${index % 2 === 0 ? 'bg-[#0D1117]/30' : ''}`}>
+      <td className="px-3 py-1.5 text-[11px] text-[#484F58] font-mono whitespace-nowrap">
         {timeSince(trade.timestamp)}
       </td>
-      <td className="px-3 py-2 text-xs text-white font-mono">{trade.symbol}</td>
-      <td className="px-3 py-2 text-xs text-gray-400 capitalize">{trade.type ?? 'cex_cex'}</td>
-      <td className="px-3 py-2 text-xs text-gray-400">
+      <td className="px-3 py-1.5 text-[11px] text-[#E6EDF3] font-mono">{trade.symbol}</td>
+      <td className="px-3 py-1.5 text-[11px] text-[#8B949E] font-mono capitalize">{trade.type ?? 'cex_cex'}</td>
+      <td className="px-3 py-1.5 text-[11px] text-[#8B949E] font-mono">
         {trade.buyExchange} → {trade.sellExchange}
       </td>
-      <td className="px-3 py-2 text-xs font-mono text-cyan-400">{fmtPct(trade.spreadPercent)}</td>
-      <td className={`px-3 py-2 text-xs font-mono font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+      <td className="px-3 py-1.5 text-[11px] font-mono text-[#388BFD]">{fmtPct(trade.spreadPercent)}</td>
+      <td className={`px-3 py-1.5 text-[11px] font-mono font-medium ${profit >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`}>
         {profit >= 0 ? '+' : ''}{fmtUsd(profit)}
       </td>
     </tr>
@@ -196,31 +186,31 @@ function BotIdentityHeader({
   function StatusChip() {
     if (liveStatus === 'live') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-green-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" />
+        <span className="flex items-center gap-1.5 text-[11px] text-[#3FB950] font-mono">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#3FB950] animate-pulse inline-block" />
           LIVE — {activeExchangeCount ?? 0} exchanges
         </span>
       )
     }
     if (liveStatus === 'locked') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-1.5 h-1.5 rounded-full border border-gray-600 inline-block" />
+        <span className="flex items-center gap-1.5 text-[11px] text-[#484F58] font-mono">
+          <span className="w-1.5 h-1.5 rounded-full border border-[#484F58] inline-block" />
           LOCKED
         </span>
       )
     }
     if (liveStatus === 'coming_soon') {
       return (
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-1.5 h-1.5 rounded-full border border-gray-600 inline-block" />
+        <span className="flex items-center gap-1.5 text-[11px] text-[#484F58] font-mono">
+          <span className="w-1.5 h-1.5 rounded-full border border-[#484F58] inline-block" />
           COMING SOON
         </span>
       )
     }
     return (
-      <span className="flex items-center gap-1.5 text-xs text-amber-400">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+      <span className="flex items-center gap-1.5 text-[11px] text-[#D29922] font-mono">
+        <span className="w-1.5 h-1.5 rounded-full bg-[#D29922] animate-pulse inline-block" />
         INITIALIZING
       </span>
     )
@@ -236,7 +226,7 @@ function BotIdentityHeader({
           >
             {bot.codename}
           </h2>
-          <p className="text-gray-400 text-xs mt-1">{bot.tagline}</p>
+          <p className="text-[#8B949E] text-[11px] mt-1 font-mono">{bot.tagline}</p>
         </div>
         <span
           className="mt-1 px-2 py-0.5 rounded-full text-xs font-medium border"
@@ -252,21 +242,21 @@ function BotIdentityHeader({
 
       {/* Benchmark chips */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/60 text-gray-300">
-          Win Rate: <span className="font-mono text-white">{bot.winRateBenchmark}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded border border-[#21262D] bg-[#161B22] text-[#8B949E] font-mono">
+          Win Rate: <span className="text-[#E6EDF3]">{bot.winRateBenchmark}</span>
         </span>
-        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/60 text-gray-300">
-          Signals/Day: <span className="font-mono text-white">{bot.signalsPerDay}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded border border-[#21262D] bg-[#161B22] text-[#8B949E] font-mono">
+          Signals/Day: <span className="text-[#E6EDF3]">{bot.signalsPerDay}</span>
         </span>
-        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/60 text-gray-300">
-          Sharpe: <span className="font-mono text-white">{bot.sharpe}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded border border-[#21262D] bg-[#161B22] text-[#8B949E] font-mono">
+          Sharpe: <span className="text-[#E6EDF3]">{bot.sharpe}</span>
         </span>
       </div>
 
       {/* Identity chips */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className={`text-xs px-2 py-0.5 rounded border ${clr.badge}`}>{bot.capitalLabel}</span>
-        <span className="text-xs px-2 py-0.5 rounded border border-gray-700 bg-gray-800/40 text-gray-400">
+        <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${clr.badge}`}>{bot.capitalLabel}</span>
+        <span className="text-[10px] px-2 py-0.5 rounded border border-[#21262D] bg-[#161B22] text-[#8B949E] font-mono">
           {bot.strategyClass}
         </span>
         {bot.quoteCurrency && (
@@ -299,7 +289,7 @@ function BotEmptyStateForReason({
 
   if (reason === 'authed_ok') {
     return (
-      <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
+      <div className="flex items-center justify-center h-32 text-[#484F58] text-[12px] font-mono">
         <RefreshCw className="w-4 h-4 animate-spin mr-2" />
         Loading bot data…
       </div>
@@ -309,21 +299,21 @@ function BotEmptyStateForReason({
   if (reason === 'anon') {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-6 space-y-3">
-          <h3 className="text-white font-semibold text-base">Sign in to view live trade detail</h3>
-          <p className="text-sm text-gray-400">
+        <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-5 space-y-3">
+          <h3 className="text-[#E6EDF3] font-medium text-[14px] font-mono">Sign in to view live trade detail</h3>
+          <p className="text-[12px] text-[#8B949E] font-mono">
             Aggregate stats are public. Trade-level data requires authentication.
           </p>
           <div className="flex items-center gap-3 pt-1 flex-wrap">
             <Link
               href="/login"
-              className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-white text-sm font-medium transition-colors"
+              className="px-4 py-2 rounded bg-[#388BFD] hover:bg-[#58a6ff] text-white text-[12px] font-mono font-medium transition-colors"
             >
               Sign In
             </Link>
             <a
               href="#"
-              className="text-sm text-gray-400 hover:text-gray-300 underline underline-offset-2"
+              className="text-[12px] text-[#8B949E] hover:text-[#E6EDF3] font-mono underline underline-offset-2"
             >
               Why? Read about our IP protection
             </a>
@@ -337,17 +327,17 @@ function BotEmptyStateForReason({
   if (reason === 'authed_locked') {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-amber-800/40 bg-amber-900/10 p-6 space-y-3">
-          <h3 className="text-white font-semibold text-base">Available on Magnus Pro</h3>
-          <p className="text-sm text-gray-400">
-            {bot?.codename ?? 'This bot'} requires the Pro tier or above. Unlock all 9 bot detail panels, real-time trade feeds, and advanced signals.
+        <div className="rounded-lg border border-[#D29922]/30 bg-[#D29922]/5 p-5 space-y-3">
+          <h3 className="text-[#E6EDF3] font-medium text-[14px] font-mono">Available on Magnus tier</h3>
+          <p className="text-[12px] text-[#8B949E] font-mono">
+            {bot?.codename ?? 'This bot'} requires the Magnus tier ($249/mo) or above. Unlock all 9 bot detail panels, real-time trade feeds, and advanced signals.
           </p>
           <div className="pt-1">
             <Link
               href="/pricing"
-              className="inline-block px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white text-sm font-medium transition-colors"
+              className="inline-block px-4 py-2 rounded bg-[#D29922] hover:bg-[#e3b341] text-[#0D1117] text-[12px] font-mono font-medium transition-colors"
             >
-              Upgrade to Pro
+              Upgrade to Magnus
             </Link>
           </div>
         </div>
@@ -359,9 +349,9 @@ function BotEmptyStateForReason({
   // authed_no_data
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-6 space-y-3">
-        <h3 className="text-white font-semibold text-base">Strategy launching soon</h3>
-        <p className="text-sm text-gray-400">
+      <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-5 space-y-3">
+        <h3 className="text-[#E6EDF3] font-medium text-[14px] font-mono">Strategy launching soon</h3>
+        <p className="text-[12px] text-[#8B949E] font-mono">
           {bot?.codename ?? 'This strategy'} is in final development. Paper trading begins in the next sprint. The algorithm is documented below.
         </p>
       </div>
@@ -470,8 +460,8 @@ function BotPanel({ botId, color }: { botId: string; color: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 text-gray-600">
-        <RefreshCw className="w-5 h-5 animate-spin mr-2" />
+      <div className="flex items-center justify-center h-48 text-[#484F58] font-mono text-[12px]">
+        <RefreshCw className="w-4 h-4 animate-spin mr-2" />
         Loading {botId}…
       </div>
     )
@@ -505,18 +495,18 @@ function BotPanel({ botId, color }: { botId: string; color: string }) {
       {/* Status bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full ${state.isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-600'}`} />
-          <span className="text-sm text-gray-300 font-medium">{state.name}</span>
-          <span className={`text-xs px-2 py-0.5 rounded border ${clr.badge}`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${state.isRunning ? 'bg-[#3FB950] animate-pulse' : 'bg-[#484F58]'}`} />
+          <span className="text-[12px] text-[#C9D1D9] font-medium font-mono">{state.name}</span>
+          <span className={`text-[10px] px-2 py-0.5 rounded border font-mono ${clr.badge}`}>
             {state.isRunning ? 'LIVE' : 'PAUSED'}
           </span>
           {state.circuitBreakerActive && (
-            <span className="text-xs px-2 py-0.5 rounded border bg-red-500/20 text-red-300 border-red-500/30 animate-pulse">
+            <span className="text-[10px] px-2 py-0.5 rounded border bg-[#F85149]/15 text-[#F85149] border-[#F85149]/30 animate-pulse font-mono">
               CIRCUIT BREAKER
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex items-center gap-2 text-[10px] text-[#484F58] font-mono">
           <Clock className="w-3 h-3" />
           Last trade: {timeSince(state.lastTradeAt)}
         </div>
@@ -544,61 +534,61 @@ function BotPanel({ botId, color }: { botId: string; color: string }) {
       {/* Score gauge + risk metrics row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Signal Score Gauge */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 flex flex-col items-center justify-center gap-2">
-          <span className="text-xs text-gray-500 uppercase tracking-wider">Signal Quality</span>
+        <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3 flex flex-col items-center justify-center gap-2">
+          <span className="text-[10px] text-[#484F58] uppercase tracking-wider font-mono">Signal Quality</span>
           <SignalScoreGauge score={avgScore} size="md" />
-          <span className="text-xs text-gray-500">avg. execution score</span>
+          <span className="text-[10px] text-[#484F58] font-mono">avg. execution score</span>
         </div>
 
         {/* Risk metrics */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 space-y-3">
-          <span className="text-xs text-gray-500 uppercase tracking-wider block">Risk Metrics</span>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Sharpe Ratio</span>
-            <span className="font-mono text-green-400">{sharpe}</span>
+        <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3 space-y-2.5">
+          <span className="text-[10px] text-[#484F58] uppercase tracking-wider block font-mono">Risk Metrics</span>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Sharpe Ratio</span>
+            <span className="font-mono text-[#3FB950]">{sharpe}</span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Max Drawdown</span>
-            <span className={`font-mono ${state.maxDrawdown > 10 ? 'text-red-400' : 'text-amber-400'}`}>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Max Drawdown</span>
+            <span className={`font-mono ${state.maxDrawdown > 10 ? 'text-[#F85149]' : 'text-[#D29922]'}`}>
               {fmtPct(state.maxDrawdown)}
             </span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Calmar Ratio</span>
-            <span className="font-mono text-cyan-400">{calmar}</span>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Calmar Ratio</span>
+            <span className="font-mono text-[#388BFD]">{calmar}</span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Peak Value</span>
-            <span className="font-mono text-white">{fmtUsd(state.peakValue)}</span>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Peak Value</span>
+            <span className="font-mono text-[#E6EDF3]">{fmtUsd(state.peakValue)}</span>
           </div>
         </div>
 
         {/* Trade efficiency */}
-        <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4 space-y-3">
-          <span className="text-xs text-gray-500 uppercase tracking-wider block">Efficiency</span>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Profit Factor</span>
-            <span className="font-mono text-white">
+        <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3 space-y-2.5">
+          <span className="text-[10px] text-[#484F58] uppercase tracking-wider block font-mono">Efficiency</span>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Profit Factor</span>
+            <span className="font-mono text-[#E6EDF3]">
               {state.losingTrades > 0
                 ? fmt((state.winningTrades / state.losingTrades) * (state.winRate / (100 - state.winRate)), 2)
                 : '∞'}
             </span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Avg PnL/Trade</span>
-            <span className={`font-mono ${state.totalTrades > 0 && state.totalPnl / state.totalTrades >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Avg PnL/Trade</span>
+            <span className={`font-mono ${state.totalTrades > 0 && state.totalPnl / state.totalTrades >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`}>
               {state.totalTrades > 0 ? fmtUsd(state.totalPnl / state.totalTrades) : '—'}
             </span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Fee/Trade</span>
-            <span className="font-mono text-gray-400">
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Fee/Trade</span>
+            <span className="font-mono text-[#8B949E]">
               {state.totalTrades > 0 ? fmtUsd(state.totalFeesPaid / state.totalTrades) : '—'}
             </span>
           </div>
-          <div className="flex justify-between text-xs">
-            <span className="text-gray-400">Voided Signals</span>
-            <span className="font-mono text-gray-500">{state.voidedSignals ?? '—'}</span>
+          <div className="flex justify-between text-[11px]">
+            <span className="text-[#8B949E] font-mono">Voided Signals</span>
+            <span className="font-mono text-[#484F58]">{state.voidedSignals ?? '—'}</span>
           </div>
         </div>
 
@@ -611,23 +601,23 @@ function BotPanel({ botId, color }: { botId: string; color: string }) {
 
       {/* Recent trades table */}
       {(trades.length > 0 || state.recentTrades?.length) && (
-        <div className="rounded-xl border border-gray-800 bg-gray-900/60 overflow-hidden">
+        <div className="rounded-lg border border-[#21262D] bg-[#161B22] overflow-hidden">
           <button
             onClick={() => setShowTrades(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-800/30 transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-[#1C2128] transition-colors"
           >
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <span className="text-[10px] font-medium text-[#8B949E] uppercase tracking-wider font-mono">
               Recent Trades ({(trades.length || state.recentTrades?.length || 0)})
             </span>
-            {showTrades ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+            {showTrades ? <ChevronUp className="w-3.5 h-3.5 text-[#484F58]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#484F58]" />}
           </button>
           {showTrades && (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-gray-800/40">
+                  <tr className="bg-[#0D1117]/50">
                     {['Time', 'Symbol', 'Type', 'Route', 'Spread', 'Net PnL'].map(h => (
-                      <th key={h} className="px-3 py-2 text-xs text-gray-500 font-medium uppercase tracking-wider">{h}</th>
+                      <th key={h} className="px-3 py-2 text-[10px] text-[#484F58] font-normal uppercase tracking-wider font-mono">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -657,26 +647,26 @@ function AllBotsSummary({ states }: { states: Record<string, BotState> }) {
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-      <div className="rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-        <div className="text-xs text-gray-500 mb-1">Total AUM (Paper)</div>
-        <div className="text-2xl font-bold text-white font-mono">{fmtUsd(totalAum)}</div>
-        <div className="text-xs text-gray-500 mt-1">across all bots</div>
+      <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3">
+        <div className="text-[10px] text-[#484F58] mb-1 font-mono uppercase tracking-wider">Total AUM (Paper)</div>
+        <div className="text-[20px] font-medium text-[#E6EDF3] font-mono">{fmtUsd(totalAum)}</div>
+        <div className="text-[10px] text-[#484F58] mt-0.5 font-mono">across all bots</div>
       </div>
-      <div className="rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-        <div className="text-xs text-gray-500 mb-1">Total PnL</div>
-        <div className={`text-2xl font-bold font-mono ${totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+      <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3">
+        <div className="text-[10px] text-[#484F58] mb-1 font-mono uppercase tracking-wider">Total PnL</div>
+        <div className={`text-[20px] font-medium font-mono ${totalPnl >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`}>
           {totalPnl >= 0 ? '+' : '-'}{fmtUsd(totalPnl)}
         </div>
       </div>
-      <div className="rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-        <div className="text-xs text-gray-500 mb-1">Total Trades</div>
-        <div className="text-2xl font-bold text-white font-mono">{totalTrades.toLocaleString()}</div>
-        <div className="text-xs text-gray-500 mt-1">all strategies</div>
+      <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3">
+        <div className="text-[10px] text-[#484F58] mb-1 font-mono uppercase tracking-wider">Total Trades</div>
+        <div className="text-[20px] font-medium text-[#E6EDF3] font-mono">{totalTrades.toLocaleString()}</div>
+        <div className="text-[10px] text-[#484F58] mt-0.5 font-mono">all strategies</div>
       </div>
-      <div className="rounded-xl border border-gray-700 bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-        <div className="text-xs text-gray-500 mb-1">Avg Win Rate</div>
-        <div className="text-2xl font-bold text-cyan-400 font-mono">{fmtPct(avgWr)}</div>
-        <div className="text-xs text-gray-500 mt-1">cross-strategy</div>
+      <div className="rounded-lg border border-[#21262D] bg-[#161B22] p-3">
+        <div className="text-[10px] text-[#484F58] mb-1 font-mono uppercase tracking-wider">Avg Win Rate</div>
+        <div className="text-[20px] font-medium text-[#388BFD] font-mono">{fmtPct(avgWr)}</div>
+        <div className="text-[10px] text-[#484F58] mt-0.5 font-mono">cross-strategy</div>
       </div>
     </div>
   )
@@ -761,47 +751,27 @@ export default function MagnusPage() {
   }, [summaryStates])
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-gray-800 bg-gray-950/95 backdrop-blur">
-        <div className="max-w-screen-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-lg tracking-tight">Arbitrance</span>
-            </Link>
-            <nav className="hidden md:flex items-center gap-4 text-sm">
-              <Link href="/dashboard" className="text-gray-400 hover:text-white transition-colors">Dashboard</Link>
-              <Link href="/magnus" className="text-white font-medium">Magnus AI</Link>
-              <Link href="/funding-rates" className="text-gray-400 hover:text-white transition-colors">Funding</Link>
-              <Link href="/triangular" className="text-gray-400 hover:text-white transition-colors">Triangular</Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs text-green-400">
-              <Circle className="w-2 h-2 fill-current animate-pulse" />
-              <span>9 bots live</span>
-            </div>
-            <NavAuthButton />
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
+      {/* Header — matches Dashboard/Intelligence */}
+      <AppHeader
+        activePage="/magnus"
+        statusSlot={<span className="text-[10px] font-mono text-[#06B6D4] mr-1">{BOT_TABS.length} bots</span>}
+      />
 
-      <main className="max-w-screen-2xl mx-auto px-4 py-6">
+      <main className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="max-w-screen-2xl mx-auto">
         {/* Page title */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BarChart2 className="w-6 h-6 text-cyan-400" />
+            <h1 className="text-[16px] font-medium font-mono flex items-center gap-2 text-[#E6EDF3]">
+              <BarChart2 className="w-4 h-4 text-[#388BFD]" />
               Magnus AI — Quant Command Center
             </h1>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-[11px] text-[#484F58] mt-1 font-mono">
               9 paper trading bots · 15 signal sources · 18 exchanges · 128 pairs monitored
             </p>
           </div>
-          <div className="text-xs text-gray-600 font-mono">
+          <div className="text-[10px] text-[#484F58] font-mono">
             {now}
           </div>
         </div>
@@ -821,7 +791,7 @@ export default function MagnusPage() {
             }
           })
           return (
-            <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-6 scrollbar-none">
+            <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-4 scrollbar-none">
               {ENRICHED_TABS.map(tab => {
                 const bColor = COLOR_MAP[tab.color] ?? COLOR_MAP.cyan!
                 const s = summaryStates[tab.id]
@@ -831,10 +801,10 @@ export default function MagnusPage() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     title={tab.tagline}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all border
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-[11px] font-medium whitespace-nowrap transition-all border font-mono
                       ${isActive
                         ? `${bColor.badge} ${bColor.ring} ring-1`
-                        : 'text-gray-400 border-transparent hover:border-gray-700 hover:bg-gray-800/40'
+                        : 'text-[#8B949E] border-transparent hover:border-[#21262D] hover:bg-[#161B22]'
                       }`}
                   >
                     <span
@@ -849,14 +819,14 @@ export default function MagnusPage() {
                     >
                       ●
                     </span>
-                    <span className="font-mono font-bold tracking-wide">{tab.codename}</span>
+                    <span className="font-mono font-medium tracking-wide">{tab.codename}</span>
                     {s && (
-                      <span className={`text-xs font-mono ${s.totalPnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      <span className={`text-[10px] font-mono ${s.totalPnl >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`}>
                         {s.totalPnl >= 0 ? '+' : ''}{fmt(s.totalPnlPercent, 1)}%
                       </span>
                     )}
                     {!s && (
-                      <span className="text-xs opacity-60">· {tab.capital}</span>
+                      <span className="text-[10px] opacity-60">· {tab.capital}</span>
                     )}
                   </button>
                 )
@@ -866,24 +836,25 @@ export default function MagnusPage() {
         })()}
 
         {/* Active bot panel */}
-        <div className={`rounded-2xl border p-6 ${clr.ring} ring-1 bg-gray-900/40`}>
+        <div className={`rounded-lg border p-5 ${clr.ring} ring-1 bg-[#161B22]/60`}>
           <BotPanel botId={activeTab} color={activeBot.color} />
         </div>
 
-        {/* Fleet context — visible regardless of which bot is selected */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">
+        {/* Fleet context */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-[#161B22] border border-[#21262D] rounded-lg p-3">
+            <h3 className="text-[10px] font-medium text-[#484F58] mb-3 uppercase tracking-wider font-mono">
               Fleet PnL Contribution
             </h3>
             <StrategyPnlWaterfall bars={fleetBars} />
           </div>
-          <div className="bg-gray-900/40 border border-gray-800 rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wide">
+          <div className="bg-[#161B22] border border-[#21262D] rounded-lg p-3">
+            <h3 className="text-[10px] font-medium text-[#484F58] mb-3 uppercase tracking-wider font-mono">
               Signal Density Heatmap
             </h3>
             <SignalHeatmap data={[]} />
           </div>
+        </div>
         </div>
       </main>
     </div>
