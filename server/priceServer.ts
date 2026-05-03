@@ -62,7 +62,7 @@ import { startTradingIntelligence, getActiveGaps, getGapHistory, getTradingStats
 import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider, getOrFetchRawBooks } from './services/orderbook-fetcher'
 import { startTriangularEngine, getTriangularRoutes, getCrossPairCount } from './engines/triangularArbitrage'
 import { startCrossChainEngine, getCrossChainOpportunities } from './engines/crossChainArbitrage'
-import { startStablecoinEngine } from './engines/stablecoinArbitrage'
+import { startStablecoinEngine, getStablecoinOpportunities } from './engines/stablecoinArbitrage'
 import { startPairsTradingEngine, getPairsSignals } from './engines/pairsTradingEngine'
 import { startLiquidationEngine, getLiquidationSignals } from './engines/liquidationEngine'
 import { startCalendarSpreadEngine, getCalendarSpreadSignals } from './engines/calendarSpreadEngine'
@@ -720,6 +720,11 @@ const httpServer = http.createServer(async (req, res) => {
 
   if (url.pathname === '/cross-chain') {
     json(res, 200, getCrossChainOpportunities())
+    return
+  }
+
+  if (url.pathname === '/stablecoin') {
+    json(res, 200, getStablecoinOpportunities())
     return
   }
 

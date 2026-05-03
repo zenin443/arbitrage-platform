@@ -298,13 +298,14 @@ export async function GET(req: NextRequest) {
   try {
     const now = Date.now();
 
-    // Fetch all 7 sources in parallel; failed sources are skipped gracefully
+    // Fetch all 8 sources in parallel; failed sources are skipped gracefully
     const [
       gapsResult,
       spotFuturesResult,
       cexDexResult,
       triangularResult,
       crossChainResult,
+      stablecoinResult,
       scoredResult,
       pairsResult,
     ] = await Promise.allSettled([
@@ -313,6 +314,7 @@ export async function GET(req: NextRequest) {
       fetchJson(`${BACKEND_URL}/cex-dex`),
       fetchJson(`${BACKEND_URL}/triangular`),
       fetchJson(`${BACKEND_URL}/cross-chain`),
+      fetchJson(`${BACKEND_URL}/stablecoin`),
       fetchJson(`${BACKEND_URL}/signals/scored`),
       fetchJson(`${BACKEND_URL}/signals/pairs`),
     ]);
@@ -343,6 +345,29 @@ export async function GET(req: NextRequest) {
     if (crossChainResult.status === 'fulfilled') {
       for (const r of crossChainResult.value)
         combined.push(normalizeCrossChain(r as Record<string, unknown>));
+    }
+
+    if (stablecoinResult.status === 'fulfilled') {
+      for (const r of stablecoinResult.value) {
+        const raw = r as Record<string, unknown>;
+        combined.push({
+          id:              s(raw.id),
+          symbol:          s(raw.symbol),
+          type:            'stablecoin',
+          spreadPercent:   n(raw.spreadPercent),
+          netSpread:       n(raw.netProfitPercent),
+          buyExchange:     s(raw.buyExchange),
+          sellExchange:    s(raw.sellExchange),
+          buyPrice:        n(raw.buyPrice),
+          sellPrice:       n(raw.sellPrice),
+          maxTradeableUsd: n(raw.liquidityScore) * 10_000,
+          detectedAt:      n(raw.detectedAt),
+          durationMs:      0,
+          quoteCurrency:   'USDT',
+          confidence:      s(raw.confidence) || undefined,
+          isActive:        true,
+        } as RawGap);
+      }
     }
 
     // Scored signals overlap with cex_cex/spot_futures etc. — deduplicate by id
