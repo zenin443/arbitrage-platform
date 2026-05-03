@@ -145,7 +145,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
     const quoteOk      = quoteFilter === null || g.quoteCurrency === quoteFilter;
     const ageOk        = maxAgeMinutes === 0 || !g.detectedAt ||
                          (now - g.detectedAt) <= maxAgeMinutes * 60_000;
-    const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, (g as any).confidence);
+    const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, g.confidence);
     const confidenceOk = confidenceFilter === null || confidence === confidenceFilter;
 
     // Settings-based filters
@@ -255,7 +255,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               All
             </button>
             {(['high', 'medium', 'low'] as ConfidenceTier[]).map(tier => {
-              const count = gaps.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, (g as any).confidence) === tier).length;
+              const count = gaps.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, g.confidence) === tier).length;
               const active = confidenceFilter === tier;
               const color =
                 tier === 'high'   ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/40 hover:text-[#3FB950]') :
@@ -390,7 +390,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               filteredGaps.map((gap) => {
                 const key = gap.id;
                 const isFreeTier = gap._isFreeTier;
-                const tier = computeConfidence(gap.spreadPercent, gap.durationMs, (gap as any).confidence);
+                const tier = computeConfidence(gap.spreadPercent, gap.durationMs, gap.confidence);
                 const netSpread = gap.netSpread;
                 const estimatedProfit = isFreeTier
                   ? null
@@ -493,11 +493,19 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                     </td>
                     {/* Confidence */}
                     <td className="px-2 py-1.5 text-right">
-                      <span
-                        className={clsx("font-medium uppercase", CONFIDENCE_BADGE[tier])}
-                        style={{ fontSize: 'var(--fs-xs, 11px)' }}
-                      >
-                        {tier}
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        <span
+                          className={clsx("font-medium uppercase", CONFIDENCE_BADGE[tier])}
+                          style={{ fontSize: 'var(--fs-xs, 11px)' }}
+                        >
+                          {tier}
+                        </span>
+                        {gap.isVolatile && (
+                          <span title="Price volatile — spike detected" className="text-[#D29922] leading-none" style={{ fontSize: '10px' }}>⚡</span>
+                        )}
+                        {gap.isThinVolume && (
+                          <span title="Thin volume — low liquidity" className="text-[#58A6FF] leading-none" style={{ fontSize: '10px' }}>💧</span>
+                        )}
                       </span>
                     </td>
                     {/* Wallet Rails */}
