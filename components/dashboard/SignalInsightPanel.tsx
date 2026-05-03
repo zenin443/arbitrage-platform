@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 interface GapRecord {
   id?: string;
   type: string;
@@ -19,7 +21,7 @@ interface GapRecord {
   netSpread?: number;
   withdrawFee?: number;
   bestNetwork?: string;
-  confidence?: 'high' | 'medium' | 'low';
+  confidence?: "high" | "medium" | "low";
   isVolatile?: boolean;
   isThinVolume?: boolean;
   minViableTradeUsd?: number;
@@ -35,6 +37,10 @@ interface Props {
   signal: GapRecord | null;
   onClose: () => void;
 }
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PANEL_WIDTH = 380;
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance: "Binance", bybit: "Bybit", okx: "OKX", kucoin: "KuCoin",
@@ -52,6 +58,8 @@ const EXCHANGE_SHORT: Record<string, string> = {
 };
 
 const DEX_EXCHANGES = new Set(["jupiter", "uniswap_v3", "hyperliquid"]);
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function exchangeLabel(id: string): string {
   return EXCHANGE_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
@@ -99,7 +107,46 @@ function generateOrderLevels(basePrice: number, side: "buy" | "sell", maxVol: nu
   });
 }
 
-const PANEL_WIDTH = 280;
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function ConfidenceBadge({ confidence }: { confidence?: "high" | "medium" | "low" }) {
+  if (!confidence) return null;
+  const cfg = {
+    high:   { pill: "bg-[#3FB950]/15 border-[#3FB950]/40 text-[#3FB950]", label: "● HIGH" },
+    medium: { pill: "bg-[#D29922]/15 border-[#D29922]/40 text-[#D29922]", label: "● MED" },
+    low:    { pill: "bg-[#8B949E]/15 border-[#8B949E]/40 text-[#8B949E]", label: "● LOW" },
+  };
+  const { pill, label } = cfg[confidence];
+  return (
+    <span className={`inline-flex items-center px-1.5 py-[2px] rounded border text-[9px] font-mono font-bold tracking-wide ${pill}`}>
+      {label}
+    </span>
+  );
+}
+
+function RailsBadge({ status }: { status: string }) {
+  if (status === "ok") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-[2px] rounded border text-[9px] font-mono font-bold bg-[#3FB950]/10 border-[#3FB950]/30 text-[#3FB950]">
+        ✓ OPEN
+      </span>
+    );
+  }
+  if (status === "blocked") {
+    return (
+      <span className="inline-flex items-center px-1.5 py-[2px] rounded border text-[9px] font-mono font-bold bg-[#F85149]/10 border-[#F85149]/30 text-[#F85149]">
+        ⚠ BLOCKED
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-[2px] rounded border text-[9px] font-mono font-bold bg-[#8B949E]/10 border-[#8B949E]/30 text-[#8B949E]">
+      — UNK
+    </span>
+  );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function SignalInsightPanel({ signal, onClose }: Props) {
   const [buyLevels, setBuyLevels] = useState<OrderLevel[]>([]);
@@ -122,7 +169,7 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
     }
   }, [signal]);
 
-  // Poll live prices to update order book
+  // Poll live prices every 2 s to keep order book fresh
   useEffect(() => {
     let active = true;
     const poll = async () => {
@@ -132,17 +179,22 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
         const data = await res.json();
         const ticks = Array.isArray(data) ? data : (data.ticks || []);
 
-        type RawTick = { exchangeId?: string; exchange?: string; e?: string; symbol?: string; s?: string; bid?: number; ask?: number; price?: number; bidSize?: number; askSize?: number };
+        type RawTick = {
+          exchangeId?: string; exchange?: string; e?: string;
+          symbol?: string; s?: string;
+          bid?: number; ask?: number; price?: number;
+          bidSize?: number; askSize?: number;
+        };
         const getExId = (t: RawTick) => t.exchangeId || t.exchange || t.e || "";
-        const getSym = (t: RawTick) => t.symbol || t.s || "";
+        const getSym  = (t: RawTick) => t.symbol || t.s || "";
 
-        const buyTick = ticks.find((t: RawTick) => getSym(t) === signal.symbol && getExId(t) === signal.buyExchange);
+        const buyTick  = ticks.find((t: RawTick) => getSym(t) === signal.symbol && getExId(t) === signal.buyExchange);
         const sellTick = ticks.find((t: RawTick) => getSym(t) === signal.symbol && getExId(t) === signal.sellExchange);
 
-        const currentBuyAsk = buyTick?.ask || buyTick?.bid || buyTick?.price || signal.buyPrice || 0;
+        const currentBuyAsk  = buyTick?.ask  || buyTick?.bid  || buyTick?.price  || signal.buyPrice  || 0;
         const currentSellBid = sellTick?.bid || sellTick?.price || signal.sellPrice || 0;
 
-        if (currentBuyAsk > 0) setBuyPrice(currentBuyAsk);
+        if (currentBuyAsk  > 0) setBuyPrice(currentBuyAsk);
         if (currentSellBid > 0) setSellPrice(currentSellBid);
 
         const allSymbolTicks = ticks.filter((t: RawTick) => getSym(t) === signal.symbol);
@@ -167,7 +219,7 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
           .sort((a: OrderLevel, b: OrderLevel) => b.price - a.price)
           .slice(0, 5);
 
-        if (buyLevelsRaw.length > 0) setBuyLevels(buyLevelsRaw);
+        if (buyLevelsRaw.length  > 0) setBuyLevels(buyLevelsRaw);
         if (sellLevelsRaw.length > 0) setSellLevels(sellLevelsRaw);
       } catch { /* non-fatal */ }
     };
@@ -178,255 +230,352 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signal?.id]);
 
-  // Empty state — no signal selected
+  // ── Empty state ────────────────────────────────────────────────────────────
   if (!signal || !signal.symbol) {
     return (
       <div
         className="flex-shrink-0 h-full bg-[#0D1117] border-l border-[#21262D] flex flex-col"
         style={{ width: `${PANEL_WIDTH}px` }}
       >
-        <div className="px-3 py-3 border-b border-[#21262D] bg-[#161B22]">
-          <div className="text-[13px] font-sans font-medium text-[#E6EDF3]">Signal insight</div>
-          <div className="text-[11px] font-sans text-[#8B949E] mt-1">Click any signal to view details</div>
+        <div className="shrink-0 px-3 py-2.5 bg-[#161B22] border-b border-[#21262D]">
+          <span className="text-[10px] font-mono font-semibold tracking-widest text-[#8B949E] uppercase">
+            Signal Insight
+          </span>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
-          <div className="text-[32px] opacity-15 mb-3">📊</div>
-          <div className="text-[11px] font-sans text-[#8B949E] leading-relaxed">
-            Select a signal from the table to view order book depth and P&amp;L estimate.
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
+          <div
+            className="text-[44px] leading-none select-none"
+            style={{ color: "#21262D" }}
+          >
+            ⬡
+          </div>
+          <div className="text-[12px] font-mono text-[#8B949E] leading-relaxed max-w-[220px]">
+            Select a signal from the table to view order book depth and P&amp;L estimate
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="h-px w-12 bg-[#21262D]" />
+            <span className="text-[9px] font-mono text-[#484F58] tracking-wide">waiting for selection</span>
+            <div className="h-px w-12 bg-[#21262D]" />
           </div>
         </div>
       </div>
     );
   }
 
-  const buyEx = exchangeLabel(signal.buyExchange ?? "");
-  const sellEx = exchangeLabel(signal.sellExchange ?? "");
-  const liveBuyAsk = buyPrice || signal.buyPrice || 0;
+  // ── Derived values ─────────────────────────────────────────────────────────
+
+  const liveBuyAsk  = buyPrice  || signal.buyPrice  || 0;
   const liveSellBid = sellPrice || signal.sellPrice || 0;
 
-  const hasFeeData = (signal.withdrawFee ?? 0) > 0 || (signal.bestNetwork ?? "") !== "";
+  const hasFeeData   = (signal.withdrawFee ?? 0) > 0 || (signal.bestNetwork ?? "") !== "";
   const signalSpread = signal.spreadPercent ?? 0;
-  const coin = signal.symbol?.split('/')[0] ?? '';
-  const routeStatus = getRouteStatus(signal.buyExchange, signal.sellExchange, coin);
+  const coin         = signal.symbol?.split("/")[0] ?? "";
+  const routeStatus  = getRouteStatus(signal.buyExchange, signal.sellExchange, coin);
 
-  // P&L — uses trade size from Settings, capped by available liquidity
-  const tradeSize = Math.min(userTradeSize, signal.maxTradeableUsd ?? userTradeSize);
+  // Spread shown on the divider line — live when possible
+  const liveSreadPct =
+    liveBuyAsk > 0 && liveSellBid > 0
+      ? ((liveSellBid - liveBuyAsk) / liveBuyAsk) * 100
+      : signalSpread;
+
+  // P&L
+  const tradeSize  = Math.min(userTradeSize, signal.maxTradeableUsd ?? userTradeSize);
   const grossProfit = tradeSize * (signalSpread / 100);
-  const fees = tradeSize * 0.002;
-  const slippage = grossProfit * 0.05;
-  const netProfit = grossProfit - fees - slippage;
-  const netRoi = (netProfit / tradeSize) * 100;
+  const fees        = tradeSize * 0.002;
+  const slippage    = grossProfit * 0.05;
+  const netProfit   = grossProfit - fees - slippage;
+  const netRoi      = (netProfit / tradeSize) * 100;
 
-  // Order book helpers
-  const maxBuyVol = Math.max(...buyLevels.map(l => l.volume), 1);
-  const maxSellVol = Math.max(...sellLevels.map(l => l.volume), 1);
+  // Order book — 3 asks sorted DESC (best ask = lowest = last row before divider)
+  //              3 bids sorted DESC (best bid = highest = first row after divider)
+  const asks3 = buyLevels.slice(0, 3).sort((a, b) => b.price - a.price);
+  const bids3 = sellLevels.slice(0, 3);
+
+  const maxAskVol = Math.max(...asks3.map(l => l.volume), 1);
+  const maxBidVol = Math.max(...bids3.map(l => l.volume), 1);
+
+  const hasRailsBlocked = routeStatus.status === "blocked";
+  const hasWarnings = hasRailsBlocked || !hasFeeData || !!signal.isVolatile || !!signal.isThinVolume;
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <>
-      <style>{`
-        .sip-scroll::-webkit-scrollbar { width: 3px; }
-        .sip-scroll::-webkit-scrollbar-thumb { background: #21262D; border-radius: 2px; }
-        .sip-scroll::-webkit-scrollbar-track { background: transparent; }
-      `}</style>
+    <div
+      className="flex-shrink-0 h-full flex flex-col bg-[#0D1117] border-l border-[#21262D] overflow-hidden"
+      style={{ width: `${PANEL_WIDTH}px`, fontFamily: "'Geist Mono', 'Fira Code', 'Cascadia Code', monospace" }}
+    >
+      {/* ═══════════════════════════════════════════════════════════════════
+          HEADER  ~56 px
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="shrink-0 px-3 pt-2.5 pb-2 bg-[#161B22] border-b border-[#21262D]">
+        <div className="flex items-start justify-between gap-2">
 
-      <div
-        className="flex-shrink-0 h-full flex flex-col bg-[#0D1117] border-l border-[#21262D] overflow-hidden"
-        style={{ width: `${PANEL_WIDTH}px` }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262D] bg-[#161B22] shrink-0">
+          {/* Left: symbol + exchange route + time */}
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] font-sans text-[#8B949E]">Signal insight</div>
-            <div className="text-[12px] font-mono font-medium text-[#E6EDF3] truncate">
-              {signal.symbol} · {buyEx} → {sellEx}
+            <div className="text-[15px] font-mono font-bold text-[#E6EDF3] leading-tight tracking-wide">
+              {signal.symbol}
             </div>
-            <div className="text-[11px] font-sans text-[#484F58]">
+            <div className="flex items-center gap-1 mt-0.5 text-[10px] font-mono text-[#8B949E]">
+              <span className="font-bold">{shortExName(signal.buyExchange)}</span>
+              <span className="text-[#484F58] tracking-tighter">──────</span>
+              <span className="font-bold">{shortExName(signal.sellExchange)}</span>
+            </div>
+            <div className="text-[10px] font-mono text-[#484F58] mt-[1px]">
               {signal.detectedAt ? timeAgo(signal.detectedAt) : "—"} · {formatDuration(signal.durationMs ?? 0)}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-[#484F58] hover:text-[#E6EDF3] transition-colors ml-2 shrink-0 text-sm leading-none"
-          >
-            ✕
-          </button>
-        </div>
 
-        <div className="sip-scroll flex-1 overflow-y-auto">
-
-          {/* Wallet rails status */}
-          {routeStatus.status === 'blocked' && (
-            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#F85149]/10 border border-[#F85149]/30 rounded text-[10px] font-sans text-[#F85149] flex items-center gap-1.5">
-              <span>⚠</span>
-              <span>{routeStatus.reason ?? 'Transfer route blocked — verify rails before trading'}</span>
-            </div>
-          )}
-          {routeStatus.status === 'ok' && (
-            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#3FB950]/8 border border-[#3FB950]/20 rounded text-[10px] font-sans text-[#3FB950] flex items-center gap-1.5">
-              <span>✓</span>
-              <span>Transfer route confirmed open</span>
-            </div>
-          )}
-
-          {/* Fee data warning */}
-          {!hasFeeData && (
-            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#D29922]/10 border border-[#D29922]/30 rounded text-[10px] font-sans text-[#D29922]">
-              Fee data unavailable — net spread is approximate
-            </div>
-          )}
-
-          {/* Volatile price warning */}
-          {signal.isVolatile && (
-            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#D29922]/10 border border-[#D29922]/30 rounded text-[10px] font-sans text-[#D29922] flex items-center gap-1.5">
-              <span>⚡</span>
-              <span>Price volatile — spike detected in last 5 min. Treat spread with caution.</span>
-            </div>
-          )}
-
-          {/* Thin volume warning */}
-          {signal.isThinVolume && (
-            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#58A6FF]/10 border border-[#58A6FF]/30 rounded text-[10px] font-sans text-[#58A6FF] flex items-center gap-1.5">
-              <span>💧</span>
-              <span>Thin volume — 24h volume below $500K. Slippage risk elevated.</span>
-            </div>
-          )}
-
-          {/* Buy / Sell price boxes */}
-          <div className="grid grid-cols-2 gap-1.5 px-3 py-2">
-            <div className="bg-[#3FB950]/5 border border-[#3FB950]/20 rounded p-2">
-              <div className="text-[10px] font-sans text-[#3FB950]">BUY (ask)</div>
-              <div className="text-[13px] font-mono font-medium text-[#E6EDF3] tabular-nums">
-                ${formatPx(liveBuyAsk)}
-              </div>
-              <div className="text-[11px] font-sans text-[#3FB950] font-medium truncate">{buyEx}</div>
-            </div>
-            <div className="bg-[#F85149]/5 border border-[#F85149]/20 rounded p-2">
-              <div className="text-[10px] font-sans text-[#F85149]">SELL (bid)</div>
-              <div className="text-[13px] font-mono font-medium text-[#E6EDF3] tabular-nums">
-                ${formatPx(liveSellBid)}
-              </div>
-              <div className="text-[11px] font-sans text-[#F85149] font-medium truncate">{sellEx}</div>
-            </div>
+          {/* Right: close + confidence + rails badges */}
+          <div className="flex flex-col items-end gap-[4px] shrink-0">
+            <button
+              onClick={onClose}
+              className="text-[#484F58] hover:text-[#E6EDF3] transition-colors text-[11px] leading-none"
+              aria-label="Close panel"
+            >
+              ✕
+            </button>
+            <ConfidenceBadge confidence={signal.confidence} />
+            <RailsBadge status={routeStatus.status} />
           </div>
 
-          {/* Order book — buy side liquidity */}
-          <div className="px-3 py-2 border-t border-[#21262D]">
-            <div className="flex justify-between items-center mb-1.5">
-              <span className="text-[11px] font-sans text-[#8B949E]">Buy Liquidity</span>
-              {!isDexSignal && (
-                <div className="flex items-center gap-1">
-                  <span className="w-[5px] h-[5px] bg-[#3FB950] rounded-full animate-pulse inline-block" />
-                  <span className="text-[10px] font-mono text-[#3FB950]">LIVE</span>
-                </div>
-              )}
-            </div>
-            {buyLevels.map((level, i) => (
-              <div key={i} className={`flex justify-between items-center px-1 py-[2px] text-[10px] mb-[1px] ${i === 0 ? "bg-[#3FB950]/10 rounded" : ""}`}>
-                <span className={i === 0 ? "text-[#3FB950] font-medium font-mono" : "text-[#E6EDF3] font-mono"}>
-                  {formatPx(level.price)}
-                </span>
-                <span className="text-[10px] font-sans text-[#484F58]">
-                  {level.exchange ? shortExName(level.exchange) : shortExName(signal.buyExchange)}
-                </span>
-                <div className="flex items-center gap-1">
-                  <div className="w-[30px] h-[3px] bg-[#161B22] rounded overflow-hidden" style={{ direction: "rtl" }}>
-                    <div className="h-full bg-[#3FB950]/40 rounded" style={{ width: `${Math.min(100, (level.volume / maxBuyVol) * 100)}%` }} />
-                  </div>
-                  <span className="text-[10px] font-mono text-[#8B949E]">${formatVolume(level.volume)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Order book — sell side liquidity */}
-          <div className="px-3 py-2 border-t border-[#21262D]">
-            <span className="text-[11px] font-sans text-[#8B949E] mb-1.5 block">Sell Liquidity</span>
-            {sellLevels.map((level, i) => (
-              <div key={i} className={`flex justify-between items-center px-1 py-[2px] text-[10px] mb-[1px] ${i === 0 ? "bg-[#F85149]/10 rounded" : ""}`}>
-                <span className={i === 0 ? "text-[#F85149] font-medium font-mono" : "text-[#E6EDF3] font-mono"}>
-                  {formatPx(level.price)}
-                </span>
-                <span className="text-[10px] font-sans text-[#484F58]">
-                  {level.exchange ? shortExName(level.exchange) : shortExName(signal.sellExchange)}
-                </span>
-                <div className="flex items-center gap-1">
-                  <div className="w-[30px] h-[3px] bg-[#161B22] rounded overflow-hidden">
-                    <div className="h-full bg-[#F85149]/40 rounded" style={{ width: `${Math.min(100, (level.volume / maxSellVol) * 100)}%` }} />
-                  </div>
-                  <span className="text-[10px] font-mono text-[#8B949E]">${formatVolume(level.volume)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-[#21262D] mx-3" />
-
-          {/* P&L estimate */}
-          <div className="px-3 py-2">
-            <div className="text-[11px] font-sans text-[#8B949E] mb-1.5">P&L Estimate</div>
-            <table className="w-full text-[11px]">
-              <tbody>
-                <tr>
-                  <td className="py-[2px] font-sans text-[#8B949E]">Trade size</td>
-                  <td className="py-[2px] text-right font-mono text-[#E6EDF3]">${tradeSize.toLocaleString()}</td>
-                </tr>
-                <tr>
-                  <td className="py-[2px] font-sans text-[#8B949E]">Gross profit</td>
-                  <td className="py-[2px] text-right font-mono text-[#3FB950]">+${grossProfit.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td className="py-[2px] font-sans text-[#8B949E]">Fees (0.2%)</td>
-                  <td className="py-[2px] text-right font-mono text-[#F85149]">-${fees.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td className="py-[2px] font-sans text-[#8B949E]">Slippage ~5%</td>
-                  <td className="py-[2px] text-right font-mono text-[#D29922]">~${slippage.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={2} className="py-[2px]"><div className="border-t border-[#21262D]" /></td>
-                </tr>
-                <tr>
-                  <td className="py-[2px] font-sans font-medium text-[#E6EDF3]">Net profit</td>
-                  <td className="py-[2px] text-right text-[13px] font-mono font-medium tabular-nums" style={{ color: netProfit >= 0 ? "#3FB950" : "#F85149" }}>
-                    {netProfit >= 0 ? "+" : ""}${netProfit.toFixed(2)}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-[2px] font-sans text-[#8B949E]">ROI</td>
-                  <td className="py-[2px] text-right font-mono tabular-nums" style={{ color: netRoi >= 0 ? "#3FB950" : "#F85149" }}>
-                    {netRoi >= 0 ? "+" : ""}{netRoi.toFixed(4)}%
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div className="border-t border-[#21262D] mx-3" />
-
-          {/* Signal metadata */}
-          <div className="px-3 py-2">
-            <div className="grid grid-cols-2 gap-y-1 text-[10px]">
-              <span className="font-sans text-[#8B949E]">Type</span>
-              <span className="font-mono text-[#E6EDF3] text-right uppercase">{(signal.type ?? "").replace(/_/g, "-")}</span>
-              <span className="font-sans text-[#8B949E]">Spread</span>
-              <span className="font-mono text-[#3FB950] text-right">{signalSpread.toFixed(3)}%</span>
-              <span className="font-sans text-[#8B949E]">Network</span>
-              <span className="font-mono text-[#E6EDF3] text-right">{signal.bestNetwork || "—"}</span>
-              <span className="font-sans text-[#8B949E]">Withdraw fee</span>
-              <span className="font-mono text-[#E6EDF3] text-right">{(signal.withdrawFee ?? 0) > 0 ? `$${signal.withdrawFee}` : "—"}</span>
-              {signal.type === 'cross_chain' && (signal.minViableTradeUsd ?? 0) > 0 && (
-                <>
-                  <span className="font-sans text-[#8B949E]">Min viable trade</span>
-                  <span className="font-mono text-[#E6EDF3] text-right">
-                    ${(signal.minViableTradeUsd ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    <span className="text-[#484F58] ml-0.5 font-sans" style={{ fontSize: '9px' }}>(bridge &lt;20% profit)</span>
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
         </div>
       </div>
-    </>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          PRICE BAR  ~40 px
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="shrink-0 h-[40px] px-3 flex items-center justify-between bg-[#0D1117] border-b border-[#21262D]">
+        <div className="flex items-baseline gap-3">
+          <span>
+            <span className="text-[9px] font-mono text-[#3FB950] mr-1 tracking-wide">BUY</span>
+            <span className="text-[12px] font-mono font-semibold text-[#E6EDF3] tabular-nums">
+              ${formatPx(liveBuyAsk)}
+            </span>
+          </span>
+          <span>
+            <span className="text-[9px] font-mono text-[#F85149] mr-1 tracking-wide">SELL</span>
+            <span className="text-[12px] font-mono font-semibold text-[#E6EDF3] tabular-nums">
+              ${formatPx(liveSellBid)}
+            </span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 text-[9px] font-mono">
+          <span className="text-[#8B949E]">
+            Spread <span className="text-[#D29922]">{signalSpread.toFixed(3)}%</span>
+          </span>
+          {(signal.netSpread ?? 0) > 0 && (
+            <span className="text-[#8B949E]">
+              Net <span className="text-[#3FB950]">{(signal.netSpread ?? 0).toFixed(3)}%</span>
+            </span>
+          )}
+          {!isDexSignal && (
+            <span className="flex items-center gap-1">
+              <span className="w-[5px] h-[5px] rounded-full bg-[#3FB950] animate-pulse inline-block" />
+              <span className="text-[#3FB950] tracking-wide">LIVE</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          WARNINGS  ~28 px each, conditional
+      ════════════════════════════════════════════════════════════════════ */}
+      {hasWarnings && (
+        <div className="shrink-0 border-b border-[#21262D]">
+          {hasRailsBlocked && (
+            <div className="flex items-center gap-1.5 px-3 h-[28px] bg-[#F85149]/5 border-b border-[#21262D] text-[10px] font-mono text-[#F85149]">
+              <span>⚠</span>
+              <span className="truncate">{routeStatus.reason ?? "Rails blocked — verify before trading"}</span>
+            </div>
+          )}
+          {!hasFeeData && (
+            <div className="flex items-center gap-1.5 px-3 h-[28px] bg-[#D29922]/5 border-b border-[#21262D] text-[10px] font-mono text-[#D29922]">
+              <span>⚠</span>
+              <span>Fee data unavailable — net spread is approximate</span>
+            </div>
+          )}
+          {signal.isVolatile && (
+            <div className="flex items-center gap-1.5 px-3 h-[28px] bg-[#D29922]/5 border-b border-[#21262D] text-[10px] font-mono text-[#D29922]">
+              <span>⚡</span>
+              <span>Volatile — price spike detected in last 5 min</span>
+            </div>
+          )}
+          {signal.isThinVolume && (
+            <div className="flex items-center gap-1.5 px-3 h-[28px] text-[10px] font-mono text-[#58A6FF] bg-[#58A6FF]/5">
+              <span>💧</span>
+              <span>Thin volume — elevated slippage risk</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          ORDER BOOK  flex-1 (fills remaining height)
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="flex-1 min-h-0 flex flex-col bg-[#161B22] border-b border-[#21262D] overflow-hidden">
+
+        {/* Asks label */}
+        <div className="shrink-0 flex items-center px-3 py-1">
+          <div className="flex-1 h-px bg-[#F85149]/20" />
+          <span className="px-2 text-[9px] font-mono text-[#F85149]/50 tracking-widest">ASKS</span>
+          <div className="flex-1 h-px bg-[#F85149]/20" />
+        </div>
+
+        {/* Ask rows — 3 levels, highest price first, best ask (lowest) closest to spread */}
+        <div className="shrink-0">
+          {asks3.map((level, i) => {
+            const isBestAsk = i === asks3.length - 1;
+            const barPct    = Math.min(100, (level.volume / maxAskVol) * 100);
+            return (
+              <div
+                key={i}
+                className={`flex items-center px-3 py-[3px] gap-1 ${isBestAsk ? "bg-[#F85149]/8" : ""}`}
+              >
+                <span
+                  className={`w-[82px] text-[11px] font-mono tabular-nums shrink-0 ${
+                    isBestAsk ? "text-[#F85149] font-bold" : "text-[#E6EDF3]"
+                  }`}
+                >
+                  ${formatPx(level.price)}
+                </span>
+                <span className="w-[30px] text-[9px] font-mono text-[#484F58] shrink-0">
+                  {level.exchange ? shortExName(level.exchange) : shortExName(signal.buyExchange)}
+                </span>
+                <div className="flex-1 h-[4px] bg-[#0D1117] rounded overflow-hidden mx-0.5">
+                  <div
+                    className="h-full rounded"
+                    style={{ width: `${barPct}%`, backgroundColor: isBestAsk ? "#F85149" : "rgba(248,81,73,0.4)" }}
+                  />
+                </div>
+                <span className="w-[38px] text-right text-[9px] font-mono text-[#8B949E] shrink-0">
+                  ${formatVolume(level.volume)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Spread divider */}
+        <div className="shrink-0 flex items-center px-3 py-1.5">
+          <div className="flex-1 h-px bg-[#D29922]/30" />
+          <span className="px-2 text-[9px] font-mono text-[#D29922] tracking-wider whitespace-nowrap">
+            SPREAD {liveSreadPct.toFixed(3)}%
+          </span>
+          <div className="flex-1 h-px bg-[#D29922]/30" />
+        </div>
+
+        {/* Bid rows — best bid (highest) first, closest to spread */}
+        <div className="shrink-0">
+          {bids3.map((level, i) => {
+            const isBestBid = i === 0;
+            const barPct    = Math.min(100, (level.volume / maxBidVol) * 100);
+            return (
+              <div
+                key={i}
+                className={`flex items-center px-3 py-[3px] gap-1 ${isBestBid ? "bg-[#3FB950]/8" : ""}`}
+              >
+                <span
+                  className={`w-[82px] text-[11px] font-mono tabular-nums shrink-0 ${
+                    isBestBid ? "text-[#3FB950] font-bold" : "text-[#E6EDF3]"
+                  }`}
+                >
+                  ${formatPx(level.price)}
+                </span>
+                <span className="w-[30px] text-[9px] font-mono text-[#484F58] shrink-0">
+                  {level.exchange ? shortExName(level.exchange) : shortExName(signal.sellExchange)}
+                </span>
+                <div className="flex-1 h-[4px] bg-[#0D1117] rounded overflow-hidden mx-0.5">
+                  <div
+                    className="h-full rounded"
+                    style={{ width: `${barPct}%`, backgroundColor: isBestBid ? "#3FB950" : "rgba(63,185,80,0.4)" }}
+                  />
+                </div>
+                <span className="w-[38px] text-right text-[9px] font-mono text-[#8B949E] shrink-0">
+                  ${formatVolume(level.volume)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Bids label */}
+        <div className="shrink-0 flex items-center px-3 py-1">
+          <div className="flex-1 h-px bg-[#3FB950]/20" />
+          <span className="px-2 text-[9px] font-mono text-[#3FB950]/50 tracking-widest">BIDS</span>
+          <div className="flex-1 h-px bg-[#3FB950]/20" />
+        </div>
+
+        {/* Spacer so order book fills its flex-1 area */}
+        <div className="flex-1" />
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          P&L CALCULATOR  ~100 px
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="shrink-0 px-3 py-2 bg-[#0D1117] border-b border-[#21262D]">
+        <div className="flex justify-between items-center text-[10px] font-mono py-[2px]">
+          <span className="text-[#8B949E]">Trade size</span>
+          <span className="text-[#E6EDF3] tabular-nums">${tradeSize.toLocaleString()}</span>
+        </div>
+        <div className="flex justify-between items-center text-[10px] font-mono py-[2px]">
+          <span className="text-[#8B949E]">Gross profit</span>
+          <span className="text-[#3FB950] tabular-nums">+${grossProfit.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between items-center text-[10px] font-mono py-[2px]">
+          <span className="text-[#8B949E]">Fees (0.2%)</span>
+          <span className="text-[#F85149] tabular-nums">-${fees.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between items-center text-[10px] font-mono py-[2px]">
+          <span className="text-[#8B949E]">Slippage ~5%</span>
+          <span className="text-[#D29922] tabular-nums">~${slippage.toFixed(2)}</span>
+        </div>
+        <div className="border-t border-[#21262D] my-[5px]" />
+        <div className="flex justify-between items-baseline text-[10px] font-mono py-[1px]">
+          <span className="text-[#E6EDF3] font-bold">Net profit</span>
+          <span className="flex items-baseline gap-2">
+            <span
+              className="text-[13px] font-bold tabular-nums"
+              style={{ color: netProfit >= 0 ? "#3FB950" : "#F85149" }}
+            >
+              {netProfit >= 0 ? "+" : ""}${netProfit.toFixed(2)}
+            </span>
+            <span
+              className="text-[10px] tabular-nums"
+              style={{ color: netRoi >= 0 ? "#3FB950" : "#F85149" }}
+            >
+              {netRoi >= 0 ? "+" : ""}{netRoi.toFixed(3)}%
+            </span>
+          </span>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          METADATA STRIP  ~60 px
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="shrink-0 px-3 py-2 bg-[#161B22]">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-[3px] text-[10px]">
+          <span className="font-mono text-[#8B949E]">Type</span>
+          <span className="font-mono text-[#E6EDF3] text-right uppercase tracking-wide">
+            {(signal.type ?? "").replace(/_/g, "-")}
+          </span>
+
+          <span className="font-mono text-[#8B949E]">Network</span>
+          <span className="font-mono text-[#E6EDF3] text-right">{signal.bestNetwork || "—"}</span>
+
+          <span className="font-mono text-[#8B949E]">Withdraw fee</span>
+          <span className="font-mono text-[#E6EDF3] text-right">
+            {(signal.withdrawFee ?? 0) > 0 ? `$${signal.withdrawFee}` : "—"}
+          </span>
+
+          <span className="font-mono text-[#8B949E]">Min trade</span>
+          <span className="font-mono text-[#E6EDF3] text-right">
+            {(signal.minViableTradeUsd ?? 0) > 0
+              ? `$${(signal.minViableTradeUsd ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+              : "—"}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
