@@ -12,9 +12,19 @@
  *   - USDC/USDT  (most common: depeg events, market maker liquidity gaps)
  *   - USDT/USDC  (reverse direction)
  *   - FDUSD/USDT (Binance native stablecoin vs USDT)
+ *
+ * Sprint 1.4 changes:
+ *   - Spread now computed from actual bid/ask (buy at ask, sell at bid)
+ *     instead of the mid-price (which overstates the real achievable spread).
+ *   - Fallback: if a leg has no valid bid/ask, apply a conservative 0.05%
+ *     slippage assumption per leg on the mid-price.
+ *   - Hard cap: spreads > 0.5% are suppressed (likely bad data / real depeg).
+ *   - Volume gate: if 24h volume is known and < $1M for the pair, signal is
+ *     suppressed.  When volume is unknown the check is skipped (fail-open).
  */
 
 import { tickStore } from '../engine/tickStore'
+import { getVolume } from '../engine/volumeRegistry'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -22,10 +32,11 @@ export interface StablecoinOpportunity {
   id: string
   symbol: string          // e.g. "USDC/USDT"
   buyExchange: string
-  buyPrice: number
+  buyPrice: number        // actual ask price paid
   sellExchange: string
-  sellPrice: number
-  spreadPercent: number
+  sellPrice: number       // actual bid price received
+  spreadPercent: number   // bid/ask-adjusted gross spread
+  slippageAssumed: boolean // true when fallback mid+0.05% was used
   minFeePercent: number   // round-trip taker fee for these two exchanges
   netProfitPercent: number
   estimatedProfit1k: number
@@ -53,10 +64,15 @@ const EXCHANGE_TAKER_FEES: Record<string, number> = {
 }
 
 // Minimum gross spread to even consider — must exceed total round-trip fees
-const MIN_GROSS_SPREAD    = 0.02    // 0.02% — very tight (stables are ultra-liquid)
-const MAX_GROSS_SPREAD    = 2.0     // 2% — above this is likely bad data or depeg event
-const MAX_AGE_MS          = 15_000  // reject ticks older than 15s for stablecoins
-const MAX_OPPORTUNITIES   = 50
+const MIN_GROSS_SPREAD        = 0.02    // 0.02% — very tight (stables are ultra-liquid)
+/** Spreads above this are abnormal — suppress as likely data error or real depeg. */
+const MAX_GROSS_SPREAD        = 0.5     // Sprint 1.4: tightened from 2.0% → 0.5%
+const MAX_AGE_MS              = 15_000  // reject ticks older than 15s for stablecoins
+const MAX_OPPORTUNITIES       = 50
+/** Conservative per-leg slippage assumption when bid/ask is unavailable. */
+const FALLBACK_SLIPPAGE_PCT   = 0.05   // 0.05% per leg = 0.10% round-trip
+/** Suppress signal if known 24h volume is below this threshold (USD). */
+const MIN_VOLUME_24H_USD      = 1_000_000  // $1M
 
 // ── Calculation ───────────────────────────────────────────────────────────────
 
@@ -66,14 +82,49 @@ function getRoundTripFee(buyExchange: string, sellExchange: string): number {
   return (buyFee + sellFee) * 100  // return as %
 }
 
+/**
+ * Returns the effective buy price (ask) and sell price (bid) for a tick.
+ * If the tick lacks valid bid/ask data, falls back to mid ± slippage.
+ */
+function getEffectivePrices(tick: { bid: number; ask: number }): {
+  effectiveBuy: number   // price we pay to enter
+  effectiveSell: number  // price we receive on exit
+  slippageAssumed: boolean
+} {
+  const hasBidAsk = tick.bid > 0 && tick.ask > 0 && tick.ask >= tick.bid
+
+  if (hasBidAsk) {
+    return {
+      effectiveBuy:    tick.ask,
+      effectiveSell:   tick.bid,
+      slippageAssumed: false,
+    }
+  }
+
+  // Fallback: use mid with conservative slippage
+  const mid = tick.bid > 0 ? tick.bid : tick.ask   // at least one should be nonzero
+  const slipFactor = FALLBACK_SLIPPAGE_PCT / 100
+  return {
+    effectiveBuy:    mid * (1 + slipFactor),
+    effectiveSell:   mid * (1 - slipFactor),
+    slippageAssumed: true,
+  }
+}
+
 function computeStablecoinOpportunities(): StablecoinOpportunity[] {
-  const now = Date.now()
+  const now    = Date.now()
   const cutoff = now - MAX_AGE_MS
   const opps: StablecoinOpportunity[] = []
 
   for (const symbol of STABLECOIN_SYMBOLS) {
-    // Use mid-price (bid+ask)/2 for each exchange tick
-    const ticks = tickStore.getBySymbol(symbol).filter(t => t.timestamp >= cutoff && t.bid > 0 && t.ask > 0)
+    // Volume gate — fail-open if volume is unknown
+    const knownVolume = getVolume(symbol)
+    if (knownVolume !== null && knownVolume < MIN_VOLUME_24H_USD) continue
+
+    const ticks = tickStore
+      .getBySymbol(symbol)
+      .filter(t => t.timestamp >= cutoff && (t.bid > 0 || t.ask > 0))
+
     if (ticks.length < 2) continue
 
     // Compare all exchange pairs
@@ -82,35 +133,54 @@ function computeStablecoinOpportunities(): StablecoinOpportunity[] {
         const a = ticks[i]!
         const b = ticks[j]!
 
-        const aMid = (a.bid + a.ask) / 2
-        const bMid = (b.bid + b.ask) / 2
+        const aPrices = getEffectivePrices(a)
+        const bPrices = getEffectivePrices(b)
 
-        // Determine buy/sell direction: buy at lower ask, sell at higher bid
-        const [buy, sell, buyMid, sellMid] =
-          aMid < bMid ? [a, b, aMid, bMid] : [b, a, bMid, aMid]
+        // Determine buy/sell direction:
+        //   buy (pay ask) on the exchange with the lower ask
+        //   sell (receive bid) on the exchange with the higher bid
+        const [buy, sell, buyPrices, sellPrices] =
+          aPrices.effectiveBuy < bPrices.effectiveBuy
+            ? [a, b, aPrices, bPrices]
+            : [b, a, bPrices, aPrices]
 
-        const spreadPercent = parseFloat((((sellMid - buyMid) / buyMid) * 100).toFixed(6))
+        // Gross spread using actual execution prices (bid/ask-adjusted)
+        const spreadPercent = parseFloat(
+          (((sellPrices.effectiveSell / buyPrices.effectiveBuy) - 1) * 100).toFixed(6)
+        )
+
         if (spreadPercent < MIN_GROSS_SPREAD) continue
-        if (spreadPercent > MAX_GROSS_SPREAD) continue
+        if (spreadPercent > MAX_GROSS_SPREAD) continue   // 1.4: hard cap at 0.5%
+
+        const slippageAssumed = buyPrices.slippageAssumed || sellPrices.slippageAssumed
 
         const minFeePercent    = parseFloat(getRoundTripFee(buy.exchangeId, sell.exchangeId).toFixed(4))
         const netProfitPercent = parseFloat((spreadPercent - minFeePercent).toFixed(6))
-
         const estimatedProfit1k = parseFloat((1000 * (netProfitPercent / 100)).toFixed(4))
-        const liquidityScore    = Math.min(1, Math.min(buy.bidSize, sell.askSize) / 10_000)
 
-        let confidence: 'high' | 'medium' | 'low' = 'low'
-        if (netProfitPercent > 0.05 && liquidityScore > 0.5) confidence = 'high'
-        else if (netProfitPercent > 0)                       confidence = 'medium'
+        // Liquidity: use minimum available depth across both legs (in USD)
+        const buyDepthUsd  = buy.bidSize  * buyPrices.effectiveBuy
+        const sellDepthUsd = sell.askSize * sellPrices.effectiveSell
+        const liquidityScore = Math.min(1, Math.min(buyDepthUsd, sellDepthUsd) / 10_000)
+
+        let confidence: 'high' | 'medium' | 'low'
+        if (netProfitPercent > 0.05 && liquidityScore > 0.5 && !slippageAssumed) {
+          confidence = 'high'
+        } else if (netProfitPercent > 0 && liquidityScore > 0.2) {
+          confidence = 'medium'
+        } else {
+          confidence = 'low'
+        }
 
         opps.push({
           id: `stable-${buy.exchangeId}-${sell.exchangeId}-${symbol}-${now}`,
           symbol,
           buyExchange:      buy.exchangeId,
-          buyPrice:         buy.ask,      // we pay the ask when buying
+          buyPrice:         buyPrices.effectiveBuy,
           sellExchange:     sell.exchangeId,
-          sellPrice:        sell.bid,     // we receive the bid when selling
+          sellPrice:        sellPrices.effectiveSell,
           spreadPercent,
+          slippageAssumed,
           minFeePercent,
           netProfitPercent,
           estimatedProfit1k,
@@ -152,5 +222,5 @@ export function startStablecoinEngine(): void {
   isStarted = true
   evaluate()
   setInterval(evaluate, 5_000)   // every 5s — tight spreads close fast
-  console.log('[StablecoinArb] Engine started — scanning USDC/USDT/FDUSD/DAI gaps every 5s')
+  console.log('[StablecoinArb] Engine started — scanning USDC/USDT/FDUSD/DAI gaps every 5s (bid/ask-adjusted)')
 }
