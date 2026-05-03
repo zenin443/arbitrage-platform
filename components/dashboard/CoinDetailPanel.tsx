@@ -82,9 +82,13 @@ function timeAgoShort(ms: number): string {
 interface Props {
   symbol: string | null;
   onSelectSignal: (signal: GapRecord) => void;
+  /** Base coins that currently have active signals (e.g. ["BTC", "ETH"]).
+   *  When provided and non-empty, the panel shows a placeholder for any
+   *  coin not in this list instead of showing price data. */
+  signalCoins?: string[];
 }
 
-export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
+export default function CoinDetailPanel({ symbol, onSelectSignal, signalCoins }: Props) {
   const [ticks, setTicks] = useState<PriceTick[]>([]);
   const [gaps, setGaps] = useState<GapRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,6 +162,29 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
       <div className="w-[200px] flex-shrink-0 h-full bg-[#161B22] border-r border-[#21262D] flex flex-col items-center justify-center">
         <div className="text-[11px] font-sans text-[#484F58] text-center px-4 leading-relaxed">
           Select a coin from the watchlist
+        </div>
+      </div>
+    );
+  }
+
+  const coinBase = symbol.split("/")[0];
+  // If signalCoins has loaded (non-empty) and this coin has no active signal, show placeholder
+  const hasActiveSignal =
+    !signalCoins || signalCoins.length === 0 || signalCoins.includes(coinBase);
+
+  if (!hasActiveSignal) {
+    return (
+      <div className="w-[200px] flex-shrink-0 h-full bg-[#161B22] border-r border-[#21262D] flex flex-col">
+        <div className="flex items-center px-3 py-2 border-b border-[#21262D] sticky top-0 bg-[#161B22] z-10">
+          <span className="text-[13px] font-mono font-medium text-[#8B949E] truncate">{symbol}</span>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-4 gap-1">
+          <div className="text-[11px] font-sans text-[#484F58] text-center leading-relaxed">
+            No active signals for {coinBase}
+          </div>
+          <div className="text-[10px] font-sans text-[#30363D] text-center leading-relaxed mt-1">
+            Select a coin from the signal list
+          </div>
         </div>
       </div>
     );
