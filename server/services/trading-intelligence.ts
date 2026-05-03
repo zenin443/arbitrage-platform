@@ -5,6 +5,7 @@ import { PriceTick } from '../adapters/cex/base'
 import { getTriangularRoutes } from '../engines/triangularArbitrage'
 import { getCrossChainOpportunities } from '../engines/crossChainArbitrage'
 import { getCachedDepthAnalysis, DepthAnalysis } from './orderbook-fetcher'
+import { scoredGap } from '../engine/signalScorer'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,10 @@ export interface GapRecord {
   isActive: boolean
   profitSimulation: ProfitSim
   depthAnalysis: DepthAnalysis | null
+  /** Signal scorer output — attached by getProfitableGaps(), absent on raw history entries */
+  confidence?: 'high' | 'medium' | 'low'
+  isVolatile?: boolean
+  isThinVolume?: boolean
 }
 
 export interface TradingStats {
@@ -707,9 +712,14 @@ export function getTradingStats(): TradingStats {
  * Includes sub-break-even gaps so every quote currency (USDT, USDC, BTC)
  * shows live data in the UI. Check gap.profitSimulation.isProfitable for
  * true profitability after fees.
+ *
+ * Phase C: each gap is passed through the signal scorer so that
+ * confidence / isVolatile / isThinVolume are populated for the UI.
+ * Signals are NOT filtered here — low-confidence signals remain visible;
+ * filtering is left to the client.
  */
 export function getProfitableGaps(): GapRecord[] {
-  return Array.from(activeGaps.values())
+  const sorted = Array.from(activeGaps.values())
     .filter(g => g.spreadPercent > 0)
     .sort((a, b) => {
       // Profitable gaps always rank above non-profitable ones
@@ -721,6 +731,20 @@ export function getProfitableGaps(): GapRecord[] {
       if (profitDiff !== 0) return profitDiff
       return b.spreadPercent - a.spreadPercent
     })
+
+  return sorted.map(gap => {
+    try {
+      const scored = scoredGap(gap, 1000)
+      return {
+        ...gap,
+        confidence:   scored.signalScore.confidence,
+        isVolatile:   scored.signalScore.isVolatile,
+        isThinVolume: scored.signalScore.isThinVolume,
+      }
+    } catch {
+      return gap
+    }
+  })
 }
 
 export function startTradingIntelligence(): void {
