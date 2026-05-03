@@ -70,7 +70,8 @@ import { startNewListingEngine, getNewListingSignals } from './engines/newListin
 import { startWrappedTokenEngine, getWrappedTokenSignals } from './engines/wrappedTokenEngine'
 import { startTwapEngine, getTwapSignals } from './engine/twapEngine'
 import { startOrderbookPressureEngine, getOrderbookPressureSignals } from './engine/orderbookPressure'
-import { getScoredSignals, scoreAndFilter, updateScoredSignals } from './engine/signalScorer'
+import { getScoredSignals, scoreAndFilter, updateScoredSignals, recordPriceTick } from './engine/signalScorer'
+import { updateVolume } from './engine/volumeRegistry'
 import { SYMBOLS } from './config/symbols'
 import {
   startPaperTraders,
@@ -175,6 +176,8 @@ function reconnectExchange(exchangeId: string, attempt = 0): void {
 
 function onTick(tick: PriceTick): void {
   tickStore.upsert(tick)
+  recordPriceTick(tick.symbol, tick.bid)
+  if ((tick as any).volume24h) updateVolume(tick.exchangeId, tick.symbol, (tick as any).volume24h)
   const h = exchangeHealth[tick.exchangeId]
   exchangeHealth[tick.exchangeId] = {
     lastTickAt: Date.now(),
