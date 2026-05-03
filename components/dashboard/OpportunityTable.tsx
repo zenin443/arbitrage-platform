@@ -122,11 +122,21 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
       try {
         const res = await fetch("/api/signals/unified");
         const raw = await res.json();
-        // Normalize both free-tier (4-field) and trader+ shapes so every
-        // GapRecord always has spreadPercent, buyExchange, sellExchange, etc.
         const normalized = normalizeApiGapList(Array.isArray(raw) ? raw : []);
-        setGaps(normalized);
-        onDataUpdate?.(normalized);
+
+        // Deduplicate by composite key — keep highest spread when duplicated
+        const dedupMap = new Map<string, GapRecord>();
+        for (const g of normalized) {
+          const key = `${g.symbol}|${g.type}|${g.buyExchange}|${g.sellExchange}`;
+          const existing = dedupMap.get(key);
+          if (!existing || (g.spreadPercent ?? 0) > (existing.spreadPercent ?? 0)) {
+            dedupMap.set(key, g);
+          }
+        }
+        // Replace entire state — signals not in latest response are gone
+        const deduped = Array.from(dedupMap.values());
+        setGaps(deduped);
+        onDataUpdate?.(deduped);
       } catch {
         // keep previous data on transient errors
       } finally {
@@ -140,15 +150,15 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
   }, []);
 
   const now = Date.now();
-  const filteredGaps = gaps.filter(g => {
-    const typeOk       = typeFilter === null || g.type === typeFilter;
+
+  // Base filter — everything except type filter applied
+  // Used for badge counts so clicking a type shows exactly what the badge says
+  const baseFiltered = gaps.filter(g => {
     const quoteOk      = quoteFilter === null || g.quoteCurrency === quoteFilter;
     const ageOk        = maxAgeMinutes === 0 || !g.detectedAt ||
                          (now - g.detectedAt) <= maxAgeMinutes * 60_000;
     const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, g.confidence);
     const confidenceOk = confidenceFilter === null || confidence === confidenceFilter;
-
-    // Settings-based filters
     const exchangeOk   = selectedExchanges.length === 0 ||
                          selectedExchanges.includes(g.buyExchange) ||
                          selectedExchanges.includes(g.sellExchange);
@@ -157,12 +167,16 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
     const spreadOk     = !g._isFreeTier && g.netSpread != null
                          ? g.netSpread >= minNetSpread
                          : true;
-
-    return typeOk && quoteOk && ageOk && confidenceOk && exchangeOk && coinOk && spreadOk;
+    return quoteOk && ageOk && confidenceOk && exchangeOk && coinOk && spreadOk;
   });
 
-  // Count per type for badges
-  const countByType = (key: string) => gaps.filter(g => g.type === key).length;
+  // Final filtered — add type filter on top of base
+  const filteredGaps = typeFilter === null
+    ? baseFiltered
+    : baseFiltered.filter(g => g.type === typeFilter);
+
+  // Badge counts from baseFiltered — always matches what clicking the button would show
+  const countByType = (key: string) => baseFiltered.filter(g => g.type === key).length;
 
   // Detect whether all current rows are free-tier limited
   const allFreeTier = filteredGaps.length > 0 && filteredGaps.every(g => g._isFreeTier);
@@ -185,7 +199,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
           <span className="text-[10px] text-[#484F58] font-mono w-[72px] shrink-0 text-right pr-2">Type</span>
           <div className="flex items-center gap-1 flex-wrap">
             {TYPE_FILTERS.map(f => {
-              const count = f.key === null ? gaps.length : countByType(f.key);
+              const count = f.key === null ? baseFiltered.length : countByType(f.key);
               const active = typeFilter === f.key;
               const typeBg =
                 f.key === 'cex_cex'       ? (active ? 'bg-[#388BFD]/20 border-[#388BFD]/50 text-[#388BFD]' : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]') :
@@ -218,7 +232,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
           <span className="text-[10px] text-[#484F58] font-mono w-[72px] shrink-0 text-right pr-2">Quote</span>
           <div className="flex items-center gap-1 flex-wrap">
             {QUOTE_FILTERS.map(f => {
-              const count = f.key === null ? gaps.length : gaps.filter(g => g.quoteCurrency === f.key).length;
+              const count = f.key === null ? baseFiltered.length : baseFiltered.filter(g => g.quoteCurrency === f.key).length;
               const active = quoteFilter === f.key;
               return (
                 <button
@@ -255,7 +269,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               All
             </button>
             {(['high', 'medium', 'low'] as ConfidenceTier[]).map(tier => {
-              const count = gaps.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, g.confidence) === tier).length;
+              const count = baseFiltered.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, g.confidence) === tier).length;
               const active = confidenceFilter === tier;
               const color =
                 tier === 'high'   ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/40 hover:text-[#3FB950]') :
@@ -317,9 +331,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
             <>
               <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
               <span className="bg-[#388BFD]/10 text-[#388BFD] border border-[#388BFD]/20 text-[11px] px-2 py-0.5 rounded-full font-medium font-sans">
-                {filteredGaps.length !== gaps.length
-                  ? `${filteredGaps.length} / ${gaps.length}`
-                  : `${gaps.length}`}{' '}
+                {filteredGaps.length !== baseFiltered.length
+                  ? `${filteredGaps.length} / ${baseFiltered.length}`
+                  : `${baseFiltered.length}`}{' '}
                 signal{filteredGaps.length !== 1 ? 's' : ''}
               </span>
               {selectedSignalId && (
