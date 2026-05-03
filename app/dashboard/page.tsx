@@ -191,23 +191,6 @@ export default function DashboardPage() {
 
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden p-3 gap-2">
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
-            {statCards.map((card) => (
-              <StatCard
-                key={card.label}
-                label={card.label}
-                value={String(card.value)}
-                sub={card.subtitle}
-                valueColor={card.valueColor}
-                glow={card.glow}
-                glowBorder={card.glowBorder}
-                pulse={card.pulse}
-                pulseColor={card.pulseColor}
-                className="p-2.5"
-              />
-            ))}
-          </div>
-
           <div className="flex justify-between items-center shrink-0">
             <span className="text-[11px] text-[#8B949E] font-sans">
               Live signals · polled every 2s · net spread after all fees

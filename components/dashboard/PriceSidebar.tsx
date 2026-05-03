@@ -84,7 +84,7 @@ interface PriceSidebarProps {
 }
 
 export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSidebarProps) {
-  const [quote, setQuote] = useState<"USDT" | "USDC" | "BTC">("USDT");
+  const [quote, setQuote] = useState<"USDT" | "USDC" | "BTC" | "ETH">("USDT");
   const [search, setSearch] = useState("");
   const [coins, setCoins] = useState<CoinEntry[]>([]);
   const firstSeenPrices = useRef<Record<string, number>>({});
@@ -165,7 +165,7 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
       >
         {/* USDT / USDC / BTC pill toggle */}
         <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#21262D] shrink-0">
-          {(["USDT", "USDC", "BTC"] as const).map((q) => (
+          {(["USDT", "USDC", "BTC", "ETH"] as const).map((q) => (
             <button
               key={q}
               onClick={() => setQuote(q)}
