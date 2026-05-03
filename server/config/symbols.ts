@@ -70,9 +70,20 @@ const TIER2_BTC: string[] = [
   'NEAR/BTC', 'UNI/BTC', 'ARB/BTC', 'OP/BTC',
 ]
 
-// ── ETH cross-pairs (new — second triangular tier) ────────────────────────────
+// ── ETH cross-pairs ────────────────────────────────────────────────────────────
+// Tier 1: Most liquid ALT/ETH pairs — well supported on Binance, Bybit, OKX, KuCoin
 const TIER1_ETH: string[] = [
-  'SOL/ETH', 'BNB/ETH', 'LINK/ETH', 'AAVE/ETH',
+  'BTC/ETH', 'SOL/ETH', 'BNB/ETH', 'XRP/ETH',
+  'ADA/ETH', 'DOGE/ETH', 'AVAX/ETH', 'DOT/ETH',
+  'LINK/ETH', 'MATIC/ETH',
+]
+
+// Tier 2: Mid-cap ETH cross-pairs
+const TIER2_ETH: string[] = [
+  'UNI/ETH', 'AAVE/ETH', 'LTC/ETH', 'BCH/ETH',
+  'ATOM/ETH', 'NEAR/ETH', 'CRV/ETH', 'COMP/ETH',
+  'SNX/ETH', 'MKR/ETH', 'SAND/ETH', 'MANA/ETH',
+  'GRT/ETH', 'LRC/ETH', 'ENJ/ETH',
 ]
 
 // ── Composite export ──────────────────────────────────────────────────────────
@@ -87,7 +98,7 @@ export const USDC_SYMBOLS: string[] = [...TIER1_USDC, ...TIER2_USDC]
 export const BTC_SYMBOLS: string[] = [...TIER1_BTC, ...TIER2_BTC]
 
 /** All ETH cross-pairs */
-export const ETH_SYMBOLS: string[] = [...TIER1_ETH]
+export const ETH_SYMBOLS: string[] = [...TIER1_ETH, ...TIER2_ETH]
 
 /** Stablecoin direct pairs */
 export const STABLE_SYMBOLS: string[] = [...STABLECOIN_PAIRS]
@@ -115,7 +126,8 @@ export const SYMBOL_TIERS: Record<string, number> = {
   ...Object.fromEntries(TIER1_BTC.map(s => [s, 2])),
   ...Object.fromEntries(TIER2_BTC.map(s => [s, 3])),
   // ETH cross-pairs
-  ...Object.fromEntries(TIER1_ETH.map(s => [s, 3])),
+  ...Object.fromEntries(TIER1_ETH.map(s => [s, 2])),
+  ...Object.fromEntries(TIER2_ETH.map(s => [s, 3])),
   // Stablecoin pairs — free tier (educational, low risk)
   ...Object.fromEntries(STABLE_SYMBOLS.map(s => [s, 1])),
 }
