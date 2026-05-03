@@ -40,7 +40,7 @@ interface Props {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PANEL_WIDTH = 380;
+const PANEL_WIDTH = 360;
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance: "Binance", bybit: "Bybit", okx: "OKX", kucoin: "KuCoin",
@@ -342,37 +342,40 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          PRICE BAR  ~40 px
+          PRICES  ~48 px
       ════════════════════════════════════════════════════════════════════ */}
-      <div className="shrink-0 h-[40px] px-3 flex items-center justify-between bg-[#0D1117] border-b border-[#21262D]">
-        <div className="flex items-baseline gap-3">
-          <span>
-            <span className="text-[9px] font-mono text-[#3FB950] mr-1 tracking-wide">BUY</span>
-            <span className="text-[12px] font-mono font-semibold text-[#E6EDF3] tabular-nums">
-              ${formatPx(liveBuyAsk)}
+      <div className="shrink-0 px-3 py-2 bg-[#0D1117] border-b border-[#21262D]">
+        {/* Row 1: BUY / SELL prices */}
+        <div className="flex items-baseline justify-between">
+          <div className="flex items-baseline gap-3">
+            <span>
+              <span className="text-[9px] font-mono text-[#3FB950] mr-1 tracking-wide">BUY</span>
+              <span className="text-[12px] font-mono font-semibold text-[#E6EDF3] tabular-nums">
+                ${formatPx(liveBuyAsk)}
+              </span>
             </span>
-          </span>
-          <span>
-            <span className="text-[9px] font-mono text-[#F85149] mr-1 tracking-wide">SELL</span>
-            <span className="text-[12px] font-mono font-semibold text-[#E6EDF3] tabular-nums">
-              ${formatPx(liveSellBid)}
+            <span>
+              <span className="text-[9px] font-mono text-[#F85149] mr-1 tracking-wide">SELL</span>
+              <span className="text-[12px] font-mono font-semibold text-[#E6EDF3] tabular-nums">
+                ${formatPx(liveSellBid)}
+              </span>
             </span>
-          </span>
+          </div>
+          {!isDexSignal && (
+            <span className="flex items-center gap-1 text-[9px] font-mono">
+              <span className="w-[5px] h-[5px] rounded-full bg-[#3FB950] animate-pulse inline-block" />
+              <span className="text-[#3FB950] tracking-wide">LIVE</span>
+            </span>
+          )}
         </div>
-
-        <div className="flex items-center gap-2 text-[9px] font-mono">
+        {/* Row 2: Spread / Net */}
+        <div className="flex items-center gap-3 mt-[3px] text-[9px] font-mono">
           <span className="text-[#8B949E]">
             Spread <span className="text-[#D29922]">{signalSpread.toFixed(3)}%</span>
           </span>
           {(signal.netSpread ?? 0) > 0 && (
             <span className="text-[#8B949E]">
               Net <span className="text-[#3FB950]">{(signal.netSpread ?? 0).toFixed(3)}%</span>
-            </span>
-          )}
-          {!isDexSignal && (
-            <span className="flex items-center gap-1">
-              <span className="w-[5px] h-[5px] rounded-full bg-[#3FB950] animate-pulse inline-block" />
-              <span className="text-[#3FB950] tracking-wide">LIVE</span>
             </span>
           )}
         </div>
@@ -430,7 +433,7 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
             return (
               <div
                 key={i}
-                className={`flex items-center px-3 py-[3px] gap-1 ${isBestAsk ? "bg-[#F85149]/8" : ""}`}
+                className={`flex items-center px-3 py-[3px] gap-1.5 ${isBestAsk ? "bg-[#F85149]/8" : ""}`}
               >
                 <span
                   className={`w-[82px] text-[11px] font-mono tabular-nums shrink-0 ${
@@ -439,13 +442,13 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
                 >
                   ${formatPx(level.price)}
                 </span>
-                <span className="w-[30px] text-[9px] font-mono text-[#484F58] shrink-0">
+                <span className="w-[28px] text-[9px] font-mono text-[#484F58] shrink-0">
                   {level.exchange ? shortExName(level.exchange) : shortExName(signal.buyExchange)}
                 </span>
-                <div className="flex-1 h-[4px] bg-[#0D1117] rounded overflow-hidden mx-0.5">
+                <div className="flex-1 h-2.5 bg-[#161B22] rounded overflow-hidden">
                   <div
-                    className="h-full rounded"
-                    style={{ width: `${barPct}%`, backgroundColor: isBestAsk ? "#F85149" : "rgba(248,81,73,0.4)" }}
+                    className={`h-full rounded ${isBestAsk ? "bg-[#F85149]/60" : "bg-[#F85149]/30"}`}
+                    style={{ width: `${barPct}%` }}
                   />
                 </div>
                 <span className="w-[38px] text-right text-[9px] font-mono text-[#8B949E] shrink-0">
@@ -473,7 +476,7 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
             return (
               <div
                 key={i}
-                className={`flex items-center px-3 py-[3px] gap-1 ${isBestBid ? "bg-[#3FB950]/8" : ""}`}
+                className={`flex items-center px-3 py-[3px] gap-1.5 ${isBestBid ? "bg-[#3FB950]/8" : ""}`}
               >
                 <span
                   className={`w-[82px] text-[11px] font-mono tabular-nums shrink-0 ${
@@ -482,13 +485,13 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
                 >
                   ${formatPx(level.price)}
                 </span>
-                <span className="w-[30px] text-[9px] font-mono text-[#484F58] shrink-0">
+                <span className="w-[28px] text-[9px] font-mono text-[#484F58] shrink-0">
                   {level.exchange ? shortExName(level.exchange) : shortExName(signal.sellExchange)}
                 </span>
-                <div className="flex-1 h-[4px] bg-[#0D1117] rounded overflow-hidden mx-0.5">
+                <div className="flex-1 h-2.5 bg-[#161B22] rounded overflow-hidden">
                   <div
-                    className="h-full rounded"
-                    style={{ width: `${barPct}%`, backgroundColor: isBestBid ? "#3FB950" : "rgba(63,185,80,0.4)" }}
+                    className={`h-full rounded ${isBestBid ? "bg-[#3FB950]/60" : "bg-[#3FB950]/30"}`}
+                    style={{ width: `${barPct}%` }}
                   />
                 </div>
                 <span className="w-[38px] text-right text-[9px] font-mono text-[#8B949E] shrink-0">
@@ -551,31 +554,9 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          METADATA STRIP  ~60 px
+          AD ZONE  flex-1, reserved for future placement
       ════════════════════════════════════════════════════════════════════ */}
-      <div className="shrink-0 px-3 py-2 bg-[#161B22]">
-        <div className="grid grid-cols-2 gap-x-2 gap-y-[3px] text-[10px]">
-          <span className="font-mono text-[#8B949E]">Type</span>
-          <span className="font-mono text-[#E6EDF3] text-right uppercase tracking-wide">
-            {(signal.type ?? "").replace(/_/g, "-")}
-          </span>
-
-          <span className="font-mono text-[#8B949E]">Network</span>
-          <span className="font-mono text-[#E6EDF3] text-right">{signal.bestNetwork || "—"}</span>
-
-          <span className="font-mono text-[#8B949E]">Withdraw fee</span>
-          <span className="font-mono text-[#E6EDF3] text-right">
-            {(signal.withdrawFee ?? 0) > 0 ? `$${signal.withdrawFee}` : "—"}
-          </span>
-
-          <span className="font-mono text-[#8B949E]">Min trade</span>
-          <span className="font-mono text-[#E6EDF3] text-right">
-            {(signal.minViableTradeUsd ?? 0) > 0
-              ? `$${(signal.minViableTradeUsd ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`
-              : "—"}
-          </span>
-        </div>
-      </div>
+      <div className="flex-1 min-h-[80px] bg-[#0D1117] mx-3 mb-3 mt-2 border border-dashed border-[#21262D]/40 rounded" />
     </div>
   );
 }
