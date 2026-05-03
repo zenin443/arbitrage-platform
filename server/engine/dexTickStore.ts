@@ -18,6 +18,15 @@ export class DexTickStore {
     return Array.from(this.store.values())
   }
 
+  /**
+   * Returns only entries whose stored timestamp is within maxAgeMs of now.
+   * Use this in calculators to avoid acting on stale DEX prices.
+   */
+  getFresh(maxAgeMs: number): DexPrice[] {
+    const cutoff = Date.now() - maxAgeMs
+    return Array.from(this.store.values()).filter(p => p.timestamp >= cutoff)
+  }
+
   getBySymbol(symbol: string): DexPrice[] {
     return this.getAll().filter(p => p.symbol === symbol)
   }
