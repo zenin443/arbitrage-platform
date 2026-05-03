@@ -120,7 +120,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
   useEffect(() => {
     const fetchGaps = async () => {
       try {
-        const res = await fetch("/api/profitable-gaps");
+        const res = await fetch("/api/signals/unified");
         const raw = await res.json();
         // Normalize both free-tier (4-field) and trader+ shapes so every
         // GapRecord always has spreadPercent, buyExchange, sellExchange, etc.
