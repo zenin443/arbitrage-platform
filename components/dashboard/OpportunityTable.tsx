@@ -27,18 +27,29 @@ function exchangeLabel(id: string): string {
 
 function networkLabel(type: string): string {
   switch (type) {
-    case "cex_cex":      return "CEX";
-    case "dex_cex":      return "DEX";
-    case "spot_futures": return "S-F";
-    case "triangular":   return "TRI";
-    case "cross_chain":  return "X-CHAIN";
-    default:             return type.toUpperCase().replace(/_/g, "-");
+    case "cex_cex":        return "CEX-CEX";
+    case "dex_cex":        return "DEX-CEX";
+    case "spot_futures":   return "SPOT-F";
+    case "triangular":     return "TRI";
+    case "cross_chain":    return "X-CHAIN";
+    case "stablecoin":     return "STABLE";
+    case "pairs_trading":  return "PAIRS";
+    case "liquidation":    return "LIQ";
+    case "calendar":       return "CAL";
+    case "new_listing":    return "NEW";
+    case "wrapped_token":  return "WRAP";
+    default:               return type.replace(/_/g, "-").toUpperCase();
   }
 }
 
 type ConfidenceTier = "high" | "medium" | "low";
 
-function computeConfidence(spreadPercent: number, durationMs: number): ConfidenceTier {
+function computeConfidence(spreadPercent: number, durationMs: number, backendConfidence?: string): ConfidenceTier {
+  // Prefer backend confidence tag set by the signal scorer (Sprint 1.5)
+  if (backendConfidence === "high" || backendConfidence === "medium" || backendConfidence === "low") {
+    return backendConfidence as ConfidenceTier;
+  }
+  // Fallback: derive from spread size and signal age
   if (spreadPercent > 0.5 && durationMs < 30_000) return "high";
   if (spreadPercent > 0.2) return "medium";
   return "low";
@@ -67,13 +78,15 @@ type GapRecord = NormalizedGap;
 
 // ── Filter config ────────────────────────────────────────────────────────────
 
-const TYPE_FILTERS: Array<{ key: string | null; label: string; badge?: string }> = [
-  { key: null,           label: 'All' },
-  { key: 'cex_cex',      label: 'CEX-CEX' },
-  { key: 'spot_futures', label: 'Spot-F' },
-  { key: 'dex_cex',      label: 'DEX-CEX' },
-  { key: 'triangular',   label: 'Tri' },
-  { key: 'cross_chain',  label: 'X-Chain' },
+const TYPE_FILTERS: Array<{ key: string | null; label: string }> = [
+  { key: null,            label: 'All' },
+  { key: 'cex_cex',       label: 'CEX-CEX' },
+  { key: 'spot_futures',  label: 'Spot-F' },
+  { key: 'dex_cex',       label: 'DEX-CEX' },
+  { key: 'triangular',    label: 'Tri' },
+  { key: 'cross_chain',   label: 'X-Chain' },
+  { key: 'stablecoin',    label: 'Stable' },
+  { key: 'pairs_trading', label: 'Pairs' },
 ]
 
 const QUOTE_FILTERS: Array<{ key: string | null; label: string }> = [
@@ -132,7 +145,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
     const quoteOk      = quoteFilter === null || g.quoteCurrency === quoteFilter;
     const ageOk        = maxAgeMinutes === 0 || !g.detectedAt ||
                          (now - g.detectedAt) <= maxAgeMinutes * 60_000;
-    const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0);
+    const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, (g as any).confidence);
     const confidenceOk = confidenceFilter === null || confidence === confidenceFilter;
 
     // Settings-based filters
@@ -175,12 +188,14 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               const count = f.key === null ? gaps.length : countByType(f.key);
               const active = typeFilter === f.key;
               const typeBg =
-                f.key === 'cex_cex'      ? (active ? 'bg-[#388BFD]/20 border-[#388BFD]/50 text-[#388BFD]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]') :
-                f.key === 'spot_futures' ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/30 hover:text-[#3FB950]') :
-                f.key === 'dex_cex'      ? (active ? 'bg-[#D29922]/20 border-[#D29922]/50 text-[#D29922]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#D29922]/30 hover:text-[#D29922]') :
-                f.key === 'triangular'   ? (active ? 'bg-[#BC8CFF]/20 border-[#BC8CFF]/50 text-[#BC8CFF]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#BC8CFF]/30 hover:text-[#BC8CFF]') :
-                f.key === 'cross_chain'  ? (active ? 'bg-[#F78166]/20 border-[#F78166]/50 text-[#F78166]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#F78166]/30 hover:text-[#F78166]') :
-                                           (active ? 'bg-[#E6EDF3]/10 border-[#8B949E]/50 text-[#E6EDF3]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#8B949E]/40 hover:text-[#E6EDF3]');
+                f.key === 'cex_cex'       ? (active ? 'bg-[#388BFD]/20 border-[#388BFD]/50 text-[#388BFD]' : 'border-[#21262D] text-[#8B949E] hover:border-[#388BFD]/30 hover:text-[#388BFD]') :
+                f.key === 'spot_futures'  ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]' : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/30 hover:text-[#3FB950]') :
+                f.key === 'dex_cex'       ? (active ? 'bg-[#D29922]/20 border-[#D29922]/50 text-[#D29922]' : 'border-[#21262D] text-[#8B949E] hover:border-[#D29922]/30 hover:text-[#D29922]') :
+                f.key === 'triangular'    ? (active ? 'bg-[#BC8CFF]/20 border-[#BC8CFF]/50 text-[#BC8CFF]' : 'border-[#21262D] text-[#8B949E] hover:border-[#BC8CFF]/30 hover:text-[#BC8CFF]') :
+                f.key === 'cross_chain'   ? (active ? 'bg-[#F78166]/20 border-[#F78166]/50 text-[#F78166]' : 'border-[#21262D] text-[#8B949E] hover:border-[#F78166]/30 hover:text-[#F78166]') :
+                f.key === 'stablecoin'    ? (active ? 'bg-[#58A6FF]/20 border-[#58A6FF]/50 text-[#58A6FF]' : 'border-[#21262D] text-[#8B949E] hover:border-[#58A6FF]/30 hover:text-[#58A6FF]') :
+                f.key === 'pairs_trading' ? (active ? 'bg-[#E3B341]/20 border-[#E3B341]/50 text-[#E3B341]' : 'border-[#21262D] text-[#8B949E] hover:border-[#E3B341]/30 hover:text-[#E3B341]') :
+                                            (active ? 'bg-[#E6EDF3]/10 border-[#8B949E]/50 text-[#E6EDF3]' : 'border-[#21262D] text-[#8B949E] hover:border-[#8B949E]/40 hover:text-[#E6EDF3]');
               return (
                 <button
                   key={String(f.key)}
@@ -240,7 +255,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               All
             </button>
             {(['high', 'medium', 'low'] as ConfidenceTier[]).map(tier => {
-              const count = gaps.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0) === tier).length;
+              const count = gaps.filter(g => computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0, (g as any).confidence) === tier).length;
               const active = confidenceFilter === tier;
               const color =
                 tier === 'high'   ? (active ? 'bg-[#3FB950]/20 border-[#3FB950]/50 text-[#3FB950]'   : 'border-[#21262D] text-[#8B949E] hover:border-[#3FB950]/40 hover:text-[#3FB950]') :
@@ -375,7 +390,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               filteredGaps.map((gap) => {
                 const key = gap.id;
                 const isFreeTier = gap._isFreeTier;
-                const tier = computeConfidence(gap.spreadPercent, gap.durationMs);
+                const tier = computeConfidence(gap.spreadPercent, gap.durationMs, (gap as any).confidence);
                 const netSpread = gap.netSpread;
                 const estimatedProfit = isFreeTier
                   ? null
@@ -390,12 +405,14 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                                       "border-l-[#21262D]";
 
                 const typeBadgeClass =
-                  gap.type === 'cex_cex'      ? 'bg-[#388BFD]/12 text-[#388BFD]' :
-                  gap.type === 'spot_futures' ? 'bg-[#3FB950]/12 text-[#3FB950]' :
-                  gap.type === 'dex_cex'      ? 'bg-[#D29922]/12 text-[#D29922]' :
-                  gap.type === 'triangular'   ? 'bg-[#BC8CFF]/12 text-[#BC8CFF]' :
-                  gap.type === 'cross_chain'  ? 'bg-[#F78166]/12 text-[#F78166]' :
-                                                'bg-[#388BFD]/12 text-[#388BFD]';
+                  gap.type === 'cex_cex'       ? 'bg-[#388BFD]/12 text-[#388BFD]' :
+                  gap.type === 'spot_futures'  ? 'bg-[#3FB950]/12 text-[#3FB950]' :
+                  gap.type === 'dex_cex'       ? 'bg-[#D29922]/12 text-[#D29922]' :
+                  gap.type === 'triangular'    ? 'bg-[#BC8CFF]/12 text-[#BC8CFF]' :
+                  gap.type === 'cross_chain'   ? 'bg-[#F78166]/12 text-[#F78166]' :
+                  gap.type === 'stablecoin'    ? 'bg-[#58A6FF]/12 text-[#58A6FF]' :
+                  gap.type === 'pairs_trading' ? 'bg-[#E3B341]/12 text-[#E3B341]' :
+                                                 'bg-[#8B949E]/12 text-[#8B949E]';
 
                 return (
                   <tr
