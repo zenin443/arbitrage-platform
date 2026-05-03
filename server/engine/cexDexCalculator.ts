@@ -3,7 +3,9 @@ import { dexTickStore } from './dexTickStore'
 import { CexDexOpportunity } from '../adapters/dex/base'
 
 const MIN_NET_PROFIT_PERCENT = 0.1
-const MAX_PRICE_DIFF_PERCENT = 5.0 // reject bad exchange data above this threshold
+const MAX_PRICE_DIFF_PERCENT = 5.0  // operational ceiling — spreads above this are noise
+const MAX_SPREAD_HARD_CAP    = 20.0 // data-quality guard — anything above 20% is bad data
+const DEX_MAX_AGE_MS         = 30_000 // reject DEX prices older than 30 seconds
 
 // Per-chain gas cost estimates in USD (one-way execution cost)
 const CHAIN_GAS_COSTS: Record<string, number> = {
@@ -39,7 +41,8 @@ function nextId(): string {
 
 export function calculateCexDexOpportunities(): CexDexOpportunity[] {
   const opportunities: CexDexOpportunity[] = []
-  const dexPrices = dexTickStore.getAll()
+  // Only use DEX prices received within the last 30 seconds to avoid stale signals
+  const dexPrices = dexTickStore.getFresh(DEX_MAX_AGE_MS)
 
   for (const dexPrice of dexPrices) {
     if (dexPrice.price <= 0) continue
@@ -52,6 +55,10 @@ export function calculateCexDexOpportunities(): CexDexOpportunity[] {
       if (cexMid <= 0) continue
 
       const rawDiffPercent = ((dexPrice.price - cexMid) / cexMid) * 100
+
+      // Hard cap: anything above 20% is a data-quality failure, not an opportunity
+      if (Math.abs(rawDiffPercent) > MAX_SPREAD_HARD_CAP) continue
+      // Operational ceiling: spreads above 5% are treated as noise/bad data
       if (Math.abs(rawDiffPercent) > MAX_PRICE_DIFF_PERCENT) continue
 
       // Gas fee based on the DEX's chain; expressed as % of actual trade size

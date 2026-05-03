@@ -29,6 +29,8 @@ export interface TriangularRoute {
   }
   feesPercent: number
   netProfitPercent: number
+  /** Net spread after compounded 3-leg fees, as a decimal (e.g. 0.0018 = 0.18%) */
+  netSpread: number
   estimatedProfit1k: number
   detectedAt: number
 }
@@ -45,20 +47,39 @@ interface CrossPairPrice {
 
 const MAX_ROUTES = 50
 const MAX_NET_PROFIT_PERCENT = 5.0
+const MIN_NET_PROFIT_PERCENT = 0.15  // suppress signals below 0.15% net — reduces false positives
 
-// Taker fees per exchange for accurate 3-leg cost calculation
+// Taker fees per exchange (spot taker rate as a decimal fraction)
 const EXCHANGE_TAKER_FEES: Record<string, number> = {
-  binance:  0.001,
-  bybit:    0.001,
-  okx:      0.001,
-  kucoin:   0.001,
-  gateio:   0.002,
-  mexc:     0.001,
+  binance:  0.001,   // 0.10%
+  bybit:    0.001,   // 0.10%
+  okx:      0.0008,  // 0.08%
+  kucoin:   0.001,   // 0.10%
+  kraken:   0.0026,  // 0.26%
+  coinbase: 0.006,   // 0.60%
+  huobi:    0.002,   // 0.20%
+  gateio:   0.002,   // 0.20%
+  gate:     0.002,   // 0.20% (alias)
+  mexc:     0.002,   // 0.20%
+}
+const DEFAULT_TAKER_FEE = 0.002  // 0.20% fallback for unknown exchanges
+
+/**
+ * Compounded 3-leg fee drag as a percentage.
+ * Uses multiplicative compounding: (1 - fee)^3
+ * e.g. binance: (1 - 0.001)^3 = 0.997003 → 0.2997% total drag
+ */
+function getRoundtripFeePercent(exchange: string): number {
+  const fee = EXCHANGE_TAKER_FEES[exchange] ?? DEFAULT_TAKER_FEE
+  return (1 - Math.pow(1 - fee, 3)) * 100
 }
 
-function getRoundtripFee(exchange: string): number {
-  const fee = EXCHANGE_TAKER_FEES[exchange] ?? 0.001
-  return fee * 3 * 100  // 3 legs, expressed as %
+/**
+ * Compounded fee multiplier for 3 legs: (1 - fee)^3
+ */
+function getFeeCompoundFactor(exchange: string): number {
+  const fee = EXCHANGE_TAKER_FEES[exchange] ?? DEFAULT_TAKER_FEE
+  return Math.pow(1 - fee, 3)
 }
 
 // Cross-pairs: BTC as intermediate (most liquid), plus USDC loops
@@ -219,11 +240,16 @@ function computeTriangularRoutes(): TriangularRoute[] {
         // 1 USDT → (1/step1) BTC → (1/step1/step2) ALT → (step3/(step1*step2)) USDT
         const grossReturn = step3 / (step1 * step2)
         const profitPercent = (grossReturn - 1) * 100
-        const feesPercent = getRoundtripFee(exchange)
-        const netProfitPercent = profitPercent - feesPercent
+
+        // Compounded 3-leg fee: each leg reduces the working capital by (1-fee)
+        const feeCompound = getFeeCompoundFactor(exchange)
+        const netReturn = grossReturn * feeCompound
+        const netProfitPercent = (netReturn - 1) * 100
+        const feesPercent = getRoundtripFeePercent(exchange)
+        const netSpread = parseFloat((netProfitPercent / 100).toFixed(6))
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
 
-        if (netProfitPercent > 0 && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
+        if (netProfitPercent > MIN_NET_PROFIT_PERCENT && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
           routes.push({
             id: `tri-${exchange}-fwd-${alt}-${now}`,
             exchange,
@@ -236,6 +262,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
             prices: { step1, step2, step3 },
             feesPercent: parseFloat(feesPercent.toFixed(4)),
             netProfitPercent: parseFloat(netProfitPercent.toFixed(4)),
+            netSpread,
             estimatedProfit1k: parseFloat(estimatedProfit1k.toFixed(2)),
             detectedAt: now,
           })
@@ -250,11 +277,16 @@ function computeTriangularRoutes(): TriangularRoute[] {
 
         const grossReturn = (step2 * step3) / step1
         const profitPercent = (grossReturn - 1) * 100
-        const feesPercent = getRoundtripFee(exchange)
-        const netProfitPercent = profitPercent - feesPercent
+
+        // Compounded 3-leg fee: each leg reduces the working capital by (1-fee)
+        const feeCompound = getFeeCompoundFactor(exchange)
+        const netReturn = grossReturn * feeCompound
+        const netProfitPercent = (netReturn - 1) * 100
+        const feesPercent = getRoundtripFeePercent(exchange)
+        const netSpread = parseFloat((netProfitPercent / 100).toFixed(6))
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
 
-        if (netProfitPercent > 0 && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
+        if (netProfitPercent > MIN_NET_PROFIT_PERCENT && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
           routes.push({
             id: `tri-${exchange}-rev-${alt}-${now}`,
             exchange,
@@ -267,6 +299,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
             prices: { step1, step2, step3 },
             feesPercent: parseFloat(feesPercent.toFixed(4)),
             netProfitPercent: parseFloat(netProfitPercent.toFixed(4)),
+            netSpread,
             estimatedProfit1k: parseFloat(estimatedProfit1k.toFixed(2)),
             detectedAt: now,
           })
