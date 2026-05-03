@@ -49,8 +49,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', 'Inter', '-apple-system', 'sans-serif'],
-        mono: ['var(--font-jetbrains)', 'JetBrains Mono', 'monospace'],
+        sans: ['var(--font-ibm-sans)', 'IBM Plex Sans', '-apple-system', 'sans-serif'],
+        mono: ['var(--font-ibm-mono)', 'IBM Plex Mono', 'monospace'],
       },
       colors: {
         background: "var(--background)",

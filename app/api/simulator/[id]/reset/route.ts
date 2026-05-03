@@ -7,6 +7,7 @@ export async function POST(
   try {
     const res = await fetch(`${BACKEND_URL}/simulator/${params.id}/reset`, {
       method: 'POST',
+      headers: { 'x-internal-api-key': process.env.INTERNAL_API_SECRET ?? '' },
     })
     const data = await res.json()
     return Response.json(data)

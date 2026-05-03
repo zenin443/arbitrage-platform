@@ -1,6 +1,7 @@
 import { PriceTick } from '../adapters/cex/base'
 import { EXCHANGE_REGISTRY } from '../registry/exchangeRegistry'
 import { TickStore } from './tickStore'
+import { hasAnyOpenRoute, checkTransferRoute } from '../services/networkStatusCache'
 
 export interface ArbitrageOpportunity {
   id: string
@@ -11,15 +12,18 @@ export interface ArbitrageOpportunity {
   sellPrice: number
   grossSpread: number
   netSpread: number
-  isProfitable: boolean      // true when netSpread > 0 after all fees
-  estimatedProfit: number    // based on $1000 trade
-  liquidityScore: number     // 0–100
+  isProfitable: boolean
+  estimatedProfit: number
+  liquidityScore: number
   confidence: 'high' | 'medium' | 'low'
   bestNetwork: string
   withdrawFee: number
   transferTimeMinutes: number
   detectedAt: number
   strategy: 'cex_cex_spot' | 'spot_futures' | 'funding_rate' | 'cex_dex' | 'dex_dex'
+  routeStatus: 'open' | 'blocked' | 'unknown'
+  withdrawSuspended: boolean
+  depositSuspended: boolean
 }
 
 const TRADE_SIZE_USD = 1000
@@ -174,6 +178,34 @@ export function calculateSpread(
   const estimatedProfit = (netSpread / 100) * TRADE_SIZE_USD
   const liq = liquidityScore(buyTick, sellTick)
 
+  // Check live network status: can we actually withdraw from buy exchange
+  // and deposit to sell exchange on the chosen network?
+  let routeStatus: 'open' | 'blocked' | 'unknown' = 'unknown'
+  let withdrawSuspended = false
+  let depositSuspended = false
+
+  if (bestNetwork) {
+    const route = checkTransferRoute(buyTick.exchangeId, sellTick.exchangeId, coin, bestNetwork)
+    if (!route.unknown) {
+      withdrawSuspended = !route.withdrawOk
+      depositSuspended = !route.depositOk
+      routeStatus = (withdrawSuspended || depositSuspended) ? 'blocked' : 'open'
+    }
+  } else {
+    // No specific network chosen — check if ANY route is open
+    const anyRoute = hasAnyOpenRoute(buyTick.exchangeId, sellTick.exchangeId, coin)
+    if (!anyRoute.unknown) {
+      routeStatus = anyRoute.routable ? 'open' : 'blocked'
+      if (!anyRoute.routable) {
+        withdrawSuspended = true
+        depositSuspended = true
+      }
+    }
+  }
+
+  // Hard-filter: if we have confirmed data that ALL routes are blocked, skip this signal
+  if (routeStatus === 'blocked') return null
+
   return {
     id: `${buyTick.exchangeId}-${sellTick.exchangeId}-${buyTick.symbol}-${Date.now()}`,
     symbol: buyTick.symbol,
@@ -192,6 +224,9 @@ export function calculateSpread(
     transferTimeMinutes,
     detectedAt: Date.now(),
     strategy: 'cex_cex_spot',
+    routeStatus,
+    withdrawSuspended,
+    depositSuspended,
   }
 }
 

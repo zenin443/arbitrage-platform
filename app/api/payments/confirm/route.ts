@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
+import { applyApiRateLimit } from '@/lib/api-rate-limit';
 import { paymentConfirmSchema, formatZodError } from '@/lib/validation';
 
 // Crypto payment confirmation is DISABLED until on-chain transaction verification
@@ -10,6 +11,9 @@ import { paymentConfirmSchema, formatZodError } from '@/lib/validation';
 const CRYPTO_PAYMENTS_ENABLED = process.env.CRYPTO_PAYMENTS_ENABLED === 'true';
 
 export async function POST(req: NextRequest) {
+  const rateLimit = applyApiRateLimit(req);
+  if (rateLimit) return rateLimit;
+
   if (!CRYPTO_PAYMENTS_ENABLED) {
     return NextResponse.json(
       {

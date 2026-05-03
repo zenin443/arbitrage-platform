@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       email: user.email,
       plan: 'free',
+      role: 'user',
     });
     const refreshToken = generateRefreshToken(user.id);
 
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
     await client.query('COMMIT');
 
     const response = NextResponse.json(
-      { user: { id: user.id, email: user.email, name: user.name, plan: 'free' }, accessToken },
+      { user: { id: user.id, email: user.email, name: user.name, plan: 'free', role: 'user' }, accessToken },
       { status: 201 }
     );
 

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
+import { applyApiRateLimit } from '@/lib/api-rate-limit';
 import { CHAINS, PLAN_PRICES, SERVER_PAYMENT_WALLET, SERVER_SOLANA_WALLET } from '@/lib/payments/config';
 import { paymentCreateSchema, formatZodError } from '@/lib/validation';
 
 export async function POST(req: NextRequest) {
+  const rateLimit = applyApiRateLimit(req);
+  if (rateLimit) return rateLimit;
+
   const authResult = requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
   const { userId } = authResult;

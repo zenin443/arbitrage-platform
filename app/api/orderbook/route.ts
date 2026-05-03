@@ -1,6 +1,11 @@
+import { NextRequest } from 'next/server';
+import { applyApiRateLimit } from '@/lib/api-rate-limit';
+
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001'
 
-export async function GET(request: Request): Promise<Response> {
+export async function GET(request: NextRequest): Promise<Response> {
+  const rateLimit = applyApiRateLimit(request);
+  if (rateLimit) return rateLimit;
   try {
     const { searchParams } = new URL(request.url)
     const symbol = searchParams.get('symbol')

@@ -1,72 +1,47 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import {
-  ActivityIcon,
-  LayersIcon,
-  SettingsIcon,
-  ZapIcon,
-} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ActivityIcon } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
+import MobileNav from "@/components/MobileNav";
+import StatCard from "@/components/ui/StatCard";
 import PriceSidebar from "@/components/dashboard/PriceSidebar";
 import CoinDetailPanel from "@/components/dashboard/CoinDetailPanel";
 import OpportunityTable from "@/components/dashboard/OpportunityTable";
 import SignalInsightPanel from "@/components/dashboard/SignalInsightPanel";
-import AdZone from "@/components/ui/AdZone";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { formatPercent, formatNumber } from "@/lib/formatters";
-import NavAuthButton from "@/components/NavAuthButton";
+import { NormalizedGap } from "@/lib/response-transformer";
+import { useSettingsStore } from "@/store/useSettingsStore";
 
-interface StatsResponse {
-  total: number;
-  byExchange: Record<string, number>;
-  bySymbol: Record<string, number>;
+interface HealthSummary {
+  exchanges: number;
+  symbols: number;
 }
 
-interface Opportunity {
-  id?: string;
-  type: string;
-  symbol: string;
-  buyExchange: string;
-  sellExchange: string;
-  spreadPercent: number;
-  netSpread?: number;
-  buyPrice: number;
-  sellPrice: number;
-  maxTradeableUsd: number;
-  detectedAt: number;
-  durationMs: number;
-}
+type Opportunity = NormalizedGap;
 
-async function fetchExchangeStats(): Promise<StatsResponse | null> {
+async function fetchHealthSummary(): Promise<HealthSummary | null> {
   try {
-    const res = await fetch("http://localhost:3001/stats", { cache: "no-store" });
+    const res = await fetch("/api/health-summary", { cache: "no-store" });
     if (!res.ok) return null;
-    return (await res.json()) as StatsResponse;
+    return (await res.json()) as HealthSummary;
   } catch {
     return null;
   }
 }
 
-function formatExchangeSubtitle(byExchange: Record<string, number>): string {
-  const names = Object.keys(byExchange).map(
-    (id) => id.charAt(0).toUpperCase() + id.slice(1)
-  );
-  if (names.length === 0) return "No exchanges connected";
-  if (names.length <= 4) return names.join(" · ");
-  return names.slice(0, 3).join(" · ") + ` · +${names.length - 3} more`;
-}
-
 export default function DashboardPage() {
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
   const [selectedSignal, setSelectedSignal] = useState<Opportunity | null>(null);
-  const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [health, setHealth] = useState<HealthSummary | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [opportunityCount, setOpportunityCount] = useState<number | null>(null);
   const [bestSpread, setBestSpread] = useState<number | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [now, setNow] = useState('');
+  const [showSignalPanel, setShowSignalPanel] = useState(false);
+  const tradeSize = useSettingsStore(s => s.tradeSize);
 
   useEffect(() => {
     const fmt = () => new Date().toLocaleTimeString("en-US", {
@@ -77,50 +52,31 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Check backend connectivity once
   useEffect(() => {
     fetch('/api/profitable-gaps')
       .then(r => {
-        if (r.ok) setConnectionStatus('connected')
-        else setConnectionStatus('error')
+        if (r.ok) setConnectionStatus('connected');
+        else setConnectionStatus('error');
       })
-      .catch(() => setConnectionStatus('error'))
+      .catch(() => setConnectionStatus('error'));
   }, []);
 
-  // Fetch exchange stats once
   useEffect(() => {
-    fetchExchangeStats().then(setStats);
+    fetchHealthSummary().then(setHealth);
   }, []);
 
-  // Poll opportunities every 2s
-  useEffect(() => {
-    let active = true;
-    const poll = async () => {
-      try {
-        const res = await fetch("/api/opportunities");
-        const json = await res.json();
-        const opps = Array.isArray(json)
-          ? json
-          : (json.opportunities ?? json.data ?? []);
-        if (!active) return;
-        setOpportunities(opps);
-        setOpportunityCount(opps.length);
-        setBestSpread(
-          opps.length > 0 ? Math.max(...opps.map((o: { netSpread?: number }) => o.netSpread ?? 0)) : null
-        );
-      } catch {
-        // keep previous values
-      }
-    };
-    poll();
-    const id = setInterval(poll, 2000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
+  const handleOpportunityData = useCallback((opps: Opportunity[]) => {
+    setOpportunities(opps);
+    setOpportunityCount(opps.length);
+    const allFreeTier = opps.length > 0 && opps.every(o => o._isFreeTier);
+    setBestSpread(
+      opps.length === 0 || allFreeTier
+        ? null
+        : Math.max(...opps.map(o => o.netSpread))
+    );
   }, []);
 
-  // Auto-select best signal when opportunities first load and nothing is selected
+  // Auto-select best signal on first load
   useEffect(() => {
     if (!selectedSignal && opportunities.length > 0) {
       const best = opportunities.reduce((acc: Opportunity | null, current: Opportunity) => {
@@ -132,32 +88,42 @@ export default function DashboardPage() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunities]); // intentionally excludes selectedSignal to avoid re-selecting after user closes
+  }, [opportunities]);
 
-  const activeExchangeCount = stats ? Object.keys(stats.byExchange).length : 0;
-  const exchangeSubtitle = stats
-    ? formatExchangeSubtitle(stats.byExchange)
-    : "Fetching exchange data…";
+  // Auto-clear signal pane when the selected gap disappears from the feed
+  useEffect(() => {
+    if (selectedSignal && opportunities.length > 0) {
+      const stillExists = opportunities.some(o => o.id === selectedSignal.id);
+      if (!stillExists) {
+        setSelectedSignal(null);
+        setShowSignalPanel(false);
+      }
+    }
+  }, [opportunities, selectedSignal]);
+
+  const exchangeCount = health?.exchanges ?? 0;
+  const symbolCount = health?.symbols ?? 0;
   const countDisplay = opportunityCount === null ? "—" : formatNumber(opportunityCount);
-  const spreadDisplay = bestSpread === null ? "—" : formatPercent(bestSpread, 4);
+  const isFreeTierOpps = opportunities.length > 0 && opportunities.every(o => o._isFreeTier);
+  const spreadDisplay = bestSpread === null
+    ? (isFreeTierOpps ? "Upgrade" : "—")
+    : formatPercent(bestSpread, 4);
 
   const statCards = [
     {
       label: "Active Exchanges",
-      value: activeExchangeCount || "—",
-      subtitle: exchangeSubtitle,
-      icon: <ActivityIcon className="h-3.5 w-3.5" />,
+      value: exchangeCount || "—",
+      subtitle: exchangeCount > 0 ? `${exchangeCount} exchanges connected` : "Fetching…",
       glow: "bg-[#3FB950]/5",
-      glowBorder: activeExchangeCount > 0 ? "hover:border-[#3FB950]/40" : "",
+      glowBorder: exchangeCount > 0 ? "hover:border-[#3FB950]/40" : "",
       pulse: false,
       pulseColor: "#3FB950",
       valueColor: "text-[#E6EDF3]",
     },
     {
       label: "Symbols Tracked",
-      value: 90,
-      subtitle: "across 4 tiers",
-      icon: <LayersIcon className="h-3.5 w-3.5" />,
+      value: symbolCount || "—",
+      subtitle: symbolCount > 0 ? `across ${exchangeCount} exchanges` : "Fetching…",
       glow: "bg-transparent",
       glowBorder: "",
       pulse: false,
@@ -173,7 +139,6 @@ export default function DashboardPage() {
           : opportunityCount === 1
           ? "active signal"
           : "active signals",
-      icon: null,
       glow: opportunityCount !== null && opportunityCount > 0 ? "bg-[#3FB950]/5" : "bg-transparent",
       glowBorder: opportunityCount !== null && opportunityCount > 0 ? "hover:border-[#3FB950]/40" : "",
       pulse: opportunityCount !== null && opportunityCount > 0,
@@ -183,193 +148,126 @@ export default function DashboardPage() {
     {
       label: "Best Net Spread",
       value: spreadDisplay,
-      subtitle: bestSpread !== null ? "highest net spread" : "No spread detected",
-      icon: null,
+      subtitle: isFreeTierOpps
+        ? "unavailable on free plan"
+        : bestSpread !== null
+        ? "highest net spread"
+        : "No spread detected",
       glow: bestSpread !== null ? "bg-[#388BFD]/5" : "bg-transparent",
       glowBorder: bestSpread !== null ? "hover:border-[#388BFD]/40" : "",
       pulse: bestSpread !== null,
       pulseColor: "#388BFD",
-      valueColor: bestSpread !== null ? "text-[#388BFD]" : "text-[#E6EDF3]",
+      valueColor: isFreeTierOpps
+        ? "text-[#D29922]"
+        : bestSpread !== null
+        ? "text-[#388BFD]"
+        : "text-[#E6EDF3]",
     },
   ];
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3] pb-14 lg:pb-0">
 
-      {/* ── Top navigation bar ── */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
-        <div className="flex items-center gap-3">
-          <ZapIcon className="h-4 w-4 text-[#388BFD]" />
-          <span className="text-[14px] font-medium font-sans text-[#388BFD]">
-            Arbitrage Terminal
-          </span>
-          <span className="text-[#484F58] select-none mx-1">|</span>
-          <span className="text-[12px] text-[#484F58] font-mono">v0.7.4</span>
-        </div>
-        <div className="flex items-center gap-1 text-xs overflow-x-auto">
-          <div className="flex items-center gap-1 mr-2">
-            <span className="animate-pulse bg-[#3FB950] rounded-full w-1.5 h-1.5" />
-            <span className="text-[#3FB950] font-mono text-[11px]">LIVE</span>
-          </div>
-          {connectionStatus === 'connecting' && (
-            <span className="text-[#D29922] font-mono text-[11px] mr-1">Connecting…</span>
-          )}
-          {connectionStatus === 'error' && (
-            <span className="text-[#F85149] font-mono text-[11px] mr-1">Backend unavailable</span>
-          )}
-          {now && <span className="text-[#484F58] text-[11px] font-mono mr-2">{now}</span>}
-          <Link href="/intelligence" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            Intelligence
-          </Link>
-          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            Magnus
-          </Link>
-          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            DEX Markets
-          </Link>
-          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px] whitespace-nowrap">
-            Funding Rates
-          </Link>
-          <Link href="/dashboard" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px] whitespace-nowrap">
-            Dashboard
-          </Link>
-          <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
-            <SettingsIcon className="h-3.5 w-3.5" />
-          </Link>
-          <NavAuthButton />
-        </div>
-      </header>
+      <AppHeader
+        activePage="/dashboard"
+        connectionStatus={connectionStatus}
+        statusSlot={now ? <span className="text-[#484F58] text-[11px] font-mono mr-2">{now}</span> : null}
+      />
 
-      {/* ── 4-pane body ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* Left: Coin sidebar (hidden on mobile) */}
         <ErrorBoundary name="Watchlist">
           <PriceSidebar onSelectCoin={setSelectedCoin} selectedCoin={selectedCoin} />
         </ErrorBoundary>
 
-        {/* Middle-left: Coin detail panel — always visible */}
         <div className="hidden lg:block">
           <ErrorBoundary name="Coin detail">
             <CoinDetailPanel
               symbol={selectedCoin}
-              onSelectSignal={setSelectedSignal}
+              onSelectSignal={(signal) => setSelectedSignal(signal as unknown as Opportunity)}
             />
           </ErrorBoundary>
         </div>
 
-        {/* Center: Stats + signals area */}
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden p-3 gap-2">
 
-          {/* Ad zone (pill) — rotates exchange referral ads */}
-          <div className="shrink-0">
-            <AdZone zone="pill" />
-            <div className="flex justify-center mt-1">
-              <a
-                href="/intelligence"
-                className="text-[11px] text-[#388BFD]/60 hover:text-[#388BFD] transition-colors font-sans"
-              >
-                📊 Full Intelligence Dashboard — 90 coins · 18 exchanges · live scoring →
-              </a>
-            </div>
-          </div>
-
-          {/* Gradient stat cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
             {statCards.map((card) => (
-              <div
+              <StatCard
                 key={card.label}
-                className={`relative bg-gradient-to-br from-[#161B22] to-[#0D1117] border border-[#21262D] rounded-lg p-2.5 overflow-hidden transition-colors ${card.glowBorder}`}
-              >
-                {/* Glow orb */}
-                <div
-                  className={`absolute top-0 right-0 w-12 h-12 rounded-full blur-xl pointer-events-none ${card.glow}`}
-                />
-
-                {/* Pulse dot */}
-                {card.pulse && (
-                  <span className="absolute top-2 right-2 flex h-1.5 w-1.5">
-                    <span
-                      className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-                      style={{ backgroundColor: card.pulseColor }}
-                    />
-                    <span
-                      className="relative inline-flex rounded-full h-1.5 w-1.5"
-                      style={{ backgroundColor: card.pulseColor }}
-                    />
-                  </span>
-                )}
-
-                <div className="flex items-start justify-between mb-0.5">
-                  <span className="text-[11px] font-sans text-[#8B949E]">
-                    {card.label}
-                  </span>
-                  {card.icon && (
-                    <span className="text-[#484F58]">{card.icon}</span>
-                  )}
-                </div>
-                <div className={`text-[20px] font-mono font-medium tabular-nums mt-0.5 ${card.valueColor}`}>
-                  {card.value}
-                </div>
-                <div className="text-[11px] text-[#484F58] font-sans truncate mt-0.5">
-                  {card.subtitle}
-                </div>
-              </div>
+                label={card.label}
+                value={String(card.value)}
+                sub={card.subtitle}
+                valueColor={card.valueColor}
+                glow={card.glow}
+                glowBorder={card.glowBorder}
+                pulse={card.pulse}
+                pulseColor={card.pulseColor}
+                className="p-2.5"
+              />
             ))}
           </div>
 
-          {/* Horizontal ad zone — between stat cards and opportunity table */}
-          <AdZone zone="horizontal" className="shrink-0" />
-
-          {/* Live signals label */}
           <div className="flex justify-between items-center shrink-0">
             <span className="text-[11px] text-[#8B949E] font-sans">
               Live signals · polled every 2s · net spread after all fees
             </span>
             <span className="text-[11px] text-[#484F58] font-sans hidden lg:block">
-              click any row to open signal panel →
+              click any row to open signal panel
             </span>
           </div>
 
-          {/* Opportunity table — fills remaining height */}
           <div className="flex-1 min-h-0 overflow-hidden">
             <ErrorBoundary name="Opportunities">
-              {opportunities.length === 0 && opportunityCount !== null ? (
-                <EmptyState
-                  title="No active signals"
-                  subtitle="Signals appear when arbitrage gaps are detected"
-                />
-              ) : (
-                <OpportunityTable
-                  onSelectSignal={setSelectedSignal}
-                  selectedSignalId={
-                    selectedSignal
-                      ? (selectedSignal.id ?? `${selectedSignal.symbol}:${selectedSignal.buyExchange}:${selectedSignal.sellExchange}`)
-                      : null
-                  }
-                />
-              )}
+              <OpportunityTable
+                onSelectSignal={(signal) => { setSelectedSignal(signal); setShowSignalPanel(true); }}
+                selectedSignalId={selectedSignal ? selectedSignal.id : null}
+                onDataUpdate={handleOpportunityData}
+              />
             </ErrorBoundary>
           </div>
 
-          {/* Footer note */}
           <p className="text-[11px] text-[#484F58] font-sans text-right shrink-0 pb-1 hidden lg:block">
-            All spreads shown are net of taker fees + withdrawal fees · Notional trade size $1,000 USDT
+            All spreads shown are net of taker fees + withdrawal fees · Notional trade size ${tradeSize.toLocaleString()} USDT
           </p>
         </div>
 
-        {/* Right: Signal insight panel — always visible */}
-        <ErrorBoundary name="Signal insight">
-          <SignalInsightPanel
-            signal={selectedSignal}
-            onClose={() => setSelectedSignal(null)}
-            totalSignals={opportunities.length}
-            bestSpread={opportunities.length > 0 ? Math.max(...opportunities.map((g) => g.spreadPercent ?? 0)).toFixed(3) : '0'}
-            topCoin={opportunities.length > 0 ? (opportunities[0].symbol?.split('/')[0] ?? '—') : '—'}
-          />
-        </ErrorBoundary>
+        <div className="hidden lg:block">
+          <ErrorBoundary name="Signal insight">
+            <SignalInsightPanel
+              signal={selectedSignal}
+              onClose={() => setSelectedSignal(null)}
+            />
+          </ErrorBoundary>
+        </div>
+
+        {showSignalPanel && (
+          <div className="lg:hidden fixed inset-0 z-50 flex">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setShowSignalPanel(false)} />
+            <div className="ml-auto relative z-10 w-[300px] max-w-[85vw] h-full">
+              <ErrorBoundary name="Signal insight mobile">
+                <SignalInsightPanel
+                  signal={selectedSignal}
+                  onClose={() => { setSelectedSignal(null); setShowSignalPanel(false); }}
+                />
+              </ErrorBoundary>
+            </div>
+          </div>
+        )}
 
       </div>
+
+      {selectedSignal && !showSignalPanel && (
+        <button
+          onClick={() => setShowSignalPanel(true)}
+          className="lg:hidden fixed bottom-20 right-4 z-40 bg-[#388BFD] text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg shadow-[#388BFD]/20 active:scale-95 transition-transform"
+          title="View signal"
+        >
+          <ActivityIcon className="h-5 w-5" />
+        </button>
+      )}
+
+      <MobileNav activePage="/dashboard" />
     </div>
   );
 }

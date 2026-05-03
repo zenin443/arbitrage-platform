@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const userResult = await client.query(
-      'SELECT id, email, name, password_hash FROM users WHERE email = $1',
+      'SELECT id, email, name, password_hash, role FROM users WHERE email = $1',
       [email.toLowerCase()]
     );
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       [user.id]
     );
 
-    const accessToken = generateAccessToken({ userId: user.id, email: user.email, plan });
+    const accessToken = generateAccessToken({ userId: user.id, email: user.email, plan, role: user.role ?? 'user' });
     const refreshToken = generateRefreshToken(user.id);
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     );
 
     const response = NextResponse.json({
-      user: { id: user.id, email: user.email, name: user.name, plan },
+      user: { id: user.id, email: user.email, name: user.name, plan, role: user.role ?? 'user' },
       accessToken,
     });
 

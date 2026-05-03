@@ -1,3 +1,4 @@
+import "server-only";
 import { BINANCE } from "@/lib/exchanges/binance";
 import { BYBIT } from "@/lib/exchanges/bybit";
 import { OKX } from "@/lib/exchanges/okx";

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { requireAuth } from '@/lib/auth/middleware';
+import { applyApiRateLimit } from '@/lib/api-rate-limit';
 
 export async function GET(req: NextRequest) {
+  const rateLimit = applyApiRateLimit(req);
+  if (rateLimit) return rateLimit;
+
   const authResult = requireAuth(req);
   if (authResult instanceof NextResponse) return authResult;
   const { userId } = authResult;

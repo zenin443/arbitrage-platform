@@ -2,22 +2,43 @@ import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from '.
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
 import { SYMBOLS } from '../../config/symbols'
 
-// Coinbase Exchange uses USD pairs. Map our BTC/USDT → BTC-USD.
-// Unsupported symbols return non-200 and are silently skipped.
-// A few coins use alternate tickers on Coinbase.
+// Coinbase Exchange uses USD pairs only (BTC-USD, ETH-USD, etc.).
+// It contributes to USDT-quoted pairs (Coinbase USD ≈ USDT for arb purposes)
+// and USDC-quoted pairs (Coinbase USD = USDC on Coinbase).
+//
+// IMPORTANT: Coinbase must NOT emit ticks for BTC-quoted or ETH-quoted cross-pairs
+// (e.g. ETH/BTC, SOL/BTC). Coinbase has no native ETH-BTC product — it would query
+// ETH-USD and emit ~$3000 for a pair whose price should be ~0.03 BTC, completely
+// corrupting the gap detector for those symbols.
+//
+// Rule: only subscribe to symbols whose quote is USDT, USDC, or a USD-equivalent.
+const USD_COMPATIBLE_QUOTES = new Set(['USDT', 'USDC', 'USDB', 'USD'])
+
+function isUsdCompatible(sym: string): boolean {
+  const quote = sym.split('/')[1] ?? ''
+  return USD_COMPATIBLE_QUOTES.has(quote)
+}
+
+// Coinbase-specific overrides for symbols with non-standard ticker names
 const CB_OVERRIDE: Record<string, string> = {
   'RENDER/USDT': 'RNDR-USD',
+  'RENDER/USDC': 'RNDR-USD',
 }
+
 function toCoinbaseProduct(sym: string): string {
   if (CB_OVERRIDE[sym]) return CB_OVERRIDE[sym]
+  // Map BASE/USDT and BASE/USDC → BASE-USD (Coinbase quotes everything in USD/USDC)
   return `${sym.split('/')[0]}-USD`
 }
 
+// Only include USD-compatible symbols in the Coinbase polling loop.
+// BTC cross-pairs (ETH/BTC, SOL/BTC, ...) and ETH cross-pairs are excluded.
+const CB_SYMBOLS = SYMBOLS.filter(isUsdCompatible)
 const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
-  SYMBOLS.map(s => [s, toCoinbaseProduct(s)])
+  CB_SYMBOLS.map(s => [s, toCoinbaseProduct(s)])
 )
 
-const BATCH_SIZE = 25 // poll 25 symbols per 5s cycle → all 90 covered in ~18s
+const BATCH_SIZE = 25 // poll 25 symbols per 5s cycle
 
 type CoinbaseTicker = { ask: string; bid: string }
 
@@ -63,9 +84,9 @@ export class CoinbaseAdapter extends BaseExchangeAdapter {
   }
 
   private async doPoll(): Promise<void> {
-    const batch = SYMBOLS.slice(this.pollCursor, this.pollCursor + BATCH_SIZE)
+    const batch = CB_SYMBOLS.slice(this.pollCursor, this.pollCursor + BATCH_SIZE)
     await Promise.allSettled(batch.map(sym => this.fetchAndEmit(sym)))
-    this.pollCursor = (this.pollCursor + BATCH_SIZE) % SYMBOLS.length
+    this.pollCursor = (this.pollCursor + BATCH_SIZE) % CB_SYMBOLS.length
   }
 
   private async fetchAndEmit(symbol: string): Promise<void> {

@@ -63,6 +63,17 @@ export class WsServer {
     this.wss = new WebSocketServer({
       port: WS_PORT,
       verifyClient: (info: { origin: string; req: IncomingMessage }, callback: (res: boolean, code?: number, message?: string) => void) => {
+        // DEV_AUDIT_MODE: bypass all WS auth for raw development auditing
+        if (process.env.DEV_AUDIT_MODE === 'true') {
+          ;(info.req as IncomingMessage & { wsUser?: TokenPayload }).wsUser = {
+            userId: 'dev-audit-bypass',
+            email: 'dev@arbitrance.internal',
+            plan: 'institutional',
+          }
+          callback(true)
+          return
+        }
+
         // Origin check — only enforce in production to avoid blocking local dev tools
         const origin = info.origin
         if (origin && process.env.NODE_ENV === 'production' && !ALLOWED_ORIGINS.includes(origin)) {

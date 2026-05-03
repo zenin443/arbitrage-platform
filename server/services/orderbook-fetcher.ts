@@ -1,4 +1,6 @@
 import { GapRecord } from './trading-intelligence'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const ccxt = require('ccxt')
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +40,20 @@ export type DepthAnalysis = {
   optimalProfit: number
   buyBookDepthUsd: number
   sellBookDepthUsd: number
+}
+
+export type RawOrderBook = {
+  bids: [number, number][]
+  asks: [number, number][]
+}
+
+export type RawBooksResponse = {
+  symbol: string
+  buyExchange: string
+  sellExchange: string
+  buy: RawOrderBook
+  sell: RawOrderBook
+  timestamp: number
 }
 
 // ── Symbol formatters ─────────────────────────────────────────────────────────
@@ -204,21 +220,53 @@ function buildSnapshot(
   }
 }
 
-// ── Exchange dispatch ─────────────────────────────────────────────────────────
+// ── CCXT fallback fetcher (handles all exchanges not natively implemented) ─────
 
-const SUPPORTED_EXCHANGES = new Set([
-  'binance', 'bybit', 'okx', 'kucoin', 'gateio', 'coinbase'
-])
+const ccxtInstances = new Map<string, unknown>()
+
+function getCcxtExchange(exchangeId: string): unknown | null {
+  if (ccxtInstances.has(exchangeId)) return ccxtInstances.get(exchangeId)!
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const ExchangeClass = ccxt[exchangeId]
+    if (!ExchangeClass) return null
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const instance = new ExchangeClass({ timeout: 8000, enableRateLimit: true })
+    ccxtInstances.set(exchangeId, instance)
+    return instance
+  } catch {
+    return null
+  }
+}
+
+async function fetchOrderBookCcxt(exchangeId: string, symbol: string): Promise<OrderBookSnapshot | null> {
+  try {
+    const ex = getCcxtExchange(exchangeId) as Record<string, unknown> | null
+    if (!ex) return null
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const book = await (ex.fetchOrderBook as (s: string, l: number) => Promise<{
+      bids: [number, number][]
+      asks: [number, number][]
+    }>)(symbol, 20)
+    const bids: RawLevel[] = book.bids.slice(0, 20).map(([p, q]) => [String(p), String(q)])
+    const asks: RawLevel[] = book.asks.slice(0, 20).map(([p, q]) => [String(p), String(q)])
+    return buildSnapshot(exchangeId, symbol, bids, asks)
+  } catch {
+    return null
+  }
+}
+
+// ── Exchange dispatch ─────────────────────────────────────────────────────────
 
 async function fetchOrderBook(exchange: string, symbol: string): Promise<OrderBookSnapshot | null> {
   switch (exchange) {
-    case 'binance': return fetchBinanceOrderBook(symbol)
-    case 'bybit': return fetchBybitOrderBook(symbol)
-    case 'okx': return fetchOkxOrderBook(symbol)
-    case 'kucoin': return fetchKucoinOrderBook(symbol)
-    case 'gateio': return fetchGateioOrderBook(symbol)
+    case 'binance':  return fetchBinanceOrderBook(symbol)
+    case 'bybit':    return fetchBybitOrderBook(symbol)
+    case 'okx':      return fetchOkxOrderBook(symbol)
+    case 'kucoin':   return fetchKucoinOrderBook(symbol)
+    case 'gateio':   return fetchGateioOrderBook(symbol)
     case 'coinbase': return fetchCoinbaseOrderBook(symbol)
-    default: return null
+    default:         return fetchOrderBookCcxt(exchange, symbol)
   }
 }
 
@@ -472,10 +520,6 @@ export function analyzeDepth(
 // ── Public fetch-and-analyze ──────────────────────────────────────────────────
 
 export async function fetchAndAnalyzeDepth(gap: GapRecord): Promise<DepthAnalysis | null> {
-  if (!SUPPORTED_EXCHANGES.has(gap.buyExchange) || !SUPPORTED_EXCHANGES.has(gap.sellExchange)) {
-    return null
-  }
-
   const [buyBook, sellBook] = await Promise.all([
     fetchOrderBook(gap.buyExchange, gap.symbol),
     fetchOrderBook(gap.sellExchange, gap.symbol),
@@ -500,6 +544,65 @@ export function getCachedDepthAnalysis(
   return depthCache.get(depthKey(symbol, buyEx, sellEx)) ?? null
 }
 
+// ── On-demand raw book fetch (used by /orderbook HTTP endpoint) ───────────────
+
+function snapshotToRawBook(snapshot: OrderBookSnapshot): RawOrderBook {
+  return {
+    bids: snapshot.bids.map(l => [l.price, l.quantity] as [number, number]),
+    asks: snapshot.asks.map(l => [l.price, l.quantity] as [number, number]),
+  }
+}
+
+/**
+ * Returns raw bids/asks for both exchanges, fetching fresh data if the cache is
+ * missing or stale. This is the on-demand path called by the /orderbook endpoint.
+ */
+export async function getOrFetchRawBooks(
+  symbol: string,
+  buyExchange: string,
+  sellExchange: string,
+): Promise<RawBooksResponse | null> {
+  const now = Date.now()
+
+  let buyBook = obCache.get(cacheKey(buyExchange, symbol))
+  let sellBook = obCache.get(cacheKey(sellExchange, symbol))
+
+  const buyStale = !buyBook || now - buyBook.timestamp >= CACHE_TTL_MS
+  const sellStale = !sellBook || now - sellBook.timestamp >= CACHE_TTL_MS
+
+  if (buyStale || sellStale) {
+    await Promise.all([
+      buyStale
+        ? fetchOrderBook(buyExchange, symbol).then(book => {
+            if (book) {
+              obCache.set(cacheKey(buyExchange, symbol), book)
+              buyBook = book
+            }
+          })
+        : Promise.resolve(),
+      sellStale
+        ? fetchOrderBook(sellExchange, symbol).then(book => {
+            if (book) {
+              obCache.set(cacheKey(sellExchange, symbol), book)
+              sellBook = book
+            }
+          })
+        : Promise.resolve(),
+    ])
+  }
+
+  if (!buyBook || !sellBook) return null
+
+  return {
+    symbol,
+    buyExchange,
+    sellExchange,
+    buy: snapshotToRawBook(buyBook),
+    sell: snapshotToRawBook(sellBook),
+    timestamp: Date.now(),
+  }
+}
+
 // ── Polling loop ──────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 5_000
@@ -516,7 +619,6 @@ export function registerGapProvider(fn: () => GapRecord[]): void {
 async function runPollCycle(): Promise<void> {
   if (!getTopGapsFn) return
   const topGaps = getTopGapsFn()
-    .filter(g => SUPPORTED_EXCHANGES.has(g.buyExchange) && SUPPORTED_EXCHANGES.has(g.sellExchange))
     .slice(0, TOP_N_GAPS)
 
   for (let i = 0; i < topGaps.length; i++) {

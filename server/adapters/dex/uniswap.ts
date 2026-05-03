@@ -1,10 +1,10 @@
 import { BaseDexAdapter, DexPrice } from './base'
 
 const COINGECKO_URL = 'https://api.coingecko.com/api/v3/simple/price?ids=ethereum,bitcoin,chainlink,uniswap,arbitrum,optimism,pepe,aave,lido-dao,shiba-inu,matic-network&vs_currencies=usd'
-const POLL_INTERVAL_MS       = 45_000
+const POLL_INTERVAL_MS       = 25_000  // must stay under the 30s staleness guard
 const RATE_LIMIT_BACKOFF_MS  = 60_000
 const CONNECTED_TIMEOUT_MS   = 180_000
-const INITIAL_DELAY_MS       = 15_000
+const INITIAL_DELAY_MS       = 5_000   // brief stagger to avoid simultaneous CoinGecko requests
 export const UNISWAP_GAS_FEE_USD = 8.00
 
 interface TokenMap {

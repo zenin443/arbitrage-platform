@@ -14,9 +14,18 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       throw new Error(`Price server responded with status ${res.status}`);
     }
 
-    const data = await res.json();
-    console.log(`[/api/prices] Proxied ${data.ticks?.length ?? 0} tick(s) from price server`);
-    return NextResponse.json(data);
+    const raw = await res.json();
+    // Normalise: backend returns a PriceTick[] array.
+    // Each tick has `exchangeId` (e.g. "binance") and `source` (transport: "ws"|"rest").
+    // We add an explicit `exchange` alias = `exchangeId` so consumers never accidentally
+    // read `source` ("ws"/"rest") as the exchange name.
+    const ticks: Record<string, unknown>[] = Array.isArray(raw) ? raw : (raw?.ticks ?? []);
+    const enriched = ticks.map((t) => ({
+      ...t,
+      exchange: t['exchangeId'] ?? t['exchange'] ?? '',
+    }));
+    console.log(`[/api/prices] Proxied ${enriched.length} tick(s) from price server`);
+    return NextResponse.json(enriched);
   } catch (err) {
     console.error('[/api/prices] Failed to reach price server:', err);
     return NextResponse.json(

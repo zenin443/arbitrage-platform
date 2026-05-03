@@ -117,6 +117,7 @@ export default function FundingRatesPage() {
   const [lastUpdated, setLastUpdated] = useState<string>("—");
   const [loadingOpps, setLoadingOpps] = useState(true);
   const [loadingRates, setLoadingRates] = useState(true);
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -128,6 +129,7 @@ export default function FundingRatesPage() {
   const fetchOpportunities = useCallback(async () => {
     try {
       const res = await fetch("/api/spot-futures", { cache: "no-store" });
+      if (res.status === 403) { setUpgradeRequired(true); return; }
       if (!res.ok) return;
       const data = await res.json();
       setOpportunities(Array.isArray(data) ? data : data.opportunities ?? []);
@@ -141,6 +143,7 @@ export default function FundingRatesPage() {
   const fetchFundingRates = useCallback(async () => {
     try {
       const res = await fetch("/api/funding-rates", { cache: "no-store" });
+      if (res.status === 403) { setUpgradeRequired(true); return; }
       if (!res.ok) return;
       const data = await res.json();
       console.log('[FundingRates] received:', data.length, 'entries');
@@ -270,6 +273,19 @@ export default function FundingRatesPage() {
                   <div key={i} className="h-[80px] rounded-lg bg-[#161B22] border border-[#21262D] animate-pulse" />
                 ))}
               </div>
+            ) : upgradeRequired ? (
+              <div className="rounded-lg border border-[#D29922]/30 bg-[#D29922]/5 px-6 py-8 text-center m-3">
+                <p className="text-sm font-mono text-[#D29922] mb-1">Trader Plan Required</p>
+                <p className="text-xs text-[#8B949E] font-mono mb-4">
+                  Spot-futures arbitrage data is available on the Trader plan and above.
+                </p>
+                <a
+                  href="/pricing"
+                  className="inline-block bg-[#D29922] hover:bg-[#E5A928] text-black text-xs font-mono font-semibold px-4 py-2 rounded transition-colors"
+                >
+                  Upgrade to Trader →
+                </a>
+              </div>
             ) : visibleOpportunities.length === 0 ? (
               <div className="rounded-lg border border-[#21262D] bg-[#161B22] px-6 py-3 text-center m-3 max-h-[200px]">
                 <p className="text-xs text-[#484F58] font-mono">
@@ -327,6 +343,19 @@ export default function FundingRatesPage() {
             <div className="rounded-lg border border-[#21262D] bg-[#161B22] overflow-hidden">
               <div className="h-64 animate-pulse bg-[#161B22]" />
             </div>
+          ) : upgradeRequired ? (
+            <div className="rounded-lg border border-[#D29922]/30 bg-[#D29922]/5 px-6 py-8 text-center">
+              <p className="text-sm font-mono text-[#D29922] mb-1">Trader Plan Required</p>
+              <p className="text-xs text-[#8B949E] font-mono mb-4">
+                Live funding rate data across Binance, Bybit and OKX is available on the Trader plan and above.
+              </p>
+              <a
+                href="/pricing"
+                className="inline-block bg-[#D29922] hover:bg-[#E5A928] text-black text-xs font-mono font-semibold px-4 py-2 rounded transition-colors"
+              >
+                Upgrade to Trader →
+              </a>
+            </div>
           ) : (
             <div className="rounded-lg border border-[#21262D] overflow-hidden">
               <table className="w-full text-xs font-mono">
@@ -353,7 +382,7 @@ export default function FundingRatesPage() {
                   {fundingRows.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="text-center py-10 text-[#484F58]">
-                        Loading funding rate data...
+                        No funding rate data available
                       </td>
                     </tr>
                   ) : (

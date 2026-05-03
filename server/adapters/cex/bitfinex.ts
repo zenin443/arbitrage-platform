@@ -3,11 +3,18 @@ import { BaseExchangeAdapter, ExchangeConfig, PriceTick, NetworkStatus } from '.
 import { EXCHANGE_REGISTRY } from '../../registry/exchangeRegistry'
 import { SYMBOLS } from '../../config/symbols'
 
-// Bitfinex uses "t" prefix + no separator: tBTCUSD
-// Map from our format to Bitfinex format. Some coins use alternate tickers on BFX.
+// Bitfinex uses "t" prefix + no quote separator: tBTCUSD, tETHUSD, etc.
+// It only has USD-quoted spot markets — no native USDC or BTC cross-pairs.
+// We MUST skip BTC-quoted and ETH-quoted symbols (e.g. ETH/BTC, SOL/ETH) because
+// toBfxSymbol would produce tETHUSD (price ~$3000) for ETH/BTC (price ~0.03),
+// injecting catastrophically wrong data into the gap detector.
+const USD_COMPATIBLE_QUOTES_BFX = new Set(['USDT', 'USDC', 'USDB', 'USD'])
+
 const BFX_OVERRIDE: Record<string, string> = {
   'RENDER/USDT': 'tRNDRUSD',
+  'RENDER/USDC': 'tRNDRUSD',
   'MATIC/USDT':  'tMATICUSD',
+  'MATIC/USDC':  'tMATICUSD',
 }
 function toBfxSymbol(sym: string): string {
   if (BFX_OVERRIDE[sym]) return BFX_OVERRIDE[sym]
@@ -15,10 +22,11 @@ function toBfxSymbol(sym: string): string {
   return `t${base}USD`
 }
 
-// Auto-generate both directions from the master symbol list
-const BFX_SYMBOLS = SYMBOLS.map(toBfxSymbol)
+// Only subscribe to USD-compatible symbols (USDT + USDC); skip BTC/ETH cross-pairs
+const BFX_SYMBOLS_RAW = SYMBOLS.filter(s => USD_COMPATIBLE_QUOTES_BFX.has(s.split('/')[1] ?? ''))
+const BFX_SYMBOLS = BFX_SYMBOLS_RAW.map(toBfxSymbol)
 const SYMBOL_MAP: Record<string, string> = Object.fromEntries(
-  SYMBOLS.map(s => [toBfxSymbol(s), s])
+  BFX_SYMBOLS_RAW.map(s => [toBfxSymbol(s), s])
 )
 
 type BfxMsg = unknown[]

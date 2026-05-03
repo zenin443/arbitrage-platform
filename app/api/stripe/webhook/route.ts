@@ -4,7 +4,8 @@ import pool from '@/lib/db';
 import type { PoolClient } from 'pg';
 import type Stripe from 'stripe';
 
-export const config = { api: { bodyParser: false } };
+// Body parsing is disabled by default in Next.js 14 App Router route handlers.
+// Do not add bodyParser config here — it belongs to Pages Router only.
 
 async function upsertSubscription(
   client: PoolClient,

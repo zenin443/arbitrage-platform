@@ -1,3 +1,5 @@
+import 'dotenv/config'
+
 process.on('uncaughtException', (error) => {
   console.error('[FATAL] Uncaught exception:', error.message)
   console.error(error.stack)
@@ -10,6 +12,8 @@ process.on('unhandledRejection', (reason: any) => {
 })
 
 import http from 'http'
+import fs from 'fs'
+import path from 'path'
 import { WebSocketServer } from 'ws'
 import { PriceTick, BaseExchangeAdapter } from './adapters/cex/base'
 import { BinanceAdapter } from './adapters/cex/binance'
@@ -37,6 +41,7 @@ import { calculateAllSpreads } from './engine/spreadCalculator'
 import { rankOpportunities } from './engine/opportunityScorer'
 import { wsServer } from './feed/wsServer'
 import { ArbitrageOpportunity } from './engine/spreadCalculator'
+import { startNetworkStatusCache, getNetworkStatusSummary } from './services/networkStatusCache'
 import { BinanceFuturesAdapter } from './adapters/futures/binanceFutures'
 import { BybitFuturesAdapter } from './adapters/futures/bybitFutures'
 import { OkxFuturesAdapter } from './adapters/futures/okxFutures'
@@ -54,9 +59,18 @@ import { DexPrice, CexDexOpportunity } from './adapters/dex/base'
 import { startNewListingScanner, getNewListings, getNewListingStats } from './scanners/new-listing-scanner'
 import { startAlertEngine, getAlertConfig, updateAlertConfig, getRecentAlerts, getAlertStats } from './services/alert-engine'
 import { startTradingIntelligence, getActiveGaps, getGapHistory, getTradingStats, getProfitableGaps } from './services/trading-intelligence'
-import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider } from './services/orderbook-fetcher'
+import { startOrderBookFetcher, getCachedDepthAnalysis, getOrderBookCache, registerGapProvider, getOrFetchRawBooks } from './services/orderbook-fetcher'
 import { startTriangularEngine, getTriangularRoutes, getCrossPairCount } from './engines/triangularArbitrage'
 import { startCrossChainEngine, getCrossChainOpportunities } from './engines/crossChainArbitrage'
+import { startStablecoinEngine } from './engines/stablecoinArbitrage'
+import { startPairsTradingEngine, getPairsSignals } from './engines/pairsTradingEngine'
+import { startLiquidationEngine, getLiquidationSignals } from './engines/liquidationEngine'
+import { startCalendarSpreadEngine, getCalendarSpreadSignals } from './engines/calendarSpreadEngine'
+import { startNewListingEngine, getNewListingSignals } from './engines/newListingEngine'
+import { startWrappedTokenEngine, getWrappedTokenSignals } from './engines/wrappedTokenEngine'
+import { startTwapEngine, getTwapSignals } from './engine/twapEngine'
+import { startOrderbookPressureEngine, getOrderbookPressureSignals } from './engine/orderbookPressure'
+import { getScoredSignals, scoreAndFilter, updateScoredSignals } from './engine/signalScorer'
 import { SYMBOLS } from './config/symbols'
 import {
   startPaperTraders,
@@ -78,6 +92,8 @@ import {
   getMagnusFuturesTrades,
   getMagnusFuturesVoided,
   resetMagnusFutures,
+  getRateHarvestState,
+  resetRateHarvestBot,
   type MagnusAlphaConfig,
 } from './services/paper-trader'
 
@@ -452,6 +468,66 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  // ── Magnus Rate Harvest ───────────────────────────────────────────────────
+  if (url.pathname === '/magnus/rate-harvest' && method === 'GET') {
+    json(res, 200, getRateHarvestState())
+    return
+  }
+  if (url.pathname === '/magnus/rate-harvest/trades' && method === 'GET') {
+    const limit = parseInt(url.searchParams.get('limit') ?? '50')
+    const state = getRateHarvestState()
+    json(res, 200, state.recentTrades.slice(0, isNaN(limit) ? 50 : limit))
+    return
+  }
+  if (url.pathname === '/magnus/rate-harvest/positions' && method === 'GET') {
+    const state = getRateHarvestState()
+    json(res, 200, state.openPositions)
+    return
+  }
+  if (url.pathname === '/magnus/rate-harvest/reset' && method === 'POST') {
+    if (!requireInternalAuth(req, res)) return
+    json(res, 200, resetRateHarvestBot())
+    return
+  }
+
+  // ── Strategy signal endpoints ─────────────────────────────────────────────
+  if (url.pathname === '/signals/pairs' && method === 'GET') {
+    json(res, 200, getPairsSignals()); return
+  }
+  if (url.pathname === '/signals/liquidation' && method === 'GET') {
+    json(res, 200, getLiquidationSignals()); return
+  }
+  if (url.pathname === '/signals/calendar' && method === 'GET') {
+    json(res, 200, getCalendarSpreadSignals()); return
+  }
+  if (url.pathname === '/signals/new-listing' && method === 'GET') {
+    json(res, 200, getNewListingSignals()); return
+  }
+  if (url.pathname === '/signals/wrapped' && method === 'GET') {
+    json(res, 200, getWrappedTokenSignals()); return
+  }
+  if (url.pathname === '/signals/twap' && method === 'GET') {
+    json(res, 200, getTwapSignals()); return
+  }
+  if (url.pathname === '/signals/orderbook-pressure' && method === 'GET') {
+    json(res, 200, getOrderbookPressureSignals()); return
+  }
+  if (url.pathname === '/signals/scored' && method === 'GET') {
+    json(res, 200, getScoredSignals()); return
+  }
+  if (url.pathname === '/signals/all' && method === 'GET') {
+    json(res, 200, {
+      pairs:            getPairsSignals(),
+      liquidation:      getLiquidationSignals(),
+      calendar:         getCalendarSpreadSignals(),
+      newListing:       getNewListingSignals(),
+      wrapped:          getWrappedTokenSignals(),
+      twap:             getTwapSignals(),
+      orderbookPressure: getOrderbookPressureSignals(),
+      scored:           getScoredSignals(),
+    }); return
+  }
+
   if (method !== 'GET') {
     json(res, 405, { error: 'Method not allowed' })
     return
@@ -514,6 +590,42 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  // ── Per-symbol exchange coverage (diagnostic) ────────────────────────────
+  // Returns: { byQuote: { USDT: { 'BTC/USDT': ['binance','okx',...] }, ... } }
+  // Use this to verify how many exchanges contribute to each USDC/BTC symbol.
+  if (url.pathname === '/tick-coverage') {
+    const allTicks = tickStore.getAll()
+    const coverageByQuote: Record<string, Record<string, string[]>> = {}
+    for (const tick of allTicks) {
+      const quote = tick.symbol.split('/')[1] ?? 'UNKNOWN'
+      if (!coverageByQuote[quote]) coverageByQuote[quote] = {}
+      if (!coverageByQuote[quote][tick.symbol]) coverageByQuote[quote][tick.symbol] = []
+      if (!coverageByQuote[quote][tick.symbol].includes(tick.exchangeId)) {
+        coverageByQuote[quote][tick.symbol].push(tick.exchangeId)
+      }
+    }
+    // Sort exchange lists for readability
+    for (const q of Object.keys(coverageByQuote)) {
+      for (const sym of Object.keys(coverageByQuote[q])) {
+        coverageByQuote[q][sym] = coverageByQuote[q][sym].sort()
+      }
+    }
+    const summary: Record<string, { totalSymbols: number; multiExchange: number; singleExchange: number; noData: number }> = {}
+    for (const [q, symbols] of Object.entries(coverageByQuote)) {
+      const multi = Object.values(symbols).filter(exs => exs.length >= 2).length
+      const single = Object.values(symbols).filter(exs => exs.length === 1).length
+      const configured = SYMBOLS.filter(s => s.split('/')[1] === q).length
+      summary[q] = { totalSymbols: configured, multiExchange: multi, singleExchange: single, noData: configured - multi - single }
+    }
+    const activeGapsByQuote: Record<string, number> = {}
+    for (const gap of getProfitableGaps()) {
+      const q = gap.symbol.split('/')[1] ?? 'UNKNOWN'
+      activeGapsByQuote[q] = (activeGapsByQuote[q] ?? 0) + 1
+    }
+    json(res, 200, { coverageByQuote, summary, activeGapsByQuote, totalTicks: allTicks.length })
+    return
+  }
+
   if (url.pathname === '/opportunities') {
     const minSpread = parseFloat(url.searchParams.get('minSpread') ?? '0')
     const filtered = isNaN(minSpread)
@@ -553,6 +665,11 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  if (url.pathname === '/network-status') {
+    json(res, 200, getNetworkStatusSummary())
+    return
+  }
+
   if (url.pathname === '/trading-stats') {
     json(res, 200, getTradingStats())
     return
@@ -582,12 +699,14 @@ const httpServer = http.createServer(async (req, res) => {
       json(res, 400, { error: 'Missing symbol, buyExchange, or sellExchange params' })
       return
     }
-    const analysis = getCachedDepthAnalysis(
-      symbol,
-      buyExchange,
-      sellExchange
-    )
-    json(res, 200, analysis ?? { error: 'No depth data available yet', symbol, buyExchange, sellExchange })
+    try {
+      const result = await getOrFetchRawBooks(symbol, buyExchange, sellExchange)
+      json(res, 200, result ?? { error: 'No depth data available yet', symbol, buyExchange, sellExchange })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[Orderbook] fetch error for ${symbol} ${buyExchange}/${sellExchange}:`, msg)
+      json(res, 200, { error: 'Exchange API error', symbol, buyExchange, sellExchange })
+    }
     return
   }
 
@@ -767,11 +886,136 @@ async function start(): Promise<void> {
   try { startTradingIntelligence() } catch (e: any) { console.error('[Startup] Trading intelligence failed:', e.message) }
   try { startTriangularEngine() } catch (e: any) { console.error('[Startup] Triangular engine failed:', e.message) }
   try { startCrossChainEngine() } catch (e: any) { console.error('[Startup] Cross-chain engine failed:', e.message) }
+  try { startStablecoinEngine() } catch (e: any) { console.error('[Startup] Stablecoin engine failed:', e.message) }
+  try { startPairsTradingEngine() } catch (e: any) { console.error('[Startup] Pairs trading engine failed:', e.message) }
+  try { startLiquidationEngine() } catch (e: any) { console.error('[Startup] Liquidation engine failed:', e.message) }
+  try { startCalendarSpreadEngine() } catch (e: any) { console.error('[Startup] Calendar spread engine failed:', e.message) }
+  try { startNewListingEngine() } catch (e: any) { console.error('[Startup] New listing engine failed:', e.message) }
+  try { startWrappedTokenEngine() } catch (e: any) { console.error('[Startup] Wrapped token engine failed:', e.message) }
+  try { startTwapEngine() } catch (e: any) { console.error('[Startup] TWAP engine failed:', e.message) }
+  try { startOrderbookPressureEngine() } catch (e: any) { console.error('[Startup] Orderbook pressure engine failed:', e.message) }
   try {
     registerGapProvider(getProfitableGaps)
     startOrderBookFetcher()
   } catch (e: any) { console.error('[Startup] Order book fetcher failed:', e.message) }
   try { startPaperTraders() } catch (e: any) { console.error('[Startup] Paper traders failed:', e.message) }
+
+  // Network status cache — polls deposit/withdrawal status from exchanges
+  try { startNetworkStatusCache(adapterMap) } catch (e: any) { console.error('[Startup] Network status cache failed:', e.message) }
+
+  // 13. Schedule coverage matrix report 45s after startup
+  // (enough time for CCXT loadMarkets + first polling rounds to complete)
+  setTimeout(() => {
+    try {
+      buildCoverageMatrix()
+    } catch (e: any) {
+      console.error('[Coverage] Coverage matrix failed:', e.message)
+    }
+  }, 45_000)
+}
+
+// ── Pair-exchange coverage matrix ─────────────────────────────────────────────
+// Runs 45s after startup (enough time for CCXT loadMarkets + first poll rounds).
+// Logs coverage to console and writes docs/pair-exchange-coverage.md.
+
+function buildCoverageMatrix(): void {
+  const allTicks = tickStore.getAll()
+  // symbol → Set<exchangeId>
+  const coverageMap = new Map<string, Set<string>>()
+  for (const tick of allTicks) {
+    if (!coverageMap.has(tick.symbol)) coverageMap.set(tick.symbol, new Set())
+    coverageMap.get(tick.symbol)!.add(tick.exchangeId)
+  }
+
+  // Sort symbols: USDT first, then USDC, then BTC, then others
+  const quoteOrder = (sym: string): number => {
+    const q = sym.split('/')[1] ?? ''
+    if (q === 'USDT') return 0
+    if (q === 'USDC') return 1
+    if (q === 'BTC')  return 2
+    if (q === 'ETH')  return 3
+    return 4
+  }
+  const sortedSymbols = Array.from(coverageMap.keys()).sort((a, b) => {
+    const qd = quoteOrder(a) - quoteOrder(b)
+    if (qd !== 0) return qd
+    return a.localeCompare(b)
+  })
+
+  // Compute per-quote counts for USDT/USDC/BTC/ETH
+  const quoteStats: Record<string, { symbols: number; withCoverage: number; noData: number }> = {}
+  const lines: string[] = []
+  lines.push(`# Pair–Exchange Coverage Matrix`)
+  lines.push(`> Generated at startup on ${new Date().toISOString()}`)
+  lines.push(`> Shows how many live price ticks (from tickStore) each symbol has after 45s warm-up.`)
+  lines.push(`> Pairs with <2 exchanges CANNOT gap (acceptable). Pairs with ≥2 should gap if spread > 0.`)
+  lines.push('')
+
+  let currentQuote = ''
+  for (const symbol of sortedSymbols) {
+    const exchanges = coverageMap.get(symbol)!
+    const q = symbol.split('/')[1] ?? 'OTHER'
+    if (q !== currentQuote) {
+      if (currentQuote !== '') lines.push('')
+      lines.push(`## ${q} pairs`)
+      lines.push(`| Symbol | Exchanges (count) | Exchange List | Gap Eligible |`)
+      lines.push(`|--------|-------------------|---------------|--------------|`)
+      currentQuote = q
+      if (!quoteStats[q]) quoteStats[q] = { symbols: 0, withCoverage: 0, noData: 0 }
+    }
+    if (!quoteStats[q]) quoteStats[q] = { symbols: 0, withCoverage: 0, noData: 0 }
+    quoteStats[q].symbols++
+    const exList = Array.from(exchanges).sort().join(', ')
+    const eligible = exchanges.size >= 2 ? '✅ Yes' : '❌ No (single source)'
+    if (exchanges.size >= 2) quoteStats[q].withCoverage++
+    lines.push(`| ${symbol.padEnd(14)} | ${String(exchanges.size).padStart(3)} | ${exList} | ${eligible} |`)
+  }
+
+  // Symbols in config but with no ticks yet
+  const allConfigSymbols = SYMBOLS
+  const missedSymbols = allConfigSymbols.filter(s => !coverageMap.has(s))
+  if (missedSymbols.length > 0) {
+    lines.push('')
+    lines.push('## Symbols with no live data yet')
+    lines.push('> These may be unsupported pairs or exchanges still warming up.')
+    lines.push(`| Symbol | Quote |`)
+    lines.push(`|--------|-------|`)
+    for (const sym of missedSymbols.sort()) {
+      const q = sym.split('/')[1] ?? '?'
+      lines.push(`| ${sym} | ${q} |`)
+      if (!quoteStats[q]) quoteStats[q] = { symbols: 0, withCoverage: 0, noData: 0 }
+      quoteStats[q].noData++
+    }
+  }
+
+  lines.push('')
+  lines.push('## Summary by quote currency')
+  lines.push('| Quote | Total Symbols | ≥2 Exchanges (gap-eligible) | No data yet |')
+  lines.push('|-------|--------------|----------------------------|-------------|')
+  for (const [q, s] of Object.entries(quoteStats).sort((a, b) => a[0].localeCompare(b[0]))) {
+    lines.push(`| ${q} | ${s.symbols} | ${s.withCoverage} | ${s.noData} |`)
+  }
+
+  const content = lines.join('\n') + '\n'
+
+  // Console summary
+  console.log('[Coverage] === PAIR-EXCHANGE COVERAGE MATRIX (45s snapshot) ===')
+  for (const symbol of sortedSymbols) {
+    const exchanges = coverageMap.get(symbol)!
+    console.log(`[Coverage]  ${symbol.padEnd(16)} → ${exchanges.size} exchange(s): ${Array.from(exchanges).sort().join(', ')}`)
+  }
+  console.log(`[Coverage] Symbols with no data: ${missedSymbols.join(', ') || 'none'}`)
+  console.log(`[Coverage] Summary: ${JSON.stringify(quoteStats)}`)
+
+  // Write to docs/pair-exchange-coverage.md
+  try {
+    const docsDir = path.join(__dirname, '../../docs')
+    if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true })
+    fs.writeFileSync(path.join(docsDir, 'pair-exchange-coverage.md'), content, 'utf8')
+    console.log('[Coverage] Written to docs/pair-exchange-coverage.md')
+  } catch (err: unknown) {
+    console.warn('[Coverage] Could not write docs file:', err instanceof Error ? err.message : String(err))
+  }
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────

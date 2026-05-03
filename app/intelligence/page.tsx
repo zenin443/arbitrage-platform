@@ -1,20 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import Link from "next/link";
-import { ZapIcon, SettingsIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { ChevronDownIcon, ChevronRightIcon, Maximize2, X } from "lucide-react";
+import AppHeader from "@/components/AppHeader";
+import StatCard from "@/components/ui/StatCard";
 import { formatNumber } from "@/lib/utils";
 import { formatPercent, formatPrice, formatDuration } from "@/lib/formatters";
 import { ExchangeLink } from "@/lib/referrals";
-import AdZone from "@/components/ui/AdZone";
 import AdBanner from "@/components/AdBanner";
 import MagnusAICard from "@/components/intelligence/MagnusAICard";
-import NavAuthButton from "@/components/NavAuthButton";
 import { useFeatureGate } from "@/hooks/useFeatureGate";
 import InfoCorner from "@/components/ui/InfoCorner";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { WidgetSkeleton } from "@/components/ui/WidgetSkeleton";
+import { normalizeApiGapList } from "@/lib/response-transformer";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,22 +52,30 @@ interface DepthAnalysis {
 
 interface GapRecord {
   id: string;
-  type: "cex_cex" | "spot_futures" | "dex_cex" | "triangular" | "cross_chain";
+  type: "cex_cex" | "spot_futures" | "dex_cex" | "triangular" | "cross_chain" | string;
   symbol: string;
   buyExchange: string;
   sellExchange: string;
   spreadPercent: number;
   buyPrice: number;
   sellPrice: number;
-  buyBidSize: number;
-  sellAskSize: number;
+  buyBidSize?: number;
+  sellAskSize?: number;
   maxTradeableUsd: number;
   detectedAt: number;
-  lastSeenAt: number;
+  lastSeenAt?: number;
   durationMs: number;
   isActive: boolean;
-  profitSimulation: ProfitSim;
+  profitSimulation?: ProfitSim | null;
   depthAnalysis: DepthAnalysis | null;
+  /** Quote currency e.g. "USDT", "USDC", "BTC". */
+  quoteCurrency?: string;
+  /** Present when the item came from the free-tier 4-field response shape. */
+  _isFreeTier?: boolean;
+  /** Original "0.25%" string from delayed_spread. Present when _isFreeTier. */
+  _delayedSpread?: string;
+  /** Original "binance → bybit" string from direction. Present when _isFreeTier. */
+  _direction?: string;
 }
 
 interface TradingStats {
@@ -196,66 +204,18 @@ function durationColor(ms: number): string {
   return "text-[#F85149]";
 }
 
-// ─── SparklineSVG ─────────────────────────────────────────────────────────────
-
-function SparklineSVG({ data, color, id }: { data: number[]; color: string; id: string }) {
-  if (data.length < 2) return null;
-  const min = Math.min(...data);
-  const max = Math.max(...data);
-  const range = max - min || 1;
-  const w = 200, h = 30;
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 4) - 2;
-    return `${x},${y}`;
-  });
-  const pathD = `M${points.join(" L")}`;
-  const areaD = `${pathD} L${w},${h} L0,${h}Z`;
-  const gradId = `sparkfade-${id}`;
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="absolute bottom-0 left-0 right-0"
-      style={{ height: "30px", width: "100%", opacity: 0.15 }}
-      preserveAspectRatio="none"
-    >
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#${gradId})`} />
-      <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" />
-    </svg>
-  );
-}
-
-// ─── StatDeltaBadge ───────────────────────────────────────────────────────────
-
-function StatDeltaBadge({ history }: { history: number[] }) {
-  if (history.length < 2) return null;
-  const prev = history[history.length - 2];
-  const curr = history[history.length - 1];
-  if (prev === 0) return null;
-  const deltaPct = ((curr - prev) / Math.abs(prev)) * 100;
-  const isUp = curr >= prev;
-  return (
-    <span className={`text-[10px] font-mono ${isUp ? "text-[#3FB950]" : "text-[#F85149]"}`}>
-      {isUp ? "+" : ""}{deltaPct.toFixed(1)}%
-    </span>
-  );
-}
+// ─── DepthDetailPanel (see below) ─────────────────────────────────────────────
 
 // ─── DepthDetailPanel ─────────────────────────────────────────────────────────
 
 function DepthDetailPanel({ gap }: { gap: GapRecord }) {
-  const [orderbookData, setOrderbookData] = useState<any>(null);
+  const [orderbookData, setOrderbookData] = useState<Record<string, unknown> | null>(null);
   const [orderbookLoading, setOrderbookLoading] = useState(false);
   const [orderbookError, setOrderbookError] = useState(false);
 
   useEffect(() => {
-    if (gap.depthAnalysis) return;
+    // Skip orderbook fetch for free-tier gaps (no depth data available)
+    if (gap.depthAnalysis || gap._isFreeTier) return;
     setOrderbookLoading(true);
     setOrderbookData(null);
     setOrderbookError(false);
@@ -271,7 +231,28 @@ function DepthDetailPanel({ gap }: { gap: GapRecord }) {
         setOrderbookError(true);
         setOrderbookLoading(false);
       });
-  }, [gap.symbol, gap.buyExchange, gap.sellExchange, gap.depthAnalysis]);
+  }, [gap.symbol, gap.buyExchange, gap.sellExchange, gap.depthAnalysis, gap._isFreeTier]);
+
+  // Free-tier items have no depth data — show upgrade prompt instead of orderbook panel
+  if (gap._isFreeTier) {
+    return (
+      <tr>
+        <td colSpan={7} className="px-3 py-2 bg-[#0D1117] border-t border-[#21262D]">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-mono text-[#484F58]">
+              Order book depth · profit simulation · exact prices
+            </span>
+            <a
+              href="/pricing"
+              className="text-[11px] font-mono text-[#D29922] hover:text-[#E6EDF3] border border-[#D29922]/30 hover:border-[#D29922] rounded px-2 py-0.5 transition-colors"
+            >
+              Upgrade for full data →
+            </a>
+          </div>
+        </td>
+      </tr>
+    );
+  }
 
   const d = gap.depthAnalysis;
   if (!d) {
@@ -288,29 +269,29 @@ function DepthDetailPanel({ gap }: { gap: GapRecord }) {
             </span>
           ) : orderbookData?.error ? (
             <span className="text-[11px] font-mono text-[#484F58]">
-              {orderbookData.error}
+              {String(orderbookData.error)}
             </span>
           ) : orderbookData ? (
             <div className="grid grid-cols-2 gap-4 py-2">
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-[#484F58] mb-1 font-mono">
-                  Bids — {orderbookData.buyExchange || shortEx(gap.buyExchange)}
+                  Bids — {String(orderbookData.buyExchange ?? '') || shortEx(gap.buyExchange)}
                 </div>
-                {(orderbookData.bids || orderbookData.buy?.bids || []).slice(0, 5).map((bid: any, i: number) => (
+                {((orderbookData.bids || (orderbookData.buy as Record<string,unknown>)?.bids || []) as (number[] | {price:number;amount:number})[]).slice(0, 5).map((bid, i: number) => (
                   <div key={i} className="flex justify-between text-[11px] font-mono gap-4">
-                    <span className="text-green-400">{Number(bid[0] ?? bid.price).toFixed(6)}</span>
-                    <span className="text-[#484F58]">{Number(bid[1] ?? bid.amount).toFixed(4)}</span>
+                    <span className="text-green-400">{Number(Array.isArray(bid) ? bid[0] : bid.price).toFixed(6)}</span>
+                    <span className="text-[#484F58]">{Number(Array.isArray(bid) ? bid[1] : bid.amount).toFixed(4)}</span>
                   </div>
                 ))}
               </div>
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-[#484F58] mb-1 font-mono">
-                  Asks — {orderbookData.sellExchange || shortEx(gap.sellExchange)}
+                  Asks — {String(orderbookData.sellExchange ?? '') || shortEx(gap.sellExchange)}
                 </div>
-                {(orderbookData.asks || orderbookData.sell?.asks || []).slice(0, 5).map((ask: any, i: number) => (
+                {((orderbookData.asks || (orderbookData.sell as Record<string,unknown>)?.asks || []) as (number[] | {price:number;amount:number})[]).slice(0, 5).map((ask, i: number) => (
                   <div key={i} className="flex justify-between text-[11px] font-mono gap-4">
-                    <span className="text-red-400">{Number(ask[0] ?? ask.price).toFixed(6)}</span>
-                    <span className="text-[#484F58]">{Number(ask[1] ?? ask.amount).toFixed(4)}</span>
+                    <span className="text-red-400">{Number(Array.isArray(ask) ? ask[0] : ask.price).toFixed(6)}</span>
+                    <span className="text-[#484F58]">{Number(Array.isArray(ask) ? ask[1] : ask.amount).toFixed(4)}</span>
                   </div>
                 ))}
               </div>
@@ -362,30 +343,132 @@ function DepthDetailPanel({ gap }: { gap: GapRecord }) {
 
 // ─── GapRow ───────────────────────────────────────────────────────────────────
 
-function GapRow({
-  gap,
-  rowIndex = 0,
-  symHistory,
-  scoreThresholds = { high: 55, med: 45 },
+// ─── Full-screen overlay modal ────────────────────────────────────────────────
+
+function ExpandedModal({
+  title,
+  subtitle,
+  onClose,
+  wide = false,
+  children,
 }: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  wide?: boolean;
+  children: React.ReactNode;
+}) {
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      style={{ background: "rgba(13,17,23,0.82)", backdropFilter: "blur(4px)" }}
+      onClick={onClose}
+    >
+      <div
+        className={`relative flex flex-col rounded-lg border border-[#30363D] overflow-hidden shadow-2xl ${wide ? "w-full max-w-7xl" : "w-full max-w-3xl"}`}
+        style={{ maxHeight: "90vh", background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Modal header */}
+        <div
+          className="flex items-center justify-between px-4 py-2.5 border-b border-[#21262D] flex-shrink-0"
+          style={{ background: "linear-gradient(180deg, #21262D 0%, #161B22 100%)" }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono uppercase tracking-widest text-[#E6EDF3] font-medium">{title}</span>
+            {subtitle && <span className="text-[9px] font-mono text-[#484F58]">· {subtitle}</span>}
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 text-[9px] font-mono text-[#484F58] hover:text-[#E6EDF3] transition-colors px-2 py-1 rounded border border-transparent hover:border-[#21262D]"
+          >
+            <X className="h-3 w-3" />
+            <span>ESC</span>
+          </button>
+        </div>
+        {/* Modal body */}
+        <div className="flex-1 min-h-0 overflow-auto">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
+interface GapRowProps {
   gap: GapRecord;
   rowIndex?: number;
-  symHistory: Record<string, number[]>;
+  symHistory?: Record<string, number[]>;
   scoreThresholds?: { high: number; med: number };
-}) {
+}
+
+// U5: custom comparator — only re-render when cell-visible values change.
+// symHistory is decorative (not rendered in cells) so excluded to reduce churn.
+function gapRowPropsEqual(prev: GapRowProps, next: GapRowProps): boolean {
+  if (prev.gap.id !== next.gap.id) return false;
+  if (prev.rowIndex !== next.rowIndex) return false;
+  if (prev.gap.spreadPercent !== next.gap.spreadPercent) return false;
+  if (prev.gap.durationMs !== next.gap.durationMs) return false;
+  if (prev.gap.maxTradeableUsd !== next.gap.maxTradeableUsd) return false;
+  if (prev.gap.buyExchange !== next.gap.buyExchange) return false;
+  if (prev.gap.sellExchange !== next.gap.sellExchange) return false;
+  if (prev.gap.profitSimulation?.at1k !== next.gap.profitSimulation?.at1k) return false;
+  if ((prev.scoreThresholds?.high ?? 55) !== (next.scoreThresholds?.high ?? 55)) return false;
+  if ((prev.scoreThresholds?.med ?? 45)  !== (next.scoreThresholds?.med ?? 45))  return false;
+  return true;
+}
+
+const GapRow = React.memo(function GapRow({
+  gap,
+  rowIndex = 0,
+  scoreThresholds = { high: 55, med: 45 },
+}: GapRowProps) {
   const [expanded, setExpanded] = useState(false);
+
+  // U5: smooth fade-in for genuinely new rows.
+  // Because React.memo skips re-mounting unchanged rows, this only fires
+  // when a row is actually added to the DOM (new gap or rank change).
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setVisible(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
   const score = computeScore(gap);
-  const tm = TYPE_META[gap.type] ?? { label: "?", color: "text-[#8B949E]", bg: "bg-[#8B949E]/15" };
-  const history = symHistory[gap.symbol] || [];
+  const tm = TYPE_META[gap.type as keyof typeof TYPE_META] ?? { label: "?", color: "text-[#8B949E]", bg: "bg-[#8B949E]/15" };
+  const isFreeTier = !!gap._isFreeTier;
+
+  const rowGradient = rowIndex < 3
+    ? "linear-gradient(90deg, rgba(63,185,80,0.07) 0%, rgba(63,185,80,0.02) 40%, transparent 100%)"
+    : score >= scoreThresholds.high
+    ? "linear-gradient(90deg, rgba(63,185,80,0.04) 0%, transparent 60%)"
+    : score >= scoreThresholds.med
+    ? "linear-gradient(90deg, rgba(210,153,34,0.04) 0%, transparent 60%)"
+    : "none";
 
   return (
     <>
       <tr
-        className={`border-b border-[#21262D]/50 hover:bg-[#161B22]/40 transition-colors cursor-pointer select-none ${
+        className={`border-b border-[#21262D]/40 transition-colors cursor-pointer select-none ${
           rowIndex < 3
-            ? "border-l-2 border-l-[#3FB950] bg-[#3FB950]/[0.02]"
+            ? "border-l-2 border-l-[#3FB950]"
+            : score >= scoreThresholds.high
+            ? "border-l-2 border-l-[#3FB950]/40"
+            : score >= scoreThresholds.med
+            ? "border-l-2 border-l-[#D29922]/40"
             : "border-l-2 border-l-transparent"
         }`}
+        style={{ background: rowGradient, opacity: visible ? 1 : 0, transition: "opacity 0.2s ease" }}
+        onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.25)")}
+        onMouseLeave={e => (e.currentTarget.style.filter = "brightness(1)")}
         onClick={() => setExpanded((e) => !e)}
       >
         {/* Symbol */}
@@ -404,64 +487,72 @@ function GapRow({
             {tm.label}
           </span>
         </td>
-        {/* Spread */}
+        {/* Spread — free tier shows the delayed string with a "~" approximation marker */}
         <td className={`text-[11px] font-mono px-2 py-1 font-medium whitespace-nowrap ${spreadColor(gap.spreadPercent)}`}>
-          {formatPercent(gap.spreadPercent, 3)}
+          {isFreeTier ? (
+            <span className="inline-flex items-center gap-1">
+              {gap._delayedSpread}
+              <span className="text-[9px] text-[#D29922] opacity-60">~</span>
+            </span>
+          ) : (
+            formatPercent(gap.spreadPercent, 3)
+          )}
         </td>
-        {/* Trend sparkline */}
-        <td className="px-2 py-1" style={{ width: "58px", textAlign: "center" }}>
-          {history.length > 1 && (() => {
-            const mn = Math.min(...history), mx = Math.max(...history);
-            const rng = mx - mn || 1;
-            const pts = history.map((v, i) => {
-              const x = 2 + (i / (history.length - 1)) * 46;
-              const y = 12 - ((v - mn) / rng) * 10 + 2;
-              return `${x},${y}`;
-            });
-            const lastPt = pts[pts.length - 1].split(",");
-            const trending = history[history.length - 1] >= history[0];
-            const col = trending ? "#3FB950" : "#D29922";
-            return (
-              <svg viewBox="0 0 50 16" width="50" height="16" className="align-middle">
-                <path d={`M${pts.join(" L")}`} fill="none" stroke={col} strokeWidth="1.5" strokeLinecap="round" />
-                <circle cx={lastPt[0]} cy={lastPt[1]} r="1.5" fill={col} />
-              </svg>
-            );
-          })()}
-        </td>
-        {/* Route */}
+        {/* Route — free tier shows plain direction text; trader+ shows exchange links */}
         <td className="text-[10px] font-mono px-2 py-1 whitespace-nowrap">
-          <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
-            {shortEx(gap.buyExchange)}
-          </ExchangeLink>
-          <span className="text-[#484F58]"> → </span>
-          <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
-            {shortEx(gap.sellExchange)}
-          </ExchangeLink>
+          {isFreeTier ? (
+            <span className="text-[#8B949E]">{gap._direction}</span>
+          ) : (
+            <>
+              <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
+                {shortEx(gap.buyExchange)}
+              </ExchangeLink>
+              <span className="text-[#484F58]"> → </span>
+              <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
+                {shortEx(gap.sellExchange)}
+              </ExchangeLink>
+            </>
+          )}
         </td>
-        {/* Duration */}
-        <td className={`text-[11px] font-mono px-2 py-1 whitespace-nowrap ${durationColor(gap.durationMs)}`}>
-          {formatDuration(gap.durationMs)}
+        {/* Est. Profit @$1K — simulated profit at $1,000 trade size */}
+        <td className="text-[10px] font-mono px-2 py-1 whitespace-nowrap">
+          {isFreeTier || !gap.profitSimulation ? (
+            <span className="text-[#484F58]">—</span>
+          ) : gap.profitSimulation.isProfitable ? (
+            <span className="text-[#3FB950]">{fmtUsd(gap.profitSimulation.at1k)}</span>
+          ) : (
+            <span className="text-[#F85149]">{fmtUsd(gap.profitSimulation.at1k)}</span>
+          )}
         </td>
-        {/* Score */}
+        {/* Duration — unavailable for free tier */}
+        <td className={`text-[11px] font-mono px-2 py-1 whitespace-nowrap ${isFreeTier ? "text-[#484F58]" : durationColor(gap.durationMs)}`}>
+          {isFreeTier ? "—" : formatDuration(gap.durationMs)}
+        </td>
+        {/* Score — unavailable for free tier */}
         <td className="px-2 py-1">
-          <span
-            className={`text-[10px] px-1 py-0 rounded-sm font-mono ${
-              score >= scoreThresholds.high ? "text-[#3FB950]" :
-              score >= scoreThresholds.med  ? "text-[#D29922]" :
-              "text-[#484F58]"
-            }`}
-          >
-            {score >= scoreThresholds.high ? "HIGH" : score >= scoreThresholds.med ? "MED" : "LOW"}
-          </span>
+          {isFreeTier ? (
+            <span className="text-[10px] font-mono text-[#484F58]">—</span>
+          ) : (
+            <span
+              className={`text-[9px] font-mono font-medium px-1.5 py-0.5 rounded ${
+                score >= scoreThresholds.high
+                  ? "bg-[#3FB950]/15 text-[#3FB950]"
+                  : score >= scoreThresholds.med
+                  ? "bg-[#D29922]/15 text-[#D29922]"
+                  : "bg-[#484F58]/15 text-[#484F58]"
+              }`}
+            >
+              {score >= scoreThresholds.high ? "HIGH" : score >= scoreThresholds.med ? "MED" : "LOW"}
+            </span>
+          )}
         </td>
       </tr>
       {expanded && <DepthDetailPanel gap={gap} />}
     </>
   );
-}
+}, gapRowPropsEqual);
 
-const TABLE_HEADERS = ["Symbol", "Type", "Spread", "Trend", "Route", "Duration", "Score"];
+const TABLE_HEADERS = ["Symbol", "Type", "Spread", "Route", "Est. Profit", "Duration", "Score"];
 
 interface PriceTick {
   symbol?: string; s?: string;
@@ -474,23 +565,25 @@ interface PriceTick {
 const FREE_GAP_LIMIT = 10;
 
 export default function IntelligencePage() {
-  const { canAccess, plan } = useFeatureGate();
+  const { canAccess } = useFeatureGate();
   const isRealtime = canAccess('real_time_data');
-  const canSeeAllGaps = canAccess('all_gap_types');
 
   const [stats, setStats] = useState<TradingStats | null>(null);
   const [profitableGaps, setProfitableGaps] = useState<GapRecord[]>([]);
   const [ticks, setTicks] = useState<PriceTick[]>([]);
   const [lastUpdated, setLastUpdated] = useState("—");
   const [loading, setLoading] = useState(true);
+  // U6/U7: track first successful load — never set loading→true again on refetch
+  const gapsLoadedRef = useRef(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
-  const [minSpread, setMinSpread] = useState<number>(0.2);
-  const [filterInput, setFilterInput] = useState<string>("0.2");
+  const [minSpread, setMinSpread] = useState<number>(0);
+  const [filterInput, setFilterInput] = useState<string>("0");
   const [filterSymbol, setFilterSymbol] = useState<string | null>(null);
+  const [quoteFilter, setQuoteFilter] = useState<"ALL" | "USDT" | "USDC" | "BTC">("ALL");
   const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [leftWidth, setLeftWidth] = useState(200);
-  const [rightWidth, setRightWidth] = useState(240);
+  const [expandedModal, setExpandedModal] = useState<string | null>(null);
+  const closeModal = useCallback(() => setExpandedModal(null), []);
 
   const [statHistory, setStatHistory] = useState<{
     gaps: number[];
@@ -502,21 +595,6 @@ export default function IntelligencePage() {
   const [symbolHistory, setSymbolHistory] = useState<Record<string, number[]>>({});
 
   useEffect(() => {
-    const saved = localStorage.getItem("intelLeftWidth");
-    if (saved) setLeftWidth(Math.max(160, Math.min(Number(saved), 260)));
-  }, []);
-  useEffect(() => {
-    localStorage.setItem("intelLeftWidth", String(leftWidth));
-  }, [leftWidth]);
-  useEffect(() => {
-    const saved = localStorage.getItem("intelRightWidth");
-    if (saved) setRightWidth(Math.max(190, Math.min(Number(saved), 300)));
-  }, []);
-  useEffect(() => {
-    localStorage.setItem("intelRightWidth", String(rightWidth));
-  }, [rightWidth]);
-
-  useEffect(() => {
     fetch('/api/profitable-gaps')
       .then(r => {
         if (r.ok) setConnectionStatus('connected')
@@ -526,6 +604,7 @@ export default function IntelligencePage() {
   }, []);
 
   const fetchStats = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/trading-stats", { cache: "no-store" });
       if (res.ok) {
@@ -542,14 +621,33 @@ export default function IntelligencePage() {
   }, []);
 
   const fetchProfitable = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/profitable-gaps", { cache: "no-store" });
+      // Always clear loading on first attempt regardless of status
+      if (!gapsLoadedRef.current) {
+        gapsLoadedRef.current = true;
+        setLoading(false);
+      }
       if (!res.ok) return;
-      const data: GapRecord[] = await res.json();
+      const json: unknown = await res.json();
+
+      // Defensive unwrap: handle both plain array and wrapped { gaps/data/opportunities: [...] }
+      // shapes — mirrors the same pattern Dashboard uses for /api/opportunities.
+      const raw: unknown[] = Array.isArray(json)
+        ? json
+        : ((json as Record<string, unknown>)?.gaps ??
+           (json as Record<string, unknown>)?.data ??
+           (json as Record<string, unknown>)?.opportunities ??
+           []) as unknown[];
+
+      // Normalize both free-tier (4-field) and trader+ response shapes into
+      // a uniform GapRecord so the filter and rendering always have valid values.
+      const data = normalizeApiGapList(raw) as unknown as GapRecord[];
+
       const scored = [...data].sort((a, b) => computeScore(b) - computeScore(a));
       setProfitableGaps(scored);
       setLastUpdated(now());
-      setLoading(false);
       setSymbolHistory(prev => {
         const next = { ...prev };
         data.forEach(g => {
@@ -574,6 +672,7 @@ export default function IntelligencePage() {
   }, []);
 
   const fetchPrices = useCallback(async () => {
+    if (typeof document !== 'undefined' && document.hidden) return; // U4
     try {
       const res = await fetch("/api/prices", { cache: "no-store" });
       if (res.ok) {
@@ -618,19 +717,6 @@ export default function IntelligencePage() {
     };
   }, [fetchStats, fetchProfitable, fetchAlertConfig, fetchPrices]);
 
-  // ── Duration buckets ──
-  const buckets = stats?.durationBuckets;
-  const bucketTotal = buckets
-    ? buckets.under5s + buckets.under30s + buckets.under1m + buckets.under5m + buckets.over5m
-    : 0;
-  function bucketPct(n: number): number {
-    return bucketTotal > 0 ? Math.round((n / bucketTotal) * 100) : 0;
-  }
-  const pctUnder5s  = buckets ? bucketPct(buckets.under5s) : 0;
-  const pctUnder30s = buckets ? bucketPct(buckets.under30s) : 0;
-  const pctUnder1m  = buckets ? bucketPct(buckets.under1m) : 0;
-  const pctOver1m   = buckets ? bucketPct(buckets.under5m + buckets.over5m) : 0;
-
   // ── Gap type breakdown ──
   const typeCounts = profitableGaps.reduce((acc, g) => {
     acc[g.type] = (acc[g.type] || 0) + 1;
@@ -644,7 +730,8 @@ export default function IntelligencePage() {
   const dexPct   = Math.round((dexCount / typeTotal) * 100);
   const sfPct    = Math.round((sfCount  / typeTotal) * 100);
 
-  // ── Treemap data ──
+  // ── Treemap data (computed for potential future use) ──
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const symbolData = useMemo(() => {
     const bySymbol: Record<string, { count: number; cex: number; dex: number; sf: number; totalSpread: number }> = {};
     profitableGaps.forEach(g => {
@@ -676,33 +763,6 @@ export default function IntelligencePage() {
   }, [profitableGaps]);
 
   // ── Exchange pricing bias (fixed: handles array or {ticks:[]}) ──
-  const pricingBias = useMemo(() => {
-    if (ticks.length === 0) return [];
-    const bySymbol: Record<string, { ex: string; price: number }[]> = {};
-    ticks.forEach(t => {
-      const sym = t.symbol || t.s;
-      const ex  = t.exchangeId || t.exchange || t.e;
-      const mid = ((t.bid || 0) + (t.ask || 0)) / 2;
-      if (mid > 0 && ex && sym) {
-        if (!bySymbol[sym]) bySymbol[sym] = [];
-        bySymbol[sym].push({ ex, price: mid });
-      }
-    });
-    const exStats: Record<string, { below: number; total: number }> = {};
-    Object.values(bySymbol).forEach(entries => {
-      const avg = entries.reduce((s, e) => s + e.price, 0) / entries.length;
-      entries.forEach(({ ex, price }) => {
-        if (!exStats[ex]) exStats[ex] = { below: 0, total: 0 };
-        exStats[ex].total++;
-        if (price < avg) exStats[ex].below++;
-      });
-    });
-    return Object.entries(exStats)
-      .filter(([, d]) => d.total >= 3)
-      .map(([ex, d]) => ({ ex, cheapPct: Math.round((d.below / d.total) * 100) }))
-      .sort((a, b) => b.cheapPct - a.cheapPct)
-      .slice(0, 7);
-  }, [ticks]);
 
   // ── Type profitability ──
   const typeProfitability = useMemo(() => {
@@ -761,10 +821,48 @@ export default function IntelligencePage() {
   // ── Top assets (from stats) — kept for future use ──
   // const topAssets = stats?.symbolRanking?.slice(0, 8) || [];
 
+  // ── Heatmap matrix: symbol × exchange (best spread per cell) ──
+  const HEATMAP_SYMS = ["BTC","ETH","SOL","BNB","XRP","AVAX","ADA","DOT"];
+  const HEATMAP_EXS  = ["BIN","BYB","OKX","KUC","GATE","MEXC","HTX","HYP"];
+
+  const heatmapMatrix = useMemo(() => {
+    const base = quoteFilter === 'ALL'
+      ? profitableGaps
+      : profitableGaps.filter(g => (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === quoteFilter);
+    const mx: Record<string, Record<string, { spread: number; count: number }>> = {};
+    HEATMAP_SYMS.forEach(s => { mx[s] = {}; });
+    base.forEach(g => {
+      const coin = g.symbol?.split("/")[0] || g.symbol;
+      if (!HEATMAP_SYMS.includes(coin)) return;
+      [g.buyExchange, g.sellExchange].forEach(ex => {
+        const key = exName(ex);
+        if (!HEATMAP_EXS.includes(key)) return;
+        const prev = mx[coin]?.[key];
+        if (!prev || g.spreadPercent > prev.spread) {
+          mx[coin][key] = { spread: g.spreadPercent, count: (prev?.count ?? 0) + 1 };
+        }
+      });
+    });
+    return mx;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profitableGaps, quoteFilter]);
+
+  function heatCellStyle(spread: number): { bg: string; border: string } {
+    if (!spread)       return { bg: "linear-gradient(135deg, rgba(22,27,34,0.6) 0%, rgba(13,17,23,0.8) 100%)", border: "rgba(33,38,45,0.35)" };
+    if (spread < 0.10) return { bg: "linear-gradient(135deg, rgba(63,185,80,0.10) 0%, rgba(63,185,80,0.04) 100%)", border: "rgba(63,185,80,0.25)" };
+    if (spread < 0.20) return { bg: "linear-gradient(135deg, rgba(63,185,80,0.24) 0%, rgba(63,185,80,0.12) 100%)", border: "rgba(63,185,80,0.42)" };
+    if (spread < 0.30) return { bg: "linear-gradient(135deg, rgba(63,185,80,0.42) 0%, rgba(63,185,80,0.22) 100%)", border: "rgba(63,185,80,0.58)" };
+    if (spread < 0.40) return { bg: "linear-gradient(135deg, rgba(63,185,80,0.60) 0%, rgba(63,185,80,0.36) 100%)", border: "rgba(63,185,80,0.75)" };
+    return                    { bg: "linear-gradient(135deg, rgba(63,185,80,0.80) 0%, rgba(63,185,80,0.55) 100%)", border: "rgba(63,185,80,0.92)" };
+  }
+
   // ── Leaderboard from profitable gaps only (FIX 1) ──
   const leaderboard = useMemo(() => {
+    const base = quoteFilter === 'ALL'
+      ? profitableGaps
+      : profitableGaps.filter(g => (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === quoteFilter);
     const bySymbol: Record<string, { count: number; maxSpread: number }> = {};
-    profitableGaps.forEach(g => {
+    base.forEach(g => {
       const coin = g.symbol?.split("/")[0] || g.symbol || "";
       if (!bySymbol[coin]) bySymbol[coin] = { count: 0, maxSpread: 0 };
       bySymbol[coin].count++;
@@ -774,7 +872,7 @@ export default function IntelligencePage() {
       .map(([coin, d]) => ({ coin, count: d.count, maxSpread: d.maxSpread }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8);
-  }, [profitableGaps]);
+  }, [profitableGaps, quoteFilter]);
 
   // ── Score thresholds — dynamic percentile-based (FIX 6) ──
   const scoreThresholds = useMemo(() => {
@@ -804,50 +902,24 @@ export default function IntelligencePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stats?.profitableGapsCount, stats?.totalGapsLast1h]);
 
+  // ── Quote currency counts (for pill badges) ──
+  const quoteCounts = useMemo(() => {
+    const base = profitableGaps.filter(g => g.spreadPercent >= minSpread);
+    const count = (q: string) => base.filter(g => (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === q).length;
+    return { USDT: count('USDT'), USDC: count('USDC'), BTC: count('BTC') };
+  }, [profitableGaps, minSpread]);
+
   // ── Filtered gaps ──
   const allFilteredGaps = profitableGaps
     .filter(g => g.spreadPercent >= minSpread)
-    .filter(g => filterSymbol ? g.symbol?.startsWith(filterSymbol) : true);
+    .filter(g => filterSymbol ? g.symbol?.startsWith(filterSymbol) : true)
+    .filter(g => quoteFilter === 'ALL' ? true : (g.quoteCurrency ?? g.symbol?.split('/')[1] ?? 'USDT') === quoteFilter);
 
   // Free users see only first 10 rows; remaining are blurred
   const filteredGaps = isRealtime ? allFilteredGaps : allFilteredGaps.slice(0, FREE_GAP_LIMIT);
   const hasHiddenGaps = !isRealtime && allFilteredGaps.length > FREE_GAP_LIMIT;
   const hiddenCount = hasHiddenGaps ? allFilteredGaps.length - FREE_GAP_LIMIT : 0;
 
-  // ── Drag handlers ──
-  function startLeftDrag(e: React.MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX, startW = leftWidth;
-    const move = (ev: MouseEvent) =>
-      setLeftWidth(Math.max(160, Math.min(startW + (ev.clientX - startX), 260)));
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-  }
-
-  function startRightDrag(e: React.MouseEvent) {
-    e.preventDefault();
-    const startX = e.clientX, startW = rightWidth;
-    const move = (ev: MouseEvent) =>
-      setRightWidth(Math.max(190, Math.min(startW + (startX - ev.clientX), 300)));
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-    document.body.style.cursor = "ew-resize";
-    document.body.style.userSelect = "none";
-  }
 
   // ── Spread histogram config ──
   const maxBucket = Math.max(
@@ -855,494 +927,319 @@ export default function IntelligencePage() {
     spreadBuckets.under05, spreadBuckets.over05, 1
   );
   const spreadHistBuckets = [
-    { key: "under01", count: spreadBuckets.under01, label: "<0.1",    bg: "rgba(248,81,73,0.25)",  border: "rgba(248,81,73,0.4)",  color: "#F85149" },
-    { key: "under02", count: spreadBuckets.under02, label: "0.1-0.2", bg: "rgba(210,153,34,0.25)", border: "rgba(210,153,34,0.4)", color: "#D29922" },
-    { key: "under03", count: spreadBuckets.under03, label: "0.2-0.3", bg: "rgba(63,185,80,0.3)",   border: "rgba(63,185,80,0.5)",  color: "#3FB950" },
-    { key: "under05", count: spreadBuckets.under05, label: "0.3-0.5", bg: "rgba(63,185,80,0.4)",   border: "rgba(63,185,80,0.6)",  color: "#3FB950" },
-    { key: "over05",  count: spreadBuckets.over05,  label: ">0.5",    bg: "rgba(56,139,253,0.25)", border: "rgba(56,139,253,0.4)", color: "#388BFD" },
+    { key: "under01", count: spreadBuckets.under01, label: "<0.1",    bg: "linear-gradient(180deg, rgba(248,81,73,0.35) 0%, rgba(248,81,73,0.12) 100%)",  border: "rgba(248,81,73,0.45)",  color: "#F85149" },
+    { key: "under02", count: spreadBuckets.under02, label: "0.1-0.2", bg: "linear-gradient(180deg, rgba(210,153,34,0.35) 0%, rgba(210,153,34,0.12) 100%)", border: "rgba(210,153,34,0.45)", color: "#D29922" },
+    { key: "under03", count: spreadBuckets.under03, label: "0.2-0.3", bg: "linear-gradient(180deg, rgba(63,185,80,0.42) 0%, rgba(63,185,80,0.15) 100%)",   border: "rgba(63,185,80,0.55)",  color: "#3FB950" },
+    { key: "under05", count: spreadBuckets.under05, label: "0.3-0.5", bg: "linear-gradient(180deg, rgba(63,185,80,0.55) 0%, rgba(63,185,80,0.22) 100%)",   border: "rgba(63,185,80,0.65)",  color: "#3FB950" },
+    { key: "over05",  count: spreadBuckets.over05,  label: ">0.5",    bg: "linear-gradient(180deg, rgba(56,139,253,0.38) 0%, rgba(56,139,253,0.12) 100%)", border: "rgba(56,139,253,0.45)", color: "#388BFD" },
   ];
-  const tallestBucketKey = spreadHistBuckets.reduce(
-    (prev, curr) => curr.count > prev.count ? curr : prev,
-    spreadHistBuckets[0]
-  ).key;
 
   // ── Type profitability rank helpers ──
   const profitTypes   = typeProfitability.filter(t => t.count > 0);
   const maxSpreadType = profitTypes.length ? profitTypes.reduce((a, b) => a.avgSpread > b.avgSpread ? a : b).type : "";
-  const minSpreadType = profitTypes.length > 1 ? profitTypes.reduce((a, b) => a.avgSpread < b.avgSpread ? a : b).type : "";
+
+  // ── Stat cards — identical card style to Dashboard ──
+  const _gapsDetected   = stats?.totalGapsLast1h ?? 0;
+  const _gaps24h        = stats?.totalGapsLast24h ?? 0;
+  const _profCount      = stats?.profitableGapsCount ?? 0;
+  const _profRate       = stats?.profitableGapsPercent ?? 0;
+  const _avgSpread      = stats?.avgSpreadPercent ?? 0;
+  const _bestSpreadVal  = stats?.bestSpreadSeen?.spreadPercent ?? 0;
+  const _bestSpreadSym  = stats?.bestSpreadSeen?.symbol ?? "";
+
+  const intelStatCards = [
+    {
+      label: "Gaps Detected",
+      value: _gapsDetected > 0 ? formatNumber(_gapsDetected) : "—",
+      subtitle: `${_gaps24h > 0 ? formatNumber(_gaps24h) : "—"} last 24h`,
+      glow: "bg-[#3FB950]/5", glowBorder: _gapsDetected > 0 ? "hover:border-[#3FB950]/40" : "",
+      pulse: _gapsDetected > 0, pulseColor: "#3FB950",
+      valueColor: _gapsDetected > 0 ? "text-[#3FB950]" : "text-[#E6EDF3]",
+    },
+    {
+      label: "Profitable",
+      value: _profCount > 0 ? formatNumber(_profCount) : "—",
+      subtitle: `${_profRate}% conversion rate`,
+      glow: _profCount > 0 ? "bg-[#3FB950]/5" : "bg-transparent",
+      glowBorder: _profCount > 0 ? "hover:border-[#3FB950]/40" : "",
+      pulse: _profCount > 0, pulseColor: "#3FB950",
+      valueColor: _profCount > 0 ? "text-[#3FB950]" : "text-[#E6EDF3]",
+    },
+    {
+      label: "Avg Net Spread",
+      value: _avgSpread > 0 ? formatPercent(_avgSpread, 3) : "—",
+      subtitle: "after fees",
+      glow: _avgSpread >= 0.2 ? "bg-[#3FB950]/5" : _avgSpread > 0 ? "bg-[#D29922]/5" : "bg-transparent",
+      glowBorder: _avgSpread >= 0.2 ? "hover:border-[#3FB950]/40" : "",
+      pulse: false, pulseColor: "#3FB950",
+      valueColor: _avgSpread >= 0.2 ? "text-[#3FB950]" : _avgSpread >= 0.05 ? "text-[#D29922]" : "text-[#E6EDF3]",
+    },
+    {
+      label: "Best Spread",
+      value: _bestSpreadVal > 0 ? formatPercent(_bestSpreadVal, 3) : "—",
+      subtitle: _bestSpreadSym || "no data yet",
+      glow: _bestSpreadVal > 0 ? "bg-[#388BFD]/5" : "bg-transparent",
+      glowBorder: _bestSpreadVal > 0 ? "hover:border-[#388BFD]/40" : "",
+      pulse: _bestSpreadVal >= 0.5, pulseColor: "#388BFD",
+      valueColor: _bestSpreadVal >= 0.5 ? "text-[#388BFD]" : _bestSpreadVal >= 0.2 ? "text-[#3FB950]" : "text-[#E6EDF3]",
+    },
+  ];
 
   return (
-    <div className="flex flex-col h-screen bg-[#0D1117] text-[#E6EDF3] overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0D1117] text-[#E6EDF3]">
 
-      {/* ── Top Nav ── */}
-      <header className="sticky top-0 z-30 flex items-center justify-between px-4 py-2 bg-[#161B22] border-b border-[#21262D] flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <ZapIcon className="h-4 w-4 text-[#388BFD]" />
-          <span className="text-[13px] font-medium text-[#388BFD]">Arbitrage Terminal</span>
-          <span className="text-[#484F58] select-none">|</span>
-          <span className="text-[11px] text-[#484F58] font-mono">v0.7.4</span>
-        </div>
-        <div className="flex items-center gap-1 text-[11px]">
-          <div className="flex items-center gap-1 mr-2">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-[#3FB950] animate-pulse" />
-            <span className="text-[#3FB950] font-mono">LIVE</span>
-          </div>
-          {!isRealtime && (
-            <span className="text-[10px] font-mono text-[#D29922] bg-[#D29922]/10 border border-[#D29922]/30 rounded px-1.5 py-0.5 mr-1">
-              DELAYED 15s
-            </span>
-          )}
-          {connectionStatus === 'connecting' && (
-            <span className="text-[11px] text-[#D29922] font-mono mr-1">Connecting…</span>
-          )}
-          {connectionStatus === 'error' && (
-            <span className="text-[11px] text-[#F85149] font-mono mr-1">Backend unavailable</span>
-          )}
-          <Link href="/intelligence" className="px-2 py-0.5 rounded bg-[#388BFD]/15 text-[#388BFD] font-medium text-[11px]">
-            Intelligence
-          </Link>
-          <Link href="/magnus" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
-            Magnus
-          </Link>
-          <Link href="/dex" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
-            DEX Markets
-          </Link>
-          <Link href="/funding-rates" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
-            Funding Rates
-          </Link>
-          <Link href="/dashboard" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors text-[11px]">
-            Dashboard
-          </Link>
-          <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
-            <SettingsIcon className="h-3.5 w-3.5" />
-          </Link>
-          <NavAuthButton />
-        </div>
-      </header>
-
-      {/* ── Ad pill — only for free users ── */}
-      <AdBanner zone="pill" />
+      {/* ── Top nav — identical structure to Dashboard ── */}
+      <AppHeader
+        activePage="/intelligence"
+        connectionStatus={connectionStatus}
+        showDelayedBadge={!isRealtime}
+      />
 
       {/* ── 3-column layout ── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
         {/* ════ LEFT SIDEBAR ════ */}
         <aside
-          className="flex-shrink-0 border-r border-[#21262D] flex flex-col overflow-y-auto relative"
-          style={{ width: `${leftWidth}px`, minWidth: "160px", maxWidth: "260px" }}
+          className="hidden lg:flex flex-col flex-shrink-0 h-full bg-[#0D1117] border-r border-[#21262D] overflow-y-auto"
+          style={{ width: 200 }}
         >
-          <div
-            className="absolute right-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-            onMouseDown={startLeftDrag}
-          />
+          {/* Quote filter tabs — ALL | USDT | USDC | BTC */}
+          <div className="flex items-center gap-1 px-2 py-1.5 border-b border-[#21262D] shrink-0">
+            {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => (
+              <button key={q}
+                onClick={() => setQuoteFilter(q)}
+                className="flex-1 text-[10px] font-mono rounded py-0.5 transition-colors duration-150"
+                style={{
+                  background: quoteFilter === q ? "#388BFD22" : "transparent",
+                  color:      quoteFilter === q ? "#388BFD"   : "#484F58",
+                  border:     quoteFilter === q ? "1px solid #388BFD44" : "1px solid transparent",
+                }}
+              >{q}</button>
+            ))}
+          </div>
 
-          {/* Market pulse */}
-          <div className="border-b border-[#21262D]" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Market pulse</span>
-              <InfoCorner text={TIP.marketPulse} />
-            </div>
+          {/* Live counts */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
             <div className="grid grid-cols-2 gap-1.5">
-              <div className="bg-[#161B22] rounded-md text-center" style={{ padding: "4px" }}>
-                <div className="text-[16px] text-[#3FB950] font-medium font-mono">
-                  {formatNumber(stats?.totalGapsLast1h ?? 0)}
-                </div>
-                <div className="text-[9px] text-[#484F58]">ticks/s</div>
+              <div className="bg-[#161B22] border border-[#21262D] rounded p-1.5 text-center">
+                <div className="text-[16px] text-[#3FB950] font-mono font-medium leading-none">{formatNumber(stats?.totalGapsLast1h ?? 0)}</div>
+                <div className="text-[9px] text-[#484F58] font-mono mt-0.5">gaps/hr</div>
               </div>
-              <div className="bg-[#161B22] rounded-md text-center" style={{ padding: "4px" }}>
-                <div className="text-[16px] text-[#E6EDF3] font-medium font-mono">
-                  {profitableGaps.length}
-                </div>
-                <div className="text-[9px] text-[#484F58]">tracked</div>
+              <div className="bg-[#161B22] border border-[#21262D] rounded p-1.5 text-center">
+                <div className="text-[16px] text-[#E6EDF3] font-mono font-medium leading-none">{profitableGaps.length}</div>
+                <div className="text-[9px] text-[#484F58] font-mono mt-0.5">tracked</div>
               </div>
             </div>
           </div>
 
-          {/* Top routes */}
-          <ErrorBoundary name="Top routes">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Top routes</span>
-              <InfoCorner text={TIP.topRoutes} />
-            </div>
+          {/* Top Routes */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <div className="text-[10px] font-sans text-[#484F58] mb-1.5">Top Routes</div>
             {!stats?.exchangePairRanking?.length ? (
-              <WidgetSkeleton type="list" rows={4} />
+              <div className="text-[10px] text-[#484F58] font-mono">Loading…</div>
             ) : (
-              <div className="space-y-0">
-                {stats.exchangePairRanking.slice(0, 4).map((pair, i) => (
-                  <div
-                    key={`${pair.buyExchange}-${pair.sellExchange}`}
-                    className="flex items-center justify-between py-[1px] border-b border-[#21262D]/30"
-                    style={{ fontSize: "11px", height: "20px" }}
-                  >
-                    <span className="font-mono text-[#E6EDF3] flex-1 truncate">
-                      {shortEx(pair.buyExchange)}→{shortEx(pair.sellExchange)}
-                    </span>
-                    <span className={`font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>
-                      {pair.gapCount}
-                    </span>
+              <div className="space-y-1">
+                {stats.exchangePairRanking.slice(0, 5).map((pair, i) => (
+                  <div key={`${pair.buyExchange}-${pair.sellExchange}`}
+                    className="flex items-center justify-between py-0.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[9px] font-mono text-[#484F58] w-3">{i + 1}</span>
+                      <span className="text-[10px] font-mono">
+                        <span className="text-[#388BFD]">{shortEx(pair.buyExchange)}</span>
+                        <span className="text-[#484F58]">→</span>
+                        <span className="text-[#F85149]">{shortEx(pair.sellExchange)}</span>
+                      </span>
+                    </div>
+                    <span className={`text-[10px] font-mono ${i < 2 ? "text-[#3FB950]" : "text-[#8B949E]"}`}>{pair.gapCount}</span>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          </ErrorBoundary>
 
-          {/* Gap types */}
-          <ErrorBoundary name="Gap types">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Gap types</span>
-              <InfoCorner text={TIP.gapTypes} />
-            </div>
-            {profitableGaps.length === 0 ? (
-              <WidgetSkeleton type="list" rows={3} />
-            ) : (
-              <div className="space-y-1.5">
-                {[
-                  { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#3FB950" },
-                  { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#D29922" },
-                  { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#388BFD" },
-                ].map(row => (
-                  <div key={row.label}>
-                    <div className="flex justify-between text-[11px]" style={{ height: "20px", alignItems: "center" }}>
-                      <span className="text-[#E6EDF3]">{row.label}</span>
-                      <span className="font-mono" style={{ color: row.color }}>{row.count} ({row.pct}%)</span>
-                    </div>
-                    <div className="w-full h-[4px] bg-[#21262D] rounded overflow-hidden">
-                      <div className="h-full rounded transition-all duration-500" style={{ width: `${row.pct}%`, background: row.color }} />
-                    </div>
+          {/* Gap Type Breakdown */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <div className="text-[10px] font-sans text-[#484F58] mb-1.5">Gap Types</div>
+            <div className="space-y-2">
+              {[
+                { label: "CEX-CEX", count: cexCount, pct: cexPct, color: "#388BFD", grad: "linear-gradient(90deg, rgba(56,139,253,0.8) 0%, rgba(56,139,253,0.3) 100%)" },
+                { label: "DEX-CEX", count: dexCount, pct: dexPct, color: "#3FB950", grad: "linear-gradient(90deg, rgba(63,185,80,0.8) 0%, rgba(63,185,80,0.3) 100%)" },
+                { label: "Spot-Fut", count: sfCount,  pct: sfPct,  color: "#A371F7", grad: "linear-gradient(90deg, rgba(163,113,247,0.8) 0%, rgba(163,113,247,0.3) 100%)" },
+              ].map(row => (
+                <div key={row.label}>
+                  <div className="flex justify-between items-center mb-0.5">
+                    <span className="text-[10px] font-mono text-[#8B949E]">{row.label}</span>
+                    <span className="text-[10px] font-mono" style={{ color: row.color }}>{row.pct}%</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </ErrorBoundary>
-
-          {/* Gap duration */}
-          <ErrorBoundary name="Gap duration">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Gap duration</span>
-              <InfoCorner text={TIP.gapDuration} />
-            </div>
-            {!buckets ? (
-              <WidgetSkeleton type="chart" />
-            ) : (
-              <>
-                <div className="flex h-[8px] rounded overflow-hidden mb-1.5">
-                  <div className="bg-[#F85149] flex items-center justify-center" style={{ width: `${pctUnder5s}%` }}>
-                    {pctUnder5s > 15 && <span className="text-[9px] text-[#0D1117] font-medium">{pctUnder5s}%</span>}
+                  <div className="h-[3px] bg-[#21262D] rounded overflow-hidden">
+                    <div className="h-full rounded transition-all duration-500" style={{ width: `${row.pct}%`, background: row.grad }} />
                   </div>
-                  <div className="bg-[#D29922] flex items-center justify-center" style={{ width: `${pctUnder30s}%` }}>
-                    {pctUnder30s > 15 && <span className="text-[9px] text-[#0D1117] font-medium">{pctUnder30s}%</span>}
-                  </div>
-                  <div className="bg-[#3FB950]" style={{ width: `${pctUnder1m}%` }} />
-                  <div className="bg-[#388BFD]" style={{ width: `${pctOver1m}%` }} />
                 </div>
-                <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-                  {[
-                    { bg: "#F85149", label: "<5s" },
-                    { bg: "#D29922", label: "<30s" },
-                    { bg: "#3FB950", label: "<1m" },
-                    { bg: "#388BFD", label: ">1m" },
-                  ].map(b => (
-                    <div key={b.label} className="flex items-center gap-1">
-                      <div className="w-[4px] h-[4px] rounded-sm" style={{ background: b.bg }} />
-                      <span className="text-[9px] text-[#8B949E]">{b.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          </ErrorBoundary>
-
-          {/* Exchange pricing bias — moved here from center */}
-          <ErrorBoundary name="Pricing bias">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Pricing bias</span>
-              <InfoCorner text={TIP.pricingBias} />
+              ))}
             </div>
-            {pricingBias.length === 0 ? (
-              <EmptyState title="Calculating pricing patterns" subtitle="Requires price tick data" />
-            ) : (
-              <>
-                <div className="flex justify-between mb-1 text-[#484F58] text-[9px]">
-                  <span>← Buy</span>
-                  <span>Sell →</span>
-                </div>
-                <div className="space-y-0.5">
-                  {pricingBias.map(({ ex, cheapPct }) => (
-                    <div key={ex} className="flex items-center gap-1" style={{ height: "20px" }}>
-                      <span
-                        className={`text-[10px] font-mono w-[32px] flex-shrink-0 ${
-                          cheapPct > 55 ? "text-[#3FB950]" : cheapPct < 45 ? "text-[#F85149]" : "text-[#8B949E]"
-                        }`}
-                      >
-                        {shortEx(ex)}
-                      </span>
-                      <div className="flex-1 flex h-[6px] relative">
-                        <div className="absolute top-0 bottom-0 w-[1px] bg-[#484F58]" style={{ left: "50%", transform: "translateX(-50%)" }} />
-                        <div className="w-1/2 flex justify-end overflow-hidden">
-                          <div className="h-full bg-[#3FB950] rounded-l" style={{ width: `${cheapPct}%`, opacity: cheapPct > 55 ? 0.7 : 0.3 }} />
-                        </div>
-                        <div className="w-1/2 overflow-hidden">
-                          <div className="h-full bg-[#F85149] rounded-r" style={{ width: `${100 - cheapPct}%`, opacity: cheapPct < 45 ? 0.7 : 0.3 }} />
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-mono text-[#484F58] w-[26px] text-right flex-shrink-0">
-                        {cheapPct}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
           </div>
-          </ErrorBoundary>
 
-          {/* Ad zones — only for free users */}
-          <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
+          {/* Magnus compact card */}
+          <div className="px-2 py-2 border-b border-[#21262D] shrink-0">
+            <MagnusAICard />
+          </div>
+
+          {/* Ad */}
+          <div className="mt-auto px-2 py-2 shrink-0">
             <AdBanner zone="contextual-signal" context={{ exchange: "okx" }} />
-          </div>
-          <div style={{ padding: "4px 6px" }}>
-            <AdBanner zone="contextual-signal" context={{ exchange: "bitget" }} />
           </div>
         </aside>
 
         {/* ════ CENTER MAIN ════ */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden p-3 gap-2">
 
-          {/* Page title */}
-          <div className="px-3 pt-2 pb-1 flex-shrink-0">
-            <h1 className="text-[13px] font-medium text-[#E6EDF3]">Trading Intelligence</h1>
-            <p className="text-[10px] text-[#484F58]">live gap analysis · order book depth · profit simulation</p>
+          {/* Ad pill */}
+          <div className="shrink-0">
+            <AdBanner zone="pill" />
           </div>
 
-          {/* ── Sparkline stat cards ── */}
-          <ErrorBoundary name="Stat cards">
-          <div className="grid grid-cols-4 gap-2 px-2 pb-2 flex-shrink-0">
-
-            {/* Card 1: Gaps detected */}
-            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
-              <SparklineSVG data={statHistory.gaps} color="#E6EDF3" id="gaps" />
-              <div className="relative z-10">
-                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Gaps detected</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-[20px] font-mono font-medium text-[#E6EDF3]">
-                    {formatNumber(stats?.totalGapsLast1h ?? 0)}
-                  </span>
-                  <StatDeltaBadge history={statHistory.gaps} />
-                </div>
-                <div className="text-[10px] text-[#484F58]">last hour</div>
-              </div>
-            </div>
-
-            {/* Card 2: Profitable */}
-            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
-              <SparklineSVG data={statHistory.profitable} color="#3FB950" id="profitable" />
-              <div className="relative z-10">
-                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Profitable</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    className="text-[20px] font-mono font-medium"
-                    style={{ color: (stats?.profitableGapsCount ?? 0) > 0 ? "#3FB950" : "#8B949E" }}
-                  >
-                    {formatNumber(stats?.profitableGapsCount ?? 0)}
-                  </span>
-                  <StatDeltaBadge history={statHistory.profitable} />
-                </div>
-                <div className="text-[10px] text-[#484F58]">
-                  {stats?.profitableGapsPercent ?? 0}% conversion
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Avg net spread */}
-            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
-              <SparklineSVG data={statHistory.spread} color="#3FB950" id="spread" />
-              <div className="relative z-10">
-                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Avg net spread</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    className="text-[20px] font-mono font-medium"
-                    style={{
-                      color: (stats?.avgSpreadPercent ?? 0) >= 0.2
-                        ? "#3FB950"
-                        : (stats?.avgSpreadPercent ?? 0) >= 0.05 ? "#D29922" : "#8B949E",
-                    }}
-                  >
-                    {formatPercent(stats?.avgSpreadPercent ?? 0, 3)}
-                  </span>
-                  <StatDeltaBadge history={statHistory.spread} />
-                </div>
-                <div className="text-[10px] text-[#484F58]">after all fees</div>
-              </div>
-            </div>
-
-            {/* Card 4: Avg gap life */}
-            <div className="bg-[#161B22] border border-[#21262D] rounded-md p-3 relative overflow-hidden">
-              <SparklineSVG data={statHistory.duration} color="#D29922" id="duration" />
-              <div className="relative z-10">
-                <div className="text-[10px] uppercase tracking-wider text-[#8B949E] mb-1">Avg gap life</div>
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    className="text-[20px] font-mono font-medium"
-                    style={{
-                      color: (stats?.avgGapDurationMs ?? 0) >= 60_000
-                        ? "#3FB950"
-                        : (stats?.avgGapDurationMs ?? 0) >= 30_000 ? "#D29922" : "#F85149",
-                    }}
-                  >
-                    {formatDuration(stats?.avgGapDurationMs ?? 0)}
-                  </span>
-                  <StatDeltaBadge history={statHistory.duration} />
-                </div>
-                <div className="text-[10px] text-[#484F58]">before close</div>
-              </div>
-            </div>
+          {/* 4 Stat cards — IDENTICAL to Dashboard card style */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 shrink-0">
+            {intelStatCards.map(card => (
+              <StatCard
+                key={card.label}
+                label={card.label}
+                value={card.value}
+                sub={card.subtitle}
+                valueColor={card.valueColor}
+                glow={card.glow}
+                glowBorder={card.glowBorder}
+                pulse={card.pulse}
+                pulseColor={card.pulseColor}
+                className="p-2.5"
+              />
+            ))}
           </div>
-          </ErrorBoundary>
 
-          {/* ── Widget row: Treemap · Spread Distribution · Type Profitability ── */}
-          <div
-            className="flex-shrink-0"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr",
-              gap: "4px",
-              maxHeight: "100px",
-              minHeight: "80px",
-              padding: "2px 6px",
-            }}
-          >
+          {/* 3-column widget row — Heatmap | Spread Dist | Type Profit */}
+          <div className="shrink-0 grid gap-2" style={{ gridTemplateColumns: "5fr 3fr 2.5fr", height: 172 }}>
 
-            {/* ── Treemap Heatmap (2fr) ── */}
+            {/* Heatmap */}
             <ErrorBoundary name="Arbitrage heatmap">
-            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col p-1.5">
+            <div className="border border-[#21262D] rounded-lg overflow-hidden flex flex-col p-1.5"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}>
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="text-[11px] font-medium text-[#E6EDF3]">Arbitrage heatmap</span>
-                <InfoCorner text={TIP.heatmap} />
-              </div>
-              {symbolData.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <EmptyState title="Waiting for gap data" subtitle="Heatmap populates as gaps are detected" />
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Arb Heatmap · click to filter</span>
+                <div className="flex items-center gap-1">
+                  <InfoCorner text={TIP.heatmap} />
+                  {filterSymbol && (
+                    <button onClick={() => setFilterSymbol(null)}
+                      className="text-[8px] font-mono text-[#F85149] hover:opacity-80 px-1">✕{filterSymbol}</button>
+                  )}
+                  <button onClick={() => setExpandedModal("heatmap")} className="text-[#484F58] hover:text-[#E6EDF3] transition-colors" title="Expand heatmap">
+                    <Maximize2 className="h-3 w-3" />
+                  </button>
                 </div>
-              ) : (() => {
-                const treemapData = symbolData.slice(0, 5);
-                const remainingCount = Math.max(0, symbolData.length - 5);
-                return (
-                  <div
-                    className="flex-1 min-h-0"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "2fr 1fr 1fr",
-                      gridTemplateRows: "1fr 1fr",
-                      gap: "2px",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {treemapData.map((s, i) => {
-                      const isSelected = filterSymbol === s.coin;
-                      if (i === 0) {
-                        return (
-                          <div
-                            key={s.coin}
-                            className={`rounded cursor-pointer transition-all duration-150 flex flex-col items-center justify-center hover:brightness-125 hover:scale-[1.01] ${isSelected ? "ring-1 ring-[#388BFD]/60" : ""}`}
-                            style={{
-                              gridRow: "1 / 3",
-                              background: "radial-gradient(ellipse at 30% 40%, rgba(63,185,80,0.2) 0%, rgba(63,185,80,0.08) 50%, rgba(63,185,80,0.04) 100%)",
-                              border: "1.5px solid rgba(63,185,80,0.45)",
-                              borderRadius: "4px",
-                            }}
-                            onClick={() => setFilterSymbol(prev => prev === s.coin ? null : s.coin)}
-                          >
-                            <span className="text-[10px] font-mono font-medium text-[#E6EDF3] leading-tight">{s.coin}</span>
-                            <span className="text-[10px] font-mono text-[#3FB950] leading-tight">{s.count}</span>
-                          </div>
-                        );
-                      }
-                      if (i === 4 && remainingCount > 0) {
-                        return (
-                          <div
-                            key="more"
-                            className="rounded flex items-center justify-center"
-                            style={{
-                              background: "rgba(72,79,88,0.08)",
-                              border: "0.5px solid rgba(72,79,88,0.2)",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            <span className="text-[9px] text-[#484F58] font-mono">+{remainingCount} more</span>
-                          </div>
-                        );
-                      }
+              </div>
+              {profitableGaps.length === 0 ? (
+                <div className="flex-1 flex flex-col gap-[3px] p-1 justify-center">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="flex gap-[2px]" style={{ opacity: 0.4 + i * 0.05 }}>
+                      <div className="w-[28px] h-[11px] rounded-sm bg-[#21262D] animate-pulse flex-shrink-0" />
+                      {[...Array(6)].map((__, j) => (
+                        <div key={j} className="flex-1 h-[11px] rounded-sm bg-[#21262D] animate-pulse" style={{ animationDelay: `${(i + j) * 60}ms` }} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 flex flex-col justify-between">
+                  <div className="flex mb-[2px]" style={{ marginLeft: 30 }}>
+                    {HEATMAP_EXS.map(ex => (
+                      <div key={ex} className="flex-1 text-center">
+                        <span className="text-[7px] font-mono text-[#484F58] tracking-wide">{ex}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-col gap-[2px]">
+                    {HEATMAP_SYMS.map(sym => {
+                      const isSelected = filterSymbol === sym;
                       return (
-                        <div
-                          key={s.coin}
-                          className={`rounded cursor-pointer transition-all duration-150 flex flex-col items-center justify-center hover:brightness-125 min-h-[20px] ${isSelected ? "ring-1 ring-[#388BFD]/60" : ""}`}
-                          style={{
-                            background: `rgba(63,185,80,${Math.max(0.06, Math.min(0.35, s.avgSpread * 0.8))})`,
-                            border: "1px solid rgba(63,185,80,0.3)",
-                            borderRadius: "4px",
-                          }}
-                          onClick={() => setFilterSymbol(prev => prev === s.coin ? null : s.coin)}
-                        >
-                          <span className="text-[10px] font-mono font-medium text-[#E6EDF3] leading-tight">{s.coin}</span>
-                          <span className="text-[10px] font-mono text-[#3FB950] leading-tight">{s.count}</span>
+                        <div key={sym} className="flex items-center gap-[2px]">
+                          <span
+                            className={`text-[8px] font-mono text-right pr-1 flex-shrink-0 cursor-pointer ${isSelected ? "text-[#3FB950]" : "text-[#8B949E]"}`}
+                            style={{ width: 28 }}
+                            onClick={() => setFilterSymbol(prev => prev === sym ? null : sym)}
+                          >
+                            {sym}
+                          </span>
+                          {/* Exchange cells */}
+                          {HEATMAP_EXS.map(ex => {
+                            const cell = heatmapMatrix[sym]?.[ex];
+                            const { bg, border } = heatCellStyle(cell?.spread ?? 0);
+                            return (
+                              <div
+                                key={ex}
+                                title={cell ? `${sym} · ${ex}: ${cell.spread.toFixed(3)}%` : `${sym} · ${ex}: no gap`}
+                                className="flex-1 rounded-sm cursor-pointer transition-all duration-150 hover:brightness-150"
+                                style={{
+                                  height: 13,
+                                  background: bg,
+                                  border: `0.5px solid ${border}`,
+                                  outline: isSelected ? "1px solid rgba(56,139,253,0.5)" : "none",
+                                }}
+                                onClick={() => setFilterSymbol(prev => prev === sym ? null : sym)}
+                              />
+                            );
+                          })}
                         </div>
                       );
                     })}
                   </div>
-                );
-              })()}
+                  {/* Legend */}
+                  <div className="flex items-center gap-1 mt-1" style={{ marginLeft: 30 }}>
+                    <span className="text-[7px] font-mono text-[#484F58]">low</span>
+                    {[0.05, 0.15, 0.25, 0.35, 0.45].map(v => {
+                      const { bg, border } = heatCellStyle(v);
+                      return (
+                        <div key={v} className="rounded-sm" style={{ width: 12, height: 7, background: bg, border: `0.5px solid ${border}` }} />
+                      );
+                    })}
+                    <span className="text-[7px] font-mono text-[#3FB950]">high</span>
+                  </div>
+                </div>
+              )}
             </div>
             </ErrorBoundary>
 
-            {/* ── Spread Distribution Histogram (1fr) ── */}
+            {/* Spread Distribution */}
             <ErrorBoundary name="Spread distribution">
-            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col p-1.5">
+            <div className="border border-[#21262D] rounded-lg overflow-hidden flex flex-col p-1.5"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}>
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="text-[11px] font-medium text-[#E6EDF3]">Spread dist.</span>
-                <InfoCorner text={TIP.spreadDist} />
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Spread Dist</span>
+                <div className="flex items-center gap-1">
+                  <InfoCorner text={TIP.spreadDist} />
+                  <button onClick={() => setExpandedModal("spread")} className="text-[#484F58] hover:text-[#E6EDF3] transition-colors">
+                    <Maximize2 className="h-3 w-3" />
+                  </button>
+                </div>
               </div>
               {profitableGaps.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <EmptyState title="Calculating spread distribution" subtitle="Requires active gap data" />
+                <div className="flex items-end gap-[2px] flex-1 px-1 pb-1">
+                  {[40, 70, 100, 80, 55].map((h, i) => (
+                    <div key={i} className="flex-1 rounded-t bg-[#21262D] animate-pulse" style={{ height: `${h}%`, animationDelay: `${i * 80}ms` }} />
+                  ))}
                 </div>
               ) : (
                 <>
-                  <div className="flex items-end gap-[2px] flex-1 min-h-0" style={{ minHeight: 0 }}>
+                  <div className="flex items-end gap-[2px] flex-1 min-h-0">
                     {spreadHistBuckets.map(b => (
                       <div key={b.key} className="flex flex-col items-center flex-1 h-full justify-end">
-                        <span className="font-mono text-[#8B949E] mb-0.5 leading-none text-[9px]">
-                          {b.count > 0 ? b.count : ""}
-                        </span>
-                        <div
-                          className="w-full rounded-t"
-                          style={{
-                            height: `${Math.max(2, (b.count / maxBucket) * 46)}px`,
-                            background: b.bg,
-                            border: `0.5px solid ${b.border}`,
-                          }}
-                        />
+                        <span className="font-mono text-[#8B949E] mb-0.5 leading-none text-[8px]">{b.count > 0 ? b.count : ""}</span>
+                        <div className="w-full rounded-t"
+                          style={{ height: `${Math.max(2, (b.count / maxBucket) * 50)}px`, background: b.bg, border: `0.5px solid ${b.border}` }} />
                       </div>
                     ))}
                   </div>
                   <div className="flex mt-1 flex-shrink-0">
                     {spreadHistBuckets.map(b => (
-                      <span
-                        key={b.key}
-                        className="flex-1 text-center text-[9px] font-mono"
-                        style={{
-                          color: b.color,
-                          fontWeight: b.key === tallestBucketKey ? 500 : 400,
-                        }}
-                      >
-                        {b.label}
-                      </span>
+                      <span key={b.key} className="flex-1 text-center text-[8px] font-mono" style={{ color: b.color }}>{b.label}</span>
                     ))}
                   </div>
                 </>
@@ -1350,123 +1247,110 @@ export default function IntelligencePage() {
             </div>
             </ErrorBoundary>
 
-            {/* ── Type Profitability with proportional bars (1fr) ── */}
+            {/* Type Profit */}
             <ErrorBoundary name="Type profitability">
-            <div className="overflow-hidden bg-[#161B22] border border-[#21262D] rounded-md flex flex-col p-1.5">
+            <div className="border border-[#21262D] rounded-lg overflow-hidden flex flex-col p-1.5"
+              style={{ background: "linear-gradient(180deg, #1C2128 0%, #0D1117 100%)" }}>
               <div className="flex justify-between items-center mb-1 flex-shrink-0">
-                <span className="text-[11px] font-medium text-[#E6EDF3]">Type profit</span>
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Type Profit</span>
                 <InfoCorner text={TIP.typeProfitability} />
               </div>
               {profitableGaps.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <EmptyState title="Analyzing gap types" subtitle="Requires active gap data" />
-                </div>
-              ) : (() => {
-                const maxSpd  = Math.max(...typeProfitability.map(t => t.avgSpread), 0.01);
-                const maxLife = Math.max(...typeProfitability.map(t => t.avgDuration), 1);
-                return (
-                  <div className="flex-1 flex flex-col justify-around">
-                    {typeProfitability.map(t => {
-                      const isBest  = t.type === maxSpreadType && t.count > 0;
-                      const isWorst = t.type === minSpreadType && t.count > 0 && profitTypes.length > 1;
-                      const spreadBarW = maxSpd  > 0 ? (t.avgSpread   / maxSpd)  * 100 : 0;
-                      const lifeBarW   = maxLife > 0 ? (t.avgDuration / maxLife) * 100 : 0;
-                      const spreadTxt  = isBest ? "text-[#3FB950] font-medium" : isWorst ? "text-[#F85149]" : "text-[#3FB950]";
-                      const spreadBar  = isBest ? "bg-[#3FB950]" : isWorst ? "bg-[#F85149]/70" : "bg-[#3FB950]/60";
-                      return (
-                        <div key={t.type}>
-                          <div className="flex items-center gap-0.5">
-                            <div className="flex items-center gap-1 flex-shrink-0" style={{ width: "30px" }}>
-                              <div className="w-[4px] h-[4px] rounded-sm flex-shrink-0" style={{ background: t.color }} />
-                              <span className="text-[10px] font-mono text-[#E6EDF3]">{t.label}</span>
-                            </div>
-                            <span className={`text-[10px] font-mono flex-1 text-right ${spreadTxt}`}>
-                              {t.count > 0 ? formatPercent(t.avgSpread, 2) : "—"}
-                            </span>
-                            {t.count > 0 && (
-                              <span className="text-[10px] font-mono text-[#484F58] whitespace-nowrap text-right" style={{ width: "50px" }}>
-                                {formatDuration(t.avgDuration)}
-                              </span>
-                            )}
-                          </div>
-                          {t.count > 0 && (
-                            <div className="h-[2px] bg-[#21262D] rounded mt-0.5 mb-0.5">
-                              <div
-                                className={`h-full rounded ${spreadBar}`}
-                                style={{ width: `${spreadBarW}%`, transition: "width 0.3s" }}
-                              />
-                            </div>
-                          )}
-                          {t.count > 0 && (
-                            <div className="h-[1.5px] bg-[#21262D]/60 rounded">
-                              <div
-                                className="h-full rounded bg-[#388BFD]/50"
-                                style={{ width: `${lifeBarW}%`, transition: "width 0.3s" }}
-                              />
-                            </div>
-                          )}
+                <WidgetSkeleton type="list" rows={3} />
+              ) : (
+                <div className="flex-1 space-y-2 pt-1">
+                  {typeProfitability.map(t => {
+                    const maxSp = Math.max(...typeProfitability.map(x => x.avgSpread), 0.01);
+                    const barPct = t.count > 0 ? (t.avgSpread / maxSp) * 100 : 0;
+                    return (
+                      <div key={t.type}>
+                        <div className="flex justify-between items-center mb-0.5">
+                          <span className="text-[9px] font-mono font-medium" style={{ color: t.color }}>{t.label}</span>
+                          <span className="text-[8px] font-mono text-[#8B949E]">{t.count > 0 ? formatPercent(t.avgSpread, 2) : "—"}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+                        <div className="h-[4px] bg-[#21262D] rounded overflow-hidden">
+                          <div className="h-full rounded transition-all duration-500"
+                            style={{ width: `${barPct}%`, background: t.color,
+                              boxShadow: t.type === maxSpreadType ? `0 0 4px ${t.color}60` : "none" }} />
+                        </div>
+                        <div className="text-[7px] font-mono text-[#484F58] mt-0.5">{t.count} gaps</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             </ErrorBoundary>
 
+          </div>{/* end 3-col widget row */}
+
+          {/* Live signals subtitle — matches Dashboard */}
+          <div className="flex justify-between items-center shrink-0">
+            <span className="text-[11px] text-[#8B949E] font-sans">
+              Live gaps · polled every 3s · net spread after all fees
+            </span>
+            <span className="text-[11px] text-[#484F58] font-sans hidden lg:block">
+              click any row to expand orderbook →
+            </span>
           </div>
 
-          {/* Ad banner — only for free users */}
-          <div className="flex-shrink-0">
-            <AdBanner zone="horizontal" />
-          </div>
+          {/* ── Live gaps table ── */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col gap-1">
 
-          {/* ── Live gaps table — fills remaining height, scrolls internally ── */}
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col" style={{ padding: "0 var(--pad-md, 6px)" }}>
-            {/* Table toolbar */}
-            <div className="flex justify-between items-center py-1 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-[#3FB950]">Live profitable gaps</span>
-                <span className="text-[9px] font-mono bg-[#3FB950]/10 text-[#3FB950] px-1.5 rounded">
-                  {filteredGaps.length}
-                </span>
-                <span className="text-[9px] text-[#484F58]">· updated {lastUpdated}</span>
-              </div>
+            {/* Market filter tabs + toolbar on one line — matching Dashboard style */}
+            <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-1">
-                <span className="text-[9px] text-[#484F58]">Filter:</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={filterInput}
-                  onChange={(e) => handleFilterChange(e.target.value)}
-                  className="w-[40px] text-[10px] font-mono bg-[#161B22] border border-[#21262D] rounded px-1 py-0 text-center text-[#E6EDF3] focus:outline-none focus:border-[#388BFD] transition-colors"
-                />
-                <span className="text-[9px] text-[#484F58]">%</span>
+                {(["ALL", "USDT", "USDC", "BTC"] as const).map(q => {
+                  const isActive = quoteFilter === q;
+                  const count = q === "ALL" ? profitableGaps.filter(g => g.spreadPercent >= minSpread).length : quoteCounts[q];
+                  return (
+                    <button key={q} onClick={() => setQuoteFilter(q)}
+                      className="text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors"
+                      style={{
+                        background:  isActive ? "rgba(63,185,80,0.12)" : "transparent",
+                        color:       isActive ? "#3FB950" : "#484F58",
+                        borderColor: isActive ? "rgba(63,185,80,0.35)" : "rgba(33,38,45,0.8)",
+                      }}
+                    >{q} <span style={{ opacity: 0.7 }}>({count})</span></button>
+                  );
+                })}
+                <div className="flex items-center gap-1 ml-2">
+                  <span className="text-[9px] font-mono text-[#484F58]">MIN</span>
+                  <input type="number" step="0.01" min="0" value={filterInput}
+                    onChange={(e) => handleFilterChange(e.target.value)}
+                    className="w-10 text-[10px] font-mono bg-[#0D1117] border border-[#21262D] rounded px-1 py-0 text-center text-[#E6EDF3] focus:outline-none focus:border-[#388BFD] transition-colors"
+                    style={{ height: 20 }} />
+                  <span className="text-[9px] font-mono text-[#484F58]">%</span>
+                </div>
+                {filterSymbol && (
+                  <div className="flex items-center gap-1 ml-1">
+                    <span className="text-[9px] font-mono bg-[#3FB950]/10 border border-[#3FB950]/25 text-[#3FB950] px-1.5 rounded">{filterSymbol}</span>
+                    <button onClick={() => setFilterSymbol(null)} className="text-[#484F58] hover:text-[#F85149] text-[9px] transition-colors">✕</button>
+                  </div>
+                )}
               </div>
-            </div>
-
-            {/* Symbol filter badge */}
-            {filterSymbol && (
-              <div className="flex items-center gap-2 mb-1 flex-shrink-0">
-                <span className="text-[11px] text-[#8B949E]">Filtered:</span>
-                <span className="text-[11px] bg-[#3FB950]/15 text-[#3FB950] px-2 py-0.5 rounded font-mono">
-                  {filterSymbol}
-                </span>
-                <button onClick={() => setFilterSymbol(null)} className="text-[11px] text-[#F85149] hover:underline">
-                  Clear
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-mono uppercase tracking-widest text-[#3FB950]">Live gaps</span>
+                  <span className="text-[9px] font-mono bg-[#3FB950]/10 border border-[#3FB950]/20 text-[#3FB950] px-1.5 rounded">{filteredGaps.length}</span>
+                  <span className="text-[9px] font-mono text-[#484F58]">{lastUpdated}</span>
+                </div>
+                <button onClick={() => setExpandedModal("table")}
+                  className="flex items-center gap-1 text-[9px] font-mono text-[#484F58] hover:text-[#388BFD] transition-colors">
+                  <Maximize2 className="h-3 w-3" />
+                  <span>Full view</span>
                 </button>
               </div>
-            )}
+            </div>
 
             {/* Scrollable table */}
             <ErrorBoundary name="Gaps table">
               {loading ? (
-                <div className="flex-1 min-h-0 bg-[#161B22] border border-[#21262D] rounded overflow-hidden">
+                <div className="flex-1 min-h-0 border border-[#21262D] rounded overflow-hidden" style={{ background: "linear-gradient(180deg, #161B22 0%, #0D1117 100%)" }}>
                   <WidgetSkeleton type="table" rows={8} />
                 </div>
               ) : filteredGaps.length === 0 && allFilteredGaps.length === 0 ? (
-                <div className="flex-1 min-h-0 bg-[#161B22] border border-[#21262D] rounded overflow-hidden">
+                <div className="flex-1 min-h-0 border border-[#21262D] rounded overflow-hidden" style={{ background: "linear-gradient(180deg, #161B22 0%, #0D1117 100%)" }}>
                   <EmptyState
                     title="No arbitrage gaps detected"
                     subtitle={filterSymbol
@@ -1475,15 +1359,18 @@ export default function IntelligencePage() {
                   />
                 </div>
               ) : (
-                <div className="flex-1 min-h-0 relative bg-[#161B22] border border-[#21262D] rounded overflow-hidden flex flex-col">
+                <div
+                  className="flex-1 min-h-0 relative border border-[#21262D] rounded overflow-hidden flex flex-col"
+                  style={{ background: "linear-gradient(180deg, #161B22 0%, #0D1117 100%)" }}
+                >
                   <div className="flex-1 overflow-y-auto">
                     <table className="w-full min-w-[560px]">
-                      <thead className="sticky top-0 bg-[#161B22] z-10">
+                      <thead className="sticky top-0 z-10" style={{ background: "linear-gradient(180deg, #1C2128 0%, #161B22 100%)" }}>
                         <tr className="border-b border-[#21262D]">
                           {TABLE_HEADERS.map((h) => (
                             <th
                               key={h}
-                              className="text-left text-[11px] font-normal text-[#484F58] px-2 py-1 whitespace-nowrap"
+                              className="text-left text-[9px] uppercase tracking-widest font-mono font-medium text-[#484F58] px-2 py-1.5 whitespace-nowrap"
                             >
                               {h}
                             </th>
@@ -1520,186 +1407,304 @@ export default function IntelligencePage() {
             </ErrorBoundary>
 
             {/* Footer note */}
-            <div className="text-[10px] text-right py-1 text-[#484F58] border-t border-[#21262D] flex-shrink-0">
-              All spreads net of fees
-            </div>
+            <p className="text-[11px] text-[#484F58] font-sans text-right shrink-0 hidden lg:block">
+              All spreads net of taker fees + withdrawal fees · Notional trade size $1,000 USDT
+            </p>
           </div>
         </main>
 
         {/* ════ RIGHT SIDEBAR ════ */}
-        <aside
-          className="flex-shrink-0 border-l border-[#21262D] flex flex-col overflow-y-auto relative"
-          style={{ width: `${rightWidth}px`, minWidth: "190px", maxWidth: "300px" }}
+        <aside className="hidden lg:flex flex-col flex-shrink-0 h-full bg-[#161B22] border-l border-[#21262D] overflow-y-auto"
+          style={{ width: 220 }}
         >
-          <div
-            className="absolute left-0 top-0 bottom-0 w-[4px] cursor-ew-resize hover:bg-[#388BFD]/30 transition-colors z-10"
-            onMouseDown={startRightDrag}
-          />
-
-          {/* ── Dense leaderboard: Most gapped assets ── */}
-          <ErrorBoundary name="Most gapped assets">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Most gapped assets</span>
-              <InfoCorner text={TIP.mostGapped} />
+            {/* Header */}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-[#21262D] shrink-0">
+              <span className="text-[11px] font-sans text-[#8B949E]">Intelligence</span>
             </div>
-            {!leaderboard.length ? (
-              <WidgetSkeleton type="list" rows={5} />
-            ) : (
-              <div style={{ fontSize: "11px" }}>
-                {leaderboard.map((item, i) => (
-                  <div
-                    key={item.coin}
-                    className="flex items-center gap-2 hover:bg-[#161B22]/60"
-                    style={{ fontSize: "11px", height: "22px" }}
-                  >
-                    <span
-                      className={`font-mono w-[14px] text-right flex-shrink-0 ${i === 0 ? "text-[#D29922]" : "text-[#484F58]"}`}
-                      style={{ fontSize: "10px" }}
-                    >
-                      {i + 1}
-                    </span>
-                    <span
-                      className={`font-mono flex-1 ${
-                        i === 0 ? "text-[#E6EDF3] font-medium" : i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"
-                      }`}
-                    >
-                      {item.coin}
-                    </span>
-                    <span className="font-mono text-[#3FB950] w-[20px] text-right">{item.count}</span>
-                    <span className="font-mono text-[#484F58] w-[42px] text-right">{item.maxSpread.toFixed(3)}%</span>
-                  </div>
-                ))}
+
+            {/* Most Gapped Assets — compact mini-rows matching Dashboard active-gaps style */}
+            <ErrorBoundary name="Most gapped assets">
+            <div className="border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Most Gapped</span>
+                  <InfoCorner text={TIP.mostGapped} />
+                </div>
+                <button onClick={() => setExpandedModal("leaderboard")} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
+                  <Maximize2 className="h-3 w-3" />
+                </button>
               </div>
-            )}
-          </div>
-          </ErrorBoundary>
-
-          {/* Price variance index */}
-          <ErrorBoundary name="Price variance">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Price variance</span>
-              <InfoCorner text={TIP.priceVariance} />
+              {!leaderboard.length ? (
+                <WidgetSkeleton type="list" rows={5} />
+              ) : (
+                <div>
+                  {leaderboard.map((item, i) => (
+                    <div key={item.coin} className="flex items-center gap-1.5 hover:bg-[#1C2128]/60" style={{ height: 20 }}>
+                      <span className={`text-[9px] font-mono w-3 text-right flex-shrink-0 ${i === 0 ? "text-[#D29922]" : "text-[#484F58]"}`}>{i + 1}</span>
+                      <span className={`text-[10px] font-mono flex-1 ${i === 0 ? "text-[#E6EDF3] font-medium" : i < 3 ? "text-[#C9D1D9]" : "text-[#8B949E]"}`}>
+                        {item.coin}
+                      </span>
+                      <span className="text-[10px] font-mono text-[#3FB950] w-5 text-right">{item.count}</span>
+                      <span className="text-[9px] font-mono text-[#484F58] w-10 text-right">{item.maxSpread.toFixed(3)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            {priceVariance.length === 0 ? (
-              <EmptyState title="Calculating price variance" subtitle="Requires multi-exchange price data" />
-            ) : (
-              <div className="space-y-0">
-                {priceVariance.map((item, i) => {
-                  const isExtreme = item.variance > 5;
-                  const maxVar    = priceVariance[0].variance;
-                  const barWidth  = maxVar > 0 ? (item.variance / maxVar) * 100 : 0;
-                  return (
-                    <div
-                      key={item.symbol}
-                      className="flex items-center gap-1 py-[1px]"
-                      style={{ height: "20px" }}
-                    >
-                      <span
-                        className={`text-[10px] font-mono w-[45px] flex-shrink-0 ${
-                          isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
-                        }`}
-                      >
-                        {item.symbol}
+            </ErrorBoundary>
+
+            {/* Price Variance */}
+            <ErrorBoundary name="Price variance">
+            <div className="border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Price Variance</span>
+                  <InfoCorner text={TIP.priceVariance} />
+                </div>
+                <button onClick={() => setExpandedModal("priceVariance")} className="text-[#484F58] hover:text-[#388BFD] transition-colors">
+                  <Maximize2 className="h-3 w-3" />
+                </button>
+              </div>
+              {priceVariance.length === 0 ? (
+                <div className="text-[9px] font-mono text-[#484F58] py-1 text-center">Calculating…</div>
+              ) : (
+                <div className="space-y-0">
+                  {priceVariance.map((item, i) => {
+                    const isExtreme = item.variance > 5;
+                    const barWidth  = priceVariance[0].variance > 0 ? (item.variance / priceVariance[0].variance) * 100 : 0;
+                    return (
+                      <div key={item.symbol} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
+                        <span className={`text-[10px] font-mono w-[40px] flex-shrink-0 ${isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"}`}>
+                          {item.symbol}
+                        </span>
+                        <div className="flex-1 h-[4px] bg-[#21262D] rounded overflow-hidden">
+                          <div className="h-full rounded"
+                            style={{ width: `${barWidth}%`, background: isExtreme ? "linear-gradient(90deg, #3FB950, #F85149)" : i < 2 ? "#D29922" : "#484F58" }} />
+                        </div>
+                        <span className={`text-[10px] font-mono w-[30px] text-right flex-shrink-0 ${isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"}`}>
+                          {item.variance.toFixed(1)}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            </ErrorBoundary>
+
+            {/* Exchange Coverage */}
+            <ErrorBoundary name="Exchange coverage">
+            <div className="border-b border-[#21262D]/50 px-2 py-1.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9px] uppercase tracking-widest font-medium text-[#484F58] font-mono">Exchange Coverage</span>
+                <InfoCorner text={TIP.exchangeCoverage} />
+              </div>
+              {exchangeCoverage.length === 0 ? (
+                <WidgetSkeleton type="list" rows={4} />
+              ) : (
+                <div className="space-y-0">
+                  {exchangeCoverage.map((ex, i) => (
+                    <div key={ex.name} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
+                      <span className={`text-[10px] font-mono flex-shrink-0 ${i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}`} style={{ width: "32px" }}>
+                        {shortEx(ex.name)}
                       </span>
                       <div className="flex-1 h-[4px] bg-[#21262D] rounded overflow-hidden">
-                        <div
-                          className="h-full rounded"
-                          style={{
-                            width: `${barWidth}%`,
-                            background: isExtreme
-                              ? "linear-gradient(90deg, #3FB950, #F85149)"
-                              : i < 2 ? "#D29922" : "#484F58",
-                          }}
-                        />
+                        <div className="h-full rounded transition-all duration-500"
+                          style={{ width: `${Math.round((ex.symbols / maxExSymbols) * 100)}%`,
+                            background: i < 3 ? "linear-gradient(90deg, rgba(63,185,80,0.5), #3FB950)" : i < 6 ? "linear-gradient(90deg, rgba(56,139,253,0.4), #388BFD)" : "rgba(139,148,158,0.4)" }} />
                       </div>
-                      <span
-                        className={`text-[10px] font-mono w-[35px] text-right flex-shrink-0 ${
-                          isExtreme ? "text-[#F85149]" : i < 2 ? "text-[#D29922]" : "text-[#8B949E]"
-                        }`}
-                      >
-                        {item.variance.toFixed(1)}%
+                      <span className={`text-[10px] font-mono ${i < 3 ? "text-[#3FB950]" : "text-[#8B949E]"}`} style={{ width: "18px", textAlign: "right" }}>
+                        {ex.symbols}
                       </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-          </ErrorBoundary>
-
-          {/* ── Gradient coverage bars ── */}
-          <ErrorBoundary name="Exchange coverage">
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] uppercase tracking-wider font-medium text-[#484F58]">Exchange coverage</span>
-              <InfoCorner text={TIP.exchangeCoverage} />
+                  ))}
+                </div>
+              )}
             </div>
-            {exchangeCoverage.length === 0 ? (
-              <WidgetSkeleton type="list" rows={5} />
-            ) : (
-              <div className="space-y-0">
-                {exchangeCoverage.map((ex, i) => (
-                  <div key={ex.name} className="flex items-center gap-1 py-[1px]" style={{ height: "20px" }}>
-                    <span
-                      className={`text-[10px] font-mono flex-shrink-0 ${i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}`}
-                      style={{ width: "35px" }}
-                    >
-                      {shortEx(ex.name)}
-                    </span>
-                    <div className="flex-1 h-[5px] bg-[#21262D] rounded overflow-hidden">
-                      <div
-                        className="h-full rounded"
-                        style={{
-                          width: `${Math.round((ex.symbols / maxExSymbols) * 100)}%`,
-                          background: i < 3
-                            ? "linear-gradient(90deg, rgba(63,185,80,0.5), #3FB950)"
-                            : i < 6
-                            ? "linear-gradient(90deg, rgba(56,139,253,0.4), #388BFD)"
-                            : "rgba(139,148,158,0.4)",
-                          transition: "width 0.5s",
-                        }}
-                      />
-                    </div>
-                    <span
-                      className={`text-[10px] font-mono ${i < 3 ? "text-[#3FB950]" : "text-[#8B949E]"}`}
-                      style={{ width: "18px", textAlign: "right" }}
-                    >
-                      {ex.symbols}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </ErrorBoundary>
+            </ErrorBoundary>
 
-          {/* Magnus AI card */}
-          <div className="border-b border-[#21262D]/50" style={{ padding: "4px 6px" }}>
-            <MagnusAICard />
-          </div>
-
-          {/* Ad zone — only for free users */}
-          <div className="border-b border-[#21262D]/30" style={{ padding: "4px 6px" }}>
-            <AdBanner zone="contextual-signal" context={{ exchange: "binance" }} />
-          </div>
-
-          {/* Upgrade nudge — shown to free users */}
-          {!isRealtime && (
-            <div style={{ padding: "4px 6px" }}>
-              <div className="bg-[#D29922]/4 border border-[#21262D]/30 rounded-md p-1 text-center">
-                <div className="text-[10px] text-[#D29922] font-medium">Upgrade to Pro</div>
-                <div className="text-[10px] text-[#484F58] mt-0.5">Real-time alerts + Magnus AI</div>
-                <a href="/pricing" className="text-[10px] text-[#D29922] block mt-0.5">
-                  View plans →
-                </a>
-              </div>
+            {/* Magnus AI card */}
+            <div className="px-2 py-2">
+              <MagnusAICard />
             </div>
-          )}
         </aside>
 
       </div>
+
+      {/* ══════════════════════════════════════════════════════════
+           EXPANDED MODAL — overlays everything, background stays
+         ══════════════════════════════════════════════════════════ */}
+
+      {/* Heatmap modal */}
+      {expandedModal === "heatmap" && (
+        <ExpandedModal title="Arb Heatmap" subtitle="symbol × exchange · click cell to filter" onClose={closeModal} wide>
+          <div className="p-4">
+            {profitableGaps.length === 0 ? (
+              <EmptyState title="Waiting for gap data" subtitle="Heatmap populates as gaps are detected" />
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="flex" style={{ marginLeft: 56 }}>
+                  {HEATMAP_EXS.map(ex => (
+                    <div key={ex} className="flex-1 text-center">
+                      <span className="text-[10px] font-mono text-[#8B949E] tracking-wide">{ex}</span>
+                    </div>
+                  ))}
+                </div>
+                {HEATMAP_SYMS.map(sym => {
+                  const isSelected = filterSymbol === sym;
+                  return (
+                    <div key={sym} className="flex items-center gap-1">
+                      <span
+                        className={`text-[11px] font-mono text-right pr-2 flex-shrink-0 cursor-pointer ${isSelected ? "text-[#3FB950]" : "text-[#8B949E]"}`}
+                        style={{ width: 54 }}
+                        onClick={() => setFilterSymbol(prev => prev === sym ? null : sym)}
+                      >
+                        {sym}
+                      </span>
+                      {HEATMAP_EXS.map(ex => {
+                        const cell = heatmapMatrix[sym]?.[ex];
+                        const { bg, border } = heatCellStyle(cell?.spread ?? 0);
+                        return (
+                          <div
+                            key={ex}
+                            title={cell ? `${sym} · ${ex}: ${cell.spread.toFixed(3)}% spread` : `${sym} · ${ex}: no gap`}
+                            className="flex-1 rounded cursor-pointer transition-all hover:brightness-150 flex items-center justify-center"
+                            style={{ height: 32, background: bg, border: `1px solid ${border}`, outline: isSelected ? "1px solid rgba(56,139,253,0.5)" : "none" }}
+                            onClick={() => { setFilterSymbol(prev => prev === sym ? null : sym); closeModal(); }}
+                          >
+                            {cell && <span className="text-[9px] font-mono text-white/70">{cell.spread.toFixed(2)}%</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+                <div className="flex items-center gap-2 mt-2" style={{ marginLeft: 56 }}>
+                  <span className="text-[9px] font-mono text-[#484F58]">low spread</span>
+                  {[0.05, 0.15, 0.25, 0.35, 0.45].map(v => {
+                    const { bg, border } = heatCellStyle(v);
+                    return <div key={v} className="rounded" style={{ width: 20, height: 12, background: bg, border: `1px solid ${border}` }} />;
+                  })}
+                  <span className="text-[9px] font-mono text-[#3FB950]">high spread</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </ExpandedModal>
+      )}
+
+      {/* Spread Distribution modal */}
+      {expandedModal === "spread" && (
+        <ExpandedModal title="Spread Distribution" subtitle="gap count by spread bucket · after fees" onClose={closeModal}>
+          <div className="p-6">
+            <div className="flex items-end gap-3 h-48">
+              {spreadHistBuckets.map(b => (
+                <div key={b.key} className="flex flex-col items-center flex-1 h-full justify-end">
+                  <span className="font-mono text-[#8B949E] mb-1 text-[11px]">{b.count > 0 ? b.count : ""}</span>
+                  <div className="w-full rounded-t" style={{ height: `${Math.max(4, (b.count / (maxBucket || 1)) * 160)}px`, background: b.bg, border: `1px solid ${b.border}` }} />
+                  <span className="font-mono mt-2 text-[11px]" style={{ color: b.color }}>{b.label}</span>
+                  <span className="text-[9px] font-mono text-[#484F58]">{b.count} gaps</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] font-mono text-[#484F58] mt-4">{TIP.spreadDist}</p>
+          </div>
+        </ExpandedModal>
+      )}
+
+      {/* Leaderboard full modal */}
+      {expandedModal === "leaderboard" && (
+        <ExpandedModal title="Most Gapped Assets" subtitle="ranked by gap frequency · avg spread · best spread seen" onClose={closeModal} wide>
+          <div className="p-4 overflow-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[#21262D]">
+                  {["#", "Asset", "Gaps", "Avg Spread", "Best Spread", "Signal"].map(h => (
+                    <th key={h} className="text-left text-[9px] font-mono uppercase tracking-widest text-[#484F58] px-3 py-2">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(stats?.symbolRanking ?? leaderboard.map(l => ({ symbol: l.coin, gapCount: l.count, avgSpread: 0, bestSpread: l.maxSpread }))).map((item, i) => (
+                  <tr key={item.symbol} className="border-b border-[#21262D]/25 hover:bg-[#161B22]/40">
+                    <td className={`text-[10px] font-mono px-3 py-2.5 ${i === 0 ? "text-[#D29922]" : "text-[#484F58]"}`}>{i + 1}</td>
+                    <td className={`text-[12px] font-mono px-3 py-2.5 ${i === 0 ? "text-[#E6EDF3] font-medium" : i < 3 ? "text-[#E6EDF3]" : "text-[#8B949E]"}`}>{item.symbol}</td>
+                    <td className="text-[11px] font-mono px-3 py-2.5 text-[#3FB950]">{item.gapCount}</td>
+                    <td className={`text-[11px] font-mono px-3 py-2.5 ${item.avgSpread >= 0.2 ? "text-[#3FB950]" : "text-[#D29922]"}`}>
+                      {item.avgSpread > 0 ? formatPercent(item.avgSpread, 3) : "—"}
+                    </td>
+                    <td className={`text-[11px] font-mono px-3 py-2.5 ${item.bestSpread >= 0.3 ? "text-[#388BFD]" : "text-[#3FB950]"}`}>
+                      {formatPercent(item.bestSpread, 3)}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${item.bestSpread >= 0.3 ? "bg-[#388BFD]/15 text-[#388BFD]" : item.bestSpread >= 0.1 ? "bg-[#3FB950]/15 text-[#3FB950]" : "bg-[#21262D] text-[#484F58]"}`}>
+                        {item.bestSpread >= 0.3 ? "HOT" : item.bestSpread >= 0.1 ? "ACTIVE" : "COOL"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ExpandedModal>
+      )}
+
+      {/* Price Variance full modal */}
+      {expandedModal === "priceVariance" && (
+        <ExpandedModal title="Price Variance Index" subtitle="cross-exchange price disagreement per asset" onClose={closeModal} wide>
+          <div className="p-5">
+            {priceVariance.length === 0 ? (
+              <EmptyState title="Calculating price variance" subtitle="Requires multi-exchange price data" />
+            ) : (
+              <div className="space-y-2">
+                <div className="flex justify-between text-[9px] font-mono text-[#484F58] mb-2">
+                  <span>Asset</span>
+                  <span>Price divergence across exchanges</span>
+                </div>
+                {priceVariance.map((item, i) => {
+                  const isExtreme = item.variance > 5;
+                  const maxVar = priceVariance[0]?.variance ?? 1;
+                  const barPct = maxVar > 0 ? (item.variance / maxVar) * 100 : 0;
+                  return (
+                    <div key={item.symbol} className="flex items-center gap-3">
+                      <span className={`text-[11px] font-mono w-16 flex-shrink-0 ${isExtreme ? "text-[#F85149] font-medium" : i < 3 ? "text-[#D29922]" : "text-[#8B949E]"}`}>{item.symbol}</span>
+                      <div className="flex-1 h-[6px] bg-[#21262D] rounded overflow-hidden">
+                        <div className="h-full rounded" style={{ width: `${barPct}%`, background: isExtreme ? "linear-gradient(90deg, rgba(248,81,73,0.8) 0%, rgba(248,81,73,0.3) 100%)" : i < 3 ? "linear-gradient(90deg, rgba(210,153,34,0.7) 0%, rgba(210,153,34,0.3) 100%)" : "linear-gradient(90deg, rgba(139,148,158,0.4) 0%, rgba(139,148,158,0.1) 100%)" }} />
+                      </div>
+                      <span className={`text-[11px] font-mono w-12 text-right flex-shrink-0 ${isExtreme ? "text-[#F85149]" : i < 3 ? "text-[#D29922]" : "text-[#8B949E]"}`}>{item.variance.toFixed(2)}%</span>
+                      {isExtreme && <span className="text-[9px] font-mono bg-[#F85149]/15 text-[#F85149] px-1.5 py-0.5 rounded flex-shrink-0">EXTREME</span>}
+                    </div>
+                  );
+                })}
+                <p className="text-[9px] font-mono text-[#484F58] pt-3 border-t border-[#21262D]/50">{TIP.priceVariance}</p>
+              </div>
+            )}
+          </div>
+        </ExpandedModal>
+      )}
+
+      {/* Full-screen table modal */}
+      {expandedModal === "table" && (
+        <ExpandedModal title="Live Profitable Gaps" subtitle={`${filteredGaps.length} gaps · min ${minSpread}% spread${filterSymbol ? ` · ${filterSymbol}` : ""}`} onClose={closeModal} wide>
+          <div className="overflow-auto h-full">
+            <table className="w-full min-w-[900px]">
+              <thead className="sticky top-0 z-10" style={{ background: "linear-gradient(180deg, #21262D 0%, #161B22 100%)" }}>
+                <tr className="border-b border-[#21262D]">
+                  {TABLE_HEADERS.map(h => (
+                    <th key={h} className="text-left text-[9px] uppercase tracking-widest font-mono font-medium text-[#484F58] px-3 py-2 whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredGaps.map((gap, i) => (
+                  <GapRow key={gap.id} gap={gap} rowIndex={i} symHistory={symbolHistory} scoreThresholds={scoreThresholds} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ExpandedModal>
+      )}
+
     </div>
   );
 }
