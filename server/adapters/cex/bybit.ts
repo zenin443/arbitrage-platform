@@ -31,13 +31,22 @@ export class BybitAdapter extends BaseExchangeAdapter {
   private pingTimer: ReturnType<typeof setInterval> | null = null
   private tickCount = 0
 
+  // Bybit V5 enforces a maximum of 10 args per subscribe message.
+  private static readonly SUBSCRIBE_CHUNK = 10
+
   async connect(onTick: (tick: PriceTick) => void): Promise<void> {
     this.onTick = onTick
     this.active = true
     this.backoffMs = 2000
     this.statusTimer = setInterval(() => {
-      this.log(`connected=${this.isConnected()} ticks=${this.tickCount}`)
-    }, 30_000)
+      const count = this.tickCount
+      this.tickCount = 0
+      if (count === 0) {
+        this.log(`WARNING: connected=${this.isConnected()} ticks=0 in last 60s — no data received`)
+      } else {
+        this.log(`connected=${this.isConnected()} ticks=${count} in last 60s`)
+      }
+    }, 60_000)
     this.openSocket()
   }
 
@@ -47,8 +56,14 @@ export class BybitAdapter extends BaseExchangeAdapter {
     this.ws.on('open', () => {
       this.log('WebSocket connected')
       this.backoffMs = 2000
-      const args = SYMBOLS.map(s => `tickers.${s.replace('/', '')}`)
-      this.ws?.send(JSON.stringify({ op: 'subscribe', args }))
+      // Bybit V5 rejects subscribe messages with more than 10 args.
+      // Batch all tickers into chunks of SUBSCRIBE_CHUNK and send separately.
+      const allArgs = SYMBOLS.map(s => `tickers.${s.replace('/', '')}`)
+      const chunk = BybitAdapter.SUBSCRIBE_CHUNK
+      for (let i = 0; i < allArgs.length; i += chunk) {
+        this.ws?.send(JSON.stringify({ op: 'subscribe', args: allArgs.slice(i, i + chunk) }))
+      }
+      this.log(`Subscribed to ${allArgs.length} tickers in ${Math.ceil(allArgs.length / chunk)} batches`)
       this.pingTimer = setInterval(() => {
         if (this.ws?.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ op: 'ping' }))

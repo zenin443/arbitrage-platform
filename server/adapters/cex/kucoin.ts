@@ -48,15 +48,27 @@ export class KucoinAdapter extends BaseExchangeAdapter {
   private lastTicks = new Map<string, PriceTick>()
   private statusTimer: ReturnType<typeof setInterval> | null = null
   private pingTimer: ReturnType<typeof setInterval> | null = null
+  private tokenRefreshTimer: ReturnType<typeof setTimeout> | null = null
   private tickCount = 0
+
+  // KuCoin rejects topic subscriptions with more than 100 symbols.
+  private static readonly SUBSCRIBE_CHUNK = 100
+  // Proactively refresh the WS token every 25 minutes to prevent mid-session expiry.
+  private static readonly TOKEN_REFRESH_MS = 25 * 60 * 1000
 
   async connect(onTick: (tick: PriceTick) => void): Promise<void> {
     this.onTick = onTick
     this.active = true
     this.backoffMs = 2000
     this.statusTimer = setInterval(() => {
-      this.log(`connected=${this.isConnected()} ticks=${this.tickCount}`)
-    }, 30_000)
+      const count = this.tickCount
+      this.tickCount = 0
+      if (count === 0) {
+        this.log(`WARNING: connected=${this.isConnected()} ticks=0 in last 60s — no data received`)
+      } else {
+        this.log(`connected=${this.isConnected()} ticks=${count} in last 60s`)
+      }
+    }, 60_000)
     await this.openSocket()
   }
 
@@ -73,6 +85,14 @@ export class KucoinAdapter extends BaseExchangeAdapter {
             this.ws.send(JSON.stringify({ id: String(Date.now()), type: 'ping' }))
           }
         }, pingInterval)
+        // Proactively renew the token before it can expire mid-session.
+        if (this.tokenRefreshTimer) clearTimeout(this.tokenRefreshTimer)
+        this.tokenRefreshTimer = setTimeout(() => {
+          if (!this.active) return
+          this.log('Proactive WS token refresh after 25 minutes')
+          if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null }
+          this.ws?.close()
+        }, KucoinAdapter.TOKEN_REFRESH_MS)
       })
 
       this.ws.on('message', (raw: WebSocket.RawData) => {
@@ -85,6 +105,7 @@ export class KucoinAdapter extends BaseExchangeAdapter {
 
       this.ws.on('close', () => {
         if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null }
+        if (this.tokenRefreshTimer) { clearTimeout(this.tokenRefreshTimer); this.tokenRefreshTimer = null }
         if (!this.active) return
         this.log(`WS closed — reconnecting in ${this.backoffMs}ms`)
         setTimeout(() => { void this.openSocket() }, this.backoffMs)
@@ -114,10 +135,17 @@ export class KucoinAdapter extends BaseExchangeAdapter {
 
   private handleMessage(msg: KucoinMsg): void {
     if (msg.type === 'welcome') {
-      const topic = `/market/ticker:${SYMBOLS.map(toKucoinSymbol).join(',')}`
-      this.ws?.send(JSON.stringify({
-        id: String(Date.now()), type: 'subscribe', topic, response: true,
-      }))
+      // KuCoin rejects topic subscriptions with more than 100 symbols.
+      // Batch into chunks and send a separate subscribe message for each.
+      const allSymbols = SYMBOLS.map(toKucoinSymbol)
+      const chunk = KucoinAdapter.SUBSCRIBE_CHUNK
+      for (let i = 0; i < allSymbols.length; i += chunk) {
+        const topic = `/market/ticker:${allSymbols.slice(i, i + chunk).join(',')}`
+        this.ws?.send(JSON.stringify({
+          id: String(Date.now() + i), type: 'subscribe', topic, response: true,
+        }))
+      }
+      this.log(`Subscribed to ${allSymbols.length} tickers in ${Math.ceil(allSymbols.length / chunk)} batches`)
       return
     }
     if (msg.type !== 'message' || !msg.topic?.startsWith('/market/ticker:')) return
@@ -146,6 +174,7 @@ export class KucoinAdapter extends BaseExchangeAdapter {
     this.active = false
     if (this.statusTimer) { clearInterval(this.statusTimer); this.statusTimer = null }
     if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null }
+    if (this.tokenRefreshTimer) { clearTimeout(this.tokenRefreshTimer); this.tokenRefreshTimer = null }
     this.ws?.close()
     this.ws = null
     this.log('disconnected')
