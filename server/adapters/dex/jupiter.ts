@@ -50,11 +50,19 @@ export class JupiterAdapter extends BaseDexAdapter {
   }
 
   private async startPolling(): Promise<void> {
+    let consecutiveFailures = 0
     while (this.active) {
       try {
         await this.poll()
+        consecutiveFailures = 0
       } catch (e) {
-        this.log('Poll error: ' + String(e))
+        consecutiveFailures++
+        this.log(`Poll error (${consecutiveFailures} consecutive): ${String(e)}`)
+        if (consecutiveFailures >= 3) {
+          this.log('3 consecutive failures — backing off 60s')
+          await new Promise(r => setTimeout(r, 60_000))
+          consecutiveFailures = 0
+        }
       }
       await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
     }
