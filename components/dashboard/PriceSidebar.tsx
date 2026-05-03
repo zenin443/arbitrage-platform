@@ -17,6 +17,29 @@ interface CoinEntry {
   exchange: string;
 }
 
+const MARKET_CAP_RANK: Record<string, number> = {
+  BTC: 1, ETH: 2, USDT: 3, BNB: 4, SOL: 5,
+  USDC: 6, XRP: 7, DOGE: 8, TON: 9, ADA: 10,
+  SHIB: 11, AVAX: 12, LINK: 13, BCH: 14, DOT: 15,
+  NEAR: 16, UNI: 17, LEO: 18, LTC: 19, KAS: 20,
+  ICP: 21, PEPE: 22, APT: 23, ETC: 24, FET: 25,
+  XMR: 26, STX: 27, WIF: 28, MNT: 29, CRO: 30,
+  FIL: 31, RNDR: 32, IMX: 33, OP: 34, INJ: 35,
+  ARB: 36, ATOM: 37, HBAR: 38, MKR: 39, VET: 40,
+  GRT: 41, FLOKI: 42, BONK: 43, SUI: 44, TIA: 45,
+  RUNE: 46, SEI: 47, ALGO: 48, FLOW: 49, MANA: 50,
+  SAND: 51, AXS: 52, THETA: 53, EOS: 54, XTZ: 55,
+  KAVA: 56, CFX: 57, AAVE: 58, QNT: 59, EGLD: 60,
+  IOTA: 61, XEC: 62, GALA: 63, ROSE: 64, ZIL: 65,
+  ONE: 66, ENJ: 67, CHZ: 68, CRV: 69, SNX: 70,
+  LDO: 71, RPL: 72, GMX: 73, DYDX: 74, APE: 75,
+  MAGIC: 76, HFT: 77, BLUR: 78, SSV: 79, JOE: 80,
+  WOO: 81, PERP: 82, OCEAN: 83, BAND: 84, ZRX: 85,
+  BAT: 86, ANKR: 87, SKL: 88, STORJ: 89, COTI: 90,
+  CELR: 91, DENT: 92, MTL: 93, OGN: 94, REQ: 95,
+  RLC: 96, LOOM: 97, TNT: 98, POLY: 99, ACH: 100,
+};
+
 function formatPrice(p: number): string {
   if (p >= 1000) return p.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   if (p >= 10)   return p.toFixed(2);
@@ -122,7 +145,12 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
             };
           })
           .filter((c) => c.price > 0)
-          .sort((a, b) => a.coinName.localeCompare(b.coinName));
+          .sort((a, b) => {
+            const rankA = MARKET_CAP_RANK[a.coinName] ?? 999;
+            const rankB = MARKET_CAP_RANK[b.coinName] ?? 999;
+            if (rankA !== rankB) return rankA - rankB;
+            return a.coinName.localeCompare(b.coinName);
+          });
 
         setCoins(newCoins);
       } catch (e) {
