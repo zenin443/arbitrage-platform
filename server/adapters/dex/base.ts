@@ -26,6 +26,7 @@ export interface CexDexOpportunity {
   maxTradeSize: number       // max trade size before 1% slippage
   confidence: 'high' | 'medium' | 'low'
   detectedAt: number
+  note?: string
 }
 
 export abstract class BaseDexAdapter {

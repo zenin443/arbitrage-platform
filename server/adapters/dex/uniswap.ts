@@ -5,9 +5,9 @@ import { BaseDexAdapter, DexPrice } from './base'
 const DEFILLAMA_PRICES_URL = 'https://coins.llama.fi/prices/current'
 const DEFILLAMA_POOLS_URL  = 'https://yields.llama.fi/pools'
 
-const POLL_INTERVAL_MS      = 15_000  // well under the 30s staleness guard
+const POLL_INTERVAL_MS      = 10_000  // was 15_000 — tighter freshness within 60s window
 const RATE_LIMIT_BACKOFF_MS = 30_000
-const CONNECTED_TIMEOUT_MS  = 60_000
+const CONNECTED_TIMEOUT_MS  = 90_000  // was 60_000
 const INITIAL_DELAY_MS      = 3_000
 
 export const UNISWAP_GAS_FEE_USD = 8.00

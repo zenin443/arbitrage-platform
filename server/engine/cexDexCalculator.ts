@@ -5,7 +5,7 @@ import { CexDexOpportunity } from '../adapters/dex/base'
 const MIN_NET_PROFIT_PERCENT = 0.1
 const MAX_PRICE_DIFF_PERCENT = 5.0  // operational ceiling — spreads above this are noise
 const MAX_SPREAD_HARD_CAP    = 20.0 // data-quality guard — anything above 20% is bad data
-const DEX_MAX_AGE_MS         = 30_000 // reject DEX prices older than 30 seconds
+const DEX_MAX_AGE_MS         = 60_000 // was 30_000 — gives buffer for slow DeFi Llama polls
 
 // Per-chain gas cost estimates in USD (one-way execution cost)
 const CHAIN_GAS_COSTS: Record<string, number> = {
@@ -41,7 +41,7 @@ function nextId(): string {
 
 export function calculateCexDexOpportunities(): CexDexOpportunity[] {
   const opportunities: CexDexOpportunity[] = []
-  // Only use DEX prices received within the last 30 seconds to avoid stale signals
+  // Only use DEX prices received within the last 60 seconds to avoid stale signals
   const dexPrices = dexTickStore.getFresh(DEX_MAX_AGE_MS)
 
   for (const dexPrice of dexPrices) {
@@ -89,6 +89,9 @@ export function calculateCexDexOpportunities(): CexDexOpportunity[] {
         maxTradeSize,
         confidence:        confidenceLevel(netProfitPercent),
         detectedAt:        Date.now(),
+        note: dexPrice.dexId === 'uniswap_v3' && dexPrice.symbol === 'BTC/USDT'
+          ? 'WBTC→BTC (wrapped asset)'
+          : undefined,
       })
     }
   }
