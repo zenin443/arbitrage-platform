@@ -35,6 +35,7 @@ type SettingsState = {
   alertChannels: AlertChannels;
   opportunityTypes: OpportunityTypes;
   quietHours: QuietHours;
+  showFilledSignals: boolean;
 
   setSelectedExchanges: (exchanges: string[]) => void;
   toggleExchange: (exchange: string) => boolean;
@@ -47,6 +48,7 @@ type SettingsState = {
   setAlertChannels: (channels: Partial<AlertChannels>) => void;
   setOpportunityTypes: (types: Partial<OpportunityTypes>) => void;
   setQuietHours: (hours: Partial<QuietHours>) => void;
+  setShowFilledSignals: (v: boolean) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -67,6 +69,7 @@ export const useSettingsStore = create<SettingsState>()(
         crossChain: false,
       },
       quietHours: { enabled: false, start: "23:00", end: "07:00" },
+      showFilledSignals: false,
 
       setSelectedExchanges: (selectedExchanges) => set({ selectedExchanges }),
 
@@ -120,16 +123,22 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           quietHours: { ...state.quietHours, ...hours },
         })),
+
+      setShowFilledSignals: (showFilledSignals) => set({ showFilledSignals }),
     }),
     {
       name: "arbitrage-settings",
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted: unknown, fromVersion: number) => {
+        const state = persisted as Record<string, unknown>;
         // v1→v2: reset exchange/coin filters to "show all" (empty = no filter)
         if (fromVersion < 2) {
-          const state = persisted as Record<string, unknown>;
-          return { ...state, selectedExchanges: [], selectedCoins: [] };
+          return { ...state, selectedExchanges: [], selectedCoins: [], showFilledSignals: false };
+        }
+        // v2→v3: add showFilledSignals with default off
+        if (fromVersion < 3) {
+          return { ...state, showFilledSignals: false };
         }
         return persisted as SettingsState;
       },

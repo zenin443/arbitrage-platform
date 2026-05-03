@@ -119,6 +119,8 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
   const selectedExchanges = useSettingsStore(s => s.selectedExchanges);
   const selectedCoins = useSettingsStore(s => s.selectedCoins);
   const minNetSpread = useSettingsStore(s => s.minNetSpread);
+  const showFilledSignals = useSettingsStore(s => s.showFilledSignals);
+  const setShowFilledSignals = useSettingsStore(s => s.setShowFilledSignals);
   const { getRouteStatus } = useNetworkStatus();
 
   useEffect(() => {
@@ -227,9 +229,12 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
   }
 
   // Merge ghost signals — appear after live rows, sorted newest-closed first
-  const ghostSignals: DisplayGap[] = [...ghostCache.values()]
-    .filter(g => !gaps.some(live => live.id === g.id))
-    .sort((a, b) => b.closedAt! - a.closedAt!);
+  // Only populated when the FILLED toggle is ON
+  const ghostSignals: DisplayGap[] = showFilledSignals
+    ? [...ghostCache.values()]
+        .filter(g => !gaps.some(live => live.id === g.id))
+        .sort((a, b) => b.closedAt! - a.closedAt!)
+    : [];
 
   const allDisplayed: DisplayGap[] = [...filteredGaps, ...ghostSignals];
 
@@ -240,7 +245,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
         {/* Type row */}
         <div className="flex items-center gap-1">
           <span className="text-[10px] text-[#484F58] font-mono w-[72px] shrink-0 text-right pr-2">Type</span>
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap flex-1">
             {TYPE_FILTERS.map(f => {
               const count = f.key === null ? baseFiltered.length : countByType(f.key);
               const active = typeFilter === f.key;
@@ -267,6 +272,23 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                 </button>
               );
             })}
+
+            {/* Divider */}
+            <div className="w-px h-4 bg-[#21262D] mx-1" />
+
+            {/* Filled toggle */}
+            <button
+              onClick={() => setShowFilledSignals(!showFilledSignals)}
+              className={clsx(
+                'flex items-center gap-1 text-[9px] font-mono px-2 py-[3px] rounded border transition-colors',
+                showFilledSignals
+                  ? 'bg-[#D29922]/15 border-[#D29922]/40 text-[#D29922]'
+                  : 'bg-transparent border-[#21262D] text-[#484F58] hover:text-[#8B949E] hover:border-[#484F58]'
+              )}
+            >
+              <span>⏱</span>
+              <span>FILLED{ghostCache.size > 0 ? `: ${ghostCache.size}` : ''}</span>
+            </button>
           </div>
         </div>
 
