@@ -1,15 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { BarChart2, Zap, Bot, TrendingUp, Settings } from 'lucide-react';
+import { BarChart2, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const TABS = [
-  { href: '/intelligence', label: 'Intel',     icon: Zap },
-  { href: '/dashboard',    label: 'Dashboard',  icon: BarChart2 },
-  { href: '/magnus',       label: 'Magnus',     icon: Bot },
-  { href: '/funding-rates', label: 'Rates',     icon: TrendingUp },
-  { href: '/settings',     label: 'Settings',   icon: Settings },
+  { href: '/dashboard', label: 'Dashboard', icon: BarChart2 },
+  { href: '/settings',  label: 'Settings',  icon: Settings },
 ] as const;
 
 interface MobileNavProps {

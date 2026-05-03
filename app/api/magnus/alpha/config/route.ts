@@ -21,7 +21,10 @@ export async function POST(req: NextRequest) {
     const body = await req.text()
     const res = await fetch(`${BACKEND_URL}/magnus/alpha/config`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-api-key': process.env.INTERNAL_API_SECRET ?? '',
+      },
       body: body || '{}',
     })
     const data = await res.json()

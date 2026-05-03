@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getReferralUrl } from "@/lib/referrals";
 
 interface RawPriceTick {
   symbol?: string; s?: string;
@@ -79,12 +78,6 @@ function CoinRow({ sym, price, changePercent, selected, onClick }: CoinRowProps)
   );
 }
 
-interface MagnusStats {
-  winRate: number;
-  tradeCount: number;
-  capital: number;
-}
-
 interface PriceSidebarProps {
   onSelectCoin: (symbol: string | null) => void;
   selectedCoin: string | null;
@@ -94,9 +87,6 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
   const [quote, setQuote] = useState<"USDT" | "USDC" | "BTC">("USDT");
   const [search, setSearch] = useState("");
   const [coins, setCoins] = useState<CoinEntry[]>([]);
-  const [adCollapsed, setAdCollapsed] = useState(false);
-  const [magnusCollapsed, setMagnusCollapsed] = useState(false);
-  const [magnus, setMagnus] = useState<MagnusStats | null>(null);
   const firstSeenPrices = useRef<Record<string, number>>({});
   const hasAutoSelected = useRef(false);
 
@@ -106,28 +96,6 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
       onSelectCoin(coins[0].symbol);
     }
   }, [coins, selectedCoin, onSelectCoin]);
-
-  // Fetch Magnus alpha stats from the dedicated endpoint
-  useEffect(() => {
-    const fetchMagnus = async () => {
-      try {
-        const res = await fetch("/api/magnus/alpha");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data) return;
-        const tradeCount = data.totalTrades ?? data.qualityMetrics?.totalTrades ?? 0;
-        const winRate = data.winRate ?? data.qualityMetrics?.winRate ?? 0;
-        const capital = data.totalPortfolioValueUsd ?? data.portfolioValue ?? data.capital ?? 0;
-        setMagnus({ winRate: parseFloat(String(winRate)), tradeCount, capital });
-      } catch {
-        // silently keep previous display
-      }
-    };
-    fetchMagnus();
-    const id = setInterval(fetchMagnus, 15000);
-    return () => clearInterval(id);
-  }, []);
-
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -182,16 +150,6 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
     const matchesQuote = symbolQuote === quote;
     return matchesSearch && matchesQuote;
   });
-
-  const magnusWinRate = magnus ? `${parseFloat(String(magnus.winRate)).toFixed(1)}% win rate` : "—";
-  const magnusTradeCount = magnus ? magnus.tradeCount : "—";
-  const magnusCapital = magnus
-    ? magnus.capital >= 1_000_000
-      ? `$${(magnus.capital / 1_000_000).toFixed(1)}M`
-      : magnus.capital >= 1000
-      ? `$${(magnus.capital / 1000).toFixed(1)}K`
-      : `$${magnus.capital.toFixed(0)}`
-    : "—";
 
   return (
     <>
@@ -272,53 +230,6 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
           )}
         </div>
 
-        {/* Ad zone card — collapsible */}
-        <div className="border-t border-[#21262D] shrink-0">
-          <button
-            onClick={() => setAdCollapsed(v => !v)}
-            className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-[#161B22] transition-colors"
-          >
-            <span className="text-[10px] font-sans text-[#484F58]">Exchange</span>
-            <span className="text-[10px] text-[#484F58]">{adCollapsed ? '▼' : '▲'}</span>
-          </button>
-          {!adCollapsed && (
-            <div className="px-2 pb-2">
-              <div className="bg-[#388BFD]/[0.04] border border-[#388BFD]/10 rounded-md p-2.5 text-center">
-                <div className="text-[#388BFD] text-[11px] font-medium">Trade on Binance</div>
-                <div className="text-[#484F58] text-[10px]">Lowest fees in crypto</div>
-                <a
-                  href={getReferralUrl("binance")}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#388BFD] text-[10px] underline mt-1 block"
-                >
-                  Sign up now →
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Magnus Alpha widget — collapsible */}
-        <div className="border-t border-[#21262D] shrink-0">
-          <button
-            onClick={() => setMagnusCollapsed(v => !v)}
-            className="w-full flex items-center justify-between px-2 py-1.5 hover:bg-[#161B22] transition-colors"
-          >
-            <span className="text-[10px] font-sans text-[#484F58]">Magnus Alpha</span>
-            <span className="text-[10px] text-[#484F58]">{magnusCollapsed ? '▼' : '▲'}</span>
-          </button>
-          {!magnusCollapsed && (
-            <div className="px-2 pb-2">
-              <div className="bg-[#161B22] border border-[#21262D] rounded-md p-2">
-                <div className="text-[#3FB950] text-[13px] font-medium font-mono">{magnusWinRate}</div>
-                <div className="text-[#484F58] text-[10px] mt-0.5">
-                  {magnusTradeCount} trades · {magnusCapital}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </aside>
     </>
   );

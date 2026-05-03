@@ -52,16 +52,8 @@ type SettingsState = {
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      selectedExchanges: ["binance", "bybit", "okx"],
-      selectedCoins: [
-        // Major
-        "BTC", "ETH", "SOL", "BNB", "XRP",
-        "ADA", "AVAX", "LINK", "DOT", "DOGE",
-        // Mid Cap
-        "MATIC", "NEAR", "UNI", "ATOM", "FTM",
-        "APE", "SAND", "MANA", "LDO", "ARB",
-        "OP", "SUI", "SEI", "INJ", "TIA",
-      ],
+      selectedExchanges: [],
+      selectedCoins: [],
       minNetSpread: 0.05,
       alertFrequency: "realtime",
       tradeSize: 1000,
@@ -132,6 +124,15 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: "arbitrage-settings",
       storage: createJSONStorage(() => localStorage),
+      version: 2,
+      migrate: (persisted: unknown, fromVersion: number) => {
+        // v1→v2: reset exchange/coin filters to "show all" (empty = no filter)
+        if (fromVersion < 2) {
+          const state = persisted as Record<string, unknown>;
+          return { ...state, selectedExchanges: [], selectedCoins: [] };
+        }
+        return persisted as SettingsState;
+      },
     }
   )
 );

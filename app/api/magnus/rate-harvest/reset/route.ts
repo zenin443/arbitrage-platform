@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   try {
     const res = await fetch(`${BACKEND_URL}/magnus/rate-harvest/reset`, {
       method: 'POST',
-      headers: { 'x-internal-token': process.env.INTERNAL_API_TOKEN ?? '' },
+      headers: { 'x-internal-api-key': process.env.INTERNAL_API_SECRET ?? '' },
     });
     const data = await res.json();
     return Response.json(data);

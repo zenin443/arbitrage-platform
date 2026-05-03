@@ -5,8 +5,9 @@ import { clsx } from "clsx";
 import { formatTimestamp } from "@/lib/utils/formatters";
 import { formatUsd } from "@/lib/utils";
 import { formatPercent } from "@/lib/formatters";
-import { ExchangeLink } from "@/lib/referrals";
 import { normalizeApiGapList, NormalizedGap } from "@/lib/response-transformer";
+import { useSettingsStore } from "@/store/useSettingsStore";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 
 const EXCHANGE_LABELS: Record<string, string> = {
   binance:  "Binance",
@@ -95,8 +96,13 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [quoteFilter, setQuoteFilter] = useState<string | null>(null);
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceTier | null>(null);
-  const [maxAgeMinutes, setMaxAgeMinutes] = useState<number>(0); // 0 = all time
+  const [maxAgeMinutes, setMaxAgeMinutes] = useState<number>(0);
   const seenIds = useRef<Set<string>>(new Set());
+
+  const selectedExchanges = useSettingsStore(s => s.selectedExchanges);
+  const selectedCoins = useSettingsStore(s => s.selectedCoins);
+  const minNetSpread = useSettingsStore(s => s.minNetSpread);
+  const { getRouteStatus } = useNetworkStatus();
 
   useEffect(() => {
     const fetchGaps = async () => {
@@ -128,7 +134,18 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                          (now - g.detectedAt) <= maxAgeMinutes * 60_000;
     const confidence   = computeConfidence(g.spreadPercent ?? 0, g.durationMs ?? 0);
     const confidenceOk = confidenceFilter === null || confidence === confidenceFilter;
-    return typeOk && quoteOk && ageOk && confidenceOk;
+
+    // Settings-based filters
+    const exchangeOk   = selectedExchanges.length === 0 ||
+                         selectedExchanges.includes(g.buyExchange) ||
+                         selectedExchanges.includes(g.sellExchange);
+    const baseCoin     = g.symbol?.split("/")[0] ?? "";
+    const coinOk       = selectedCoins.length === 0 || selectedCoins.includes(baseCoin);
+    const spreadOk     = !g._isFreeTier && g.netSpread != null
+                         ? g.netSpread >= minNetSpread
+                         : true;
+
+    return typeOk && quoteOk && ageOk && confidenceOk && exchangeOk && coinOk && spreadOk;
   });
 
   // Count per type for badges
@@ -313,13 +330,14 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Liquidity</th>
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Type</th>
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Confidence</th>
+              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Rails</th>
               <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Detected</th>
             </tr>
           </thead>
           <tbody>
             {gaps.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-4">
+                <td colSpan={10} className="px-4 py-4">
                   <div className="flex flex-col items-center gap-2 text-[#484F58]">
                     <div className="relative flex h-3 w-3">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1C2128] opacity-60" />
@@ -341,7 +359,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
               </tr>
             ) : filteredGaps.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-4 py-6">
+                <td colSpan={10} className="px-4 py-6">
                   <div className="flex flex-col items-center gap-2 text-[#484F58]">
                     <span className="text-[11px] font-sans text-[#8B949E]">No signals match the active filters</span>
                     <button
@@ -401,13 +419,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                         <span className="text-[#8B949E] font-mono">{gap._direction}</span>
                       ) : (
                         <span className="inline-flex items-center gap-1">
-                          <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
-                            {exchangeLabel(gap.buyExchange)}
-                          </ExchangeLink>
+                          <span className="text-[#388BFD]">{exchangeLabel(gap.buyExchange)}</span>
                           <span className="text-[#484F58]">→</span>
-                          <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
-                            {exchangeLabel(gap.sellExchange)}
-                          </ExchangeLink>
+                          <span className="text-[#F85149]">{exchangeLabel(gap.sellExchange)}</span>
                         </span>
                       )}
                     </td>
@@ -468,6 +482,41 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                       >
                         {tier}
                       </span>
+                    </td>
+                    {/* Wallet Rails */}
+                    <td className="px-2 py-1.5 text-right">
+                      {isFreeTier ? (
+                        <span className="text-[#484F58] font-mono" style={{ fontSize: 'var(--fs-xs, 11px)' }}>—</span>
+                      ) : (() => {
+                        const coin = gap.symbol?.split('/')[0] ?? '';
+                        const route = getRouteStatus(gap.buyExchange, gap.sellExchange, coin);
+                        if (route.status === 'blocked') {
+                          return (
+                            <span
+                              title={route.reason ?? 'Transfer route blocked'}
+                              className="px-1.5 py-0.5 rounded font-mono bg-[#F85149]/12 text-[#F85149]"
+                              style={{ fontSize: 'var(--fs-xs, 11px)' }}
+                            >
+                              ⚠ blocked
+                            </span>
+                          );
+                        }
+                        if (route.status === 'ok') {
+                          return (
+                            <span
+                              className="px-1.5 py-0.5 rounded font-mono bg-[#3FB950]/10 text-[#3FB950]"
+                              style={{ fontSize: 'var(--fs-xs, 11px)' }}
+                            >
+                              ✓ open
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[#484F58] font-mono" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
+                            —
+                          </span>
+                        );
+                      })()}
                     </td>
                     {/* Detected */}
                     <td className="px-2 py-1.5 text-right text-[#484F58] tabular-nums font-sans" style={{ fontSize: 'var(--fs-xs, 11px)' }}>

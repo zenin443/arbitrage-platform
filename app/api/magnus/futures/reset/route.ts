@@ -8,7 +8,11 @@ export async function POST(req: NextRequest) {
   if (authResult instanceof NextResponse) return authResult;
 
   try {
-    const res = await fetch(`${BACKEND_URL}/magnus/futures/reset`, { method: 'POST', cache: 'no-store' })
+    const res = await fetch(`${BACKEND_URL}/magnus/futures/reset`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'x-internal-api-key': process.env.INTERNAL_API_SECRET ?? '' },
+    })
     const data = await res.json()
     return Response.json(data)
   } catch {

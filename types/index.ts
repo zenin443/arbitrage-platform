@@ -43,6 +43,10 @@ export interface ArbitrageOpportunity {
   transferTimeMinutes: number
   detectedAt: number
   strategy: 'cex_cex_spot' | 'spot_futures' | 'funding_rate' | 'cex_dex' | 'dex_dex'
+  /** Transfer route status: 'open' = confirmed working, 'blocked' = suspended, 'unknown' = no data */
+  routeStatus?: 'open' | 'blocked' | 'unknown'
+  withdrawSuspended?: boolean
+  depositSuspended?: boolean
 }
 
 export interface AlertConfig {

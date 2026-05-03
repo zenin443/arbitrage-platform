@@ -41,6 +41,7 @@ import { calculateAllSpreads } from './engine/spreadCalculator'
 import { rankOpportunities } from './engine/opportunityScorer'
 import { wsServer } from './feed/wsServer'
 import { ArbitrageOpportunity } from './engine/spreadCalculator'
+import { startNetworkStatusCache, getNetworkStatusSummary } from './services/networkStatusCache'
 import { BinanceFuturesAdapter } from './adapters/futures/binanceFutures'
 import { BybitFuturesAdapter } from './adapters/futures/bybitFutures'
 import { OkxFuturesAdapter } from './adapters/futures/okxFutures'
@@ -664,6 +665,11 @@ const httpServer = http.createServer(async (req, res) => {
     return
   }
 
+  if (url.pathname === '/network-status') {
+    json(res, 200, getNetworkStatusSummary())
+    return
+  }
+
   if (url.pathname === '/trading-stats') {
     json(res, 200, getTradingStats())
     return
@@ -893,6 +899,9 @@ async function start(): Promise<void> {
     startOrderBookFetcher()
   } catch (e: any) { console.error('[Startup] Order book fetcher failed:', e.message) }
   try { startPaperTraders() } catch (e: any) { console.error('[Startup] Paper traders failed:', e.message) }
+
+  // Network status cache — polls deposit/withdrawal status from exchanges
+  try { startNetworkStatusCache(adapterMap) } catch (e: any) { console.error('[Startup] Network status cache failed:', e.message) }
 
   // 13. Schedule coverage matrix report 45s after startup
   // (enough time for CCXT loadMarkets + first polling rounds to complete)

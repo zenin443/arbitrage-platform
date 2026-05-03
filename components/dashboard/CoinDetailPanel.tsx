@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ExchangeLink, getReferralUrl, getCommission } from "@/lib/referrals";
 import { normalizeApiGapList } from "@/lib/response-transformer";
 
 interface RawTick {
@@ -118,11 +117,13 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
           price: t.price,
         }));
 
-        const symBase = symbol.split("/")[0].replace("USDT", "").replace("USDC", "");
+        const symQuote = symbol.split("/")[1] ?? "USDT";
+        const symBase = symbol.split("/")[0];
         const coinTicks = allTicks.filter((t) => {
           if (t.symbol === symbol) return true;
-          const base = t.symbol?.split("/")[0]?.replace("USDT", "")?.replace("USDC", "");
-          return base === symBase;
+          const tBase = t.symbol?.split("/")[0] ?? "";
+          const tQuote = t.symbol?.split("/")[1] ?? "USDT";
+          return tBase === symBase && tQuote === symQuote;
         });
         setTicks(coinTicks);
 
@@ -130,7 +131,12 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
         // GapRecord has safe numeric values (spreadPercent, detectedAt, etc.)
         // and the _isFreeTier flag for conditional rendering.
         const allGaps = normalizeApiGapList(Array.isArray(gapData) ? gapData : []) as unknown as GapRecord[];
-        setGaps(allGaps.filter((g) => g.symbol === symbol || g.symbol?.split("/")[0] === symBase));
+        setGaps(allGaps.filter((g) => {
+          if (g.symbol === symbol) return true;
+          const gBase = g.symbol?.split("/")[0] ?? "";
+          const gQuote = g.symbol?.split("/")[1] ?? "USDT";
+          return gBase === symBase && gQuote === symQuote;
+        }));
       } catch {
         // keep previous data on transient errors
       } finally {
@@ -159,11 +165,7 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
 
   let byExchange: Record<string, PriceTick> = {};
   let exchangeList: PriceTick[] = [];
-  let highestBidEntry: PriceTick | undefined;
-  let lowestAskEntry: PriceTick | undefined;
   let currentPrice = 0;
-  let bestSpread = 0;
-  let estProfit = 0;
 
   try {
     byExchange = ticks.reduce<Record<string, PriceTick>>((acc, t) => {
@@ -171,21 +173,13 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
       return acc;
     }, {});
     exchangeList = Object.values(byExchange).sort((a, b) => (b.bid ?? 0) - (a.bid ?? 0));
-    highestBidEntry = exchangeList[0];
-    lowestAskEntry = [...exchangeList].sort((a, b) => (a.ask ?? Infinity) - (b.ask ?? Infinity))[0];
-    currentPrice = highestBidEntry?.bid ?? 0;
-    bestSpread =
-      highestBidEntry && lowestAskEntry && highestBidEntry.exchange !== lowestAskEntry.exchange
-        ? ((highestBidEntry.bid - lowestAskEntry.ask) / lowestAskEntry.ask) * 100
-        : 0;
-    estProfit = (10000 * bestSpread) / 100;
+    currentPrice = exchangeList[0]?.bid ?? 0;
   } catch (e) {
     console.error("CoinDetailPanel error:", e);
   }
 
   const priceColor = currentPrice > 0 ? "text-[#3FB950]" : "text-[#8B949E]";
   const coinName = symbol.split("/")[0];
-  const topExchange = highestBidEntry?.exchange ?? "binance";
 
   return (
     <>
@@ -231,50 +225,23 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {exchangeList.map((t) => {
-                  const isBestBid = t.exchange === highestBidEntry?.exchange;
-                  const isBestAsk = t.exchange === lowestAskEntry?.exchange;
-                  return (
-                    <tr key={t.exchange}>
-                      <td className="py-[3px]">
-                        <ExchangeLink exchangeId={t.exchange} className="text-[#388BFD]">
-                          {shortEx(t.exchange)}
-                        </ExchangeLink>
-                      </td>
-                      <td
-                        className={`py-[3px] text-right tabular-nums ${
-                          isBestBid ? "text-[#3FB950] font-medium" : "text-[#E6EDF3]"
-                        }`}
-                      >
-                        {t.bid ? formatPrice(t.bid) : "—"}
-                      </td>
-                      <td
-                        className={`py-[3px] text-right tabular-nums ${
-                          isBestAsk ? "text-[#3FB950] font-medium" : "text-[#8B949E]"
-                        }`}
-                      >
-                        {t.ask ? formatPrice(t.ask) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {exchangeList.map((t) => (
+                  <tr key={t.exchange}>
+                    <td className="py-[3px] text-[#388BFD]">
+                      {shortEx(t.exchange)}
+                    </td>
+                    <td className="py-[3px] text-right tabular-nums text-[#E6EDF3]">
+                      {t.bid ? formatPrice(t.bid) : "—"}
+                    </td>
+                    <td className="py-[3px] text-right tabular-nums text-[#8B949E]">
+                      {t.ask ? formatPrice(t.ask) : "—"}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
         </div>
-
-        {/* Best arbitrage highlight */}
-        {bestSpread > 0 && highestBidEntry && lowestAskEntry && (
-          <div className="mx-3 my-2 p-2 bg-[#3FB950]/5 border border-[#3FB950]/20 rounded-md">
-            <div className="text-[11px] font-mono text-[#3FB950] font-medium">
-              {shortEx(lowestAskEntry.exchange)} → {shortEx(highestBidEntry.exchange)}
-              <span className="ml-2">{bestSpread.toFixed(3)}%</span>
-            </div>
-            <div className="text-[11px] font-sans text-[#8B949E] mt-0.5">
-              Est. profit: ${estProfit.toFixed(2)} on $10K
-            </div>
-          </div>
-        )}
 
         <div className="border-t border-[#21262D] mx-3" />
 
@@ -297,13 +264,9 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
               >
                 <div className="flex justify-between text-[10px] font-mono">
                   <span className="text-[#E6EDF3]">
-                    <ExchangeLink exchangeId={gap.buyExchange} className="text-[#388BFD]">
-                      {gap.buyExchange}
-                    </ExchangeLink>
+                    <span className="text-[#388BFD]">{shortEx(gap.buyExchange)}</span>
                     {" → "}
-                    <ExchangeLink exchangeId={gap.sellExchange} className="text-[#F85149]">
-                      {gap.sellExchange}
-                    </ExchangeLink>
+                    <span className="text-[#F85149]">{shortEx(gap.sellExchange)}</span>
                   </span>
                   <span className="text-[#3FB950]">
                     {gap._isFreeTier
@@ -326,17 +289,6 @@ export default function CoinDetailPanel({ symbol, onSelectSignal }: Props) {
           )}
         </div>
 
-        {/* Contextual ad at bottom */}
-        <div className="mt-auto p-2 border-t border-[#21262D] shrink-0">
-          <a
-            href={getReferralUrl(topExchange)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#3FB950] text-[11px] block text-center hover:opacity-80 transition-opacity"
-          >
-            Trade {coinName} on {topExchange.charAt(0).toUpperCase() + topExchange.slice(1)} — {getCommission(topExchange) || "low fees"} →
-          </a>
-        </div>
       </div>
     </>
   );

@@ -281,6 +281,8 @@ export interface NormalizedGap {
   netSpread: number;
   /** Quote currency e.g. "USDT", "USDC", "BTC". Parsed from symbol when not present in payload. */
   quoteCurrency: string;
+  /** Transfer route status: 'open' = confirmed working, 'blocked' = suspended, 'unknown' = no data */
+  routeStatus: 'open' | 'blocked' | 'unknown';
   /** true when item came from the 4-field free-tier payload. */
   _isFreeTier: boolean;
   /** Original delayed_spread string e.g. "0.25%". Empty for trader+. */
@@ -320,6 +322,7 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
       depthAnalysis:   null,
       netSpread:       0,
       quoteCurrency:   deriveQuoteCurrency(symbol, raw.quote_currency),
+      routeStatus:     'unknown',
       _isFreeTier:     true,
       _delayedSpread:  delayedSpread,
       _direction:      direction,
@@ -352,6 +355,7 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
     depthAnalysis:    raw.depthAnalysis    ? (raw.depthAnalysis    as Record<string, unknown>) : null,
     netSpread:        typeof raw.netSpread  === 'number' ? raw.netSpread : Math.max(0, spreadPercent - 0.2),
     quoteCurrency:    deriveQuoteCurrency(symbol, raw.quote_currency),
+    routeStatus:      (raw.routeStatus === 'open' || raw.routeStatus === 'blocked') ? raw.routeStatus as 'open' | 'blocked' : 'unknown',
     _isFreeTier:      false,
     _delayedSpread:   '',
     _direction:       '',

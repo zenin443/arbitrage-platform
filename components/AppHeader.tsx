@@ -1,17 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { ZapIcon, SettingsIcon } from 'lucide-react';
+import { ZapIcon, SettingsIcon, ShieldCheck } from 'lucide-react';
 import NavAuthButton from '@/components/NavAuthButton';
+import { useAuth } from '@/contexts/AuthContext';
 
 const APP_VERSION = 'v0.8.0';
 
 const NAV_LINKS = [
-  { href: '/intelligence', label: 'Intelligence' },
-  { href: '/dashboard',    label: 'Dashboard' },
-  { href: '/magnus',       label: 'Magnus' },
-  { href: '/dex',          label: 'DEX Markets' },
-  { href: '/funding-rates', label: 'Funding Rates' },
+  { href: '/dashboard', label: 'Dashboard' },
 ] as const;
 
 interface AppHeaderProps {
@@ -28,6 +25,9 @@ export default function AppHeader({
   showDelayedBadge = false,
   statusSlot,
 }: AppHeaderProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || process.env.NEXT_PUBLIC_DEV_AUDIT_MODE === 'true';
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
       <div className="flex items-center gap-3">
@@ -68,6 +68,19 @@ export default function AppHeader({
             {link.label}
           </Link>
         ))}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={`px-2 py-0.5 rounded text-[11px] whitespace-nowrap transition-colors flex items-center gap-1 ${
+              activePage === '/admin'
+                ? 'bg-[#A371F7]/15 text-[#A371F7] font-medium'
+                : 'text-[#A371F7]/70 hover:text-[#A371F7]'
+            }`}
+          >
+            <ShieldCheck className="h-3 w-3" />
+            Admin
+          </Link>
+        )}
         <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
           <SettingsIcon className="h-3.5 w-3.5" />
         </Link>
