@@ -101,6 +101,13 @@ export default function DashboardPage() {
     }
   }, [opportunities, selectedSignal]);
 
+  // Unique base coins that currently have at least one active signal
+  const signalCoins = [...new Set(
+    opportunities
+      .map(g => g.symbol?.split("/")[0])
+      .filter((s): s is string => Boolean(s))
+  )];
+
   const exchangeCount = health?.exchanges ?? 0;
   const symbolCount = health?.symbols ?? 0;
   const countDisplay = opportunityCount === null ? "—" : formatNumber(opportunityCount);
@@ -185,6 +192,7 @@ export default function DashboardPage() {
             <CoinDetailPanel
               symbol={selectedCoin}
               onSelectSignal={(signal) => setSelectedSignal(signal as unknown as Opportunity)}
+              signalCoins={signalCoins}
             />
           </ErrorBoundary>
         </div>

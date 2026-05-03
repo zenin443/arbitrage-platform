@@ -88,14 +88,6 @@ export default function PriceSidebar({ onSelectCoin, selectedCoin }: PriceSideba
   const [search, setSearch] = useState("");
   const [coins, setCoins] = useState<CoinEntry[]>([]);
   const firstSeenPrices = useRef<Record<string, number>>({});
-  const hasAutoSelected = useRef(false);
-
-  useEffect(() => {
-    if (!hasAutoSelected.current && !selectedCoin && coins.length > 0) {
-      hasAutoSelected.current = true;
-      onSelectCoin(coins[0].symbol);
-    }
-  }, [coins, selectedCoin, onSelectCoin]);
 
   useEffect(() => {
     const fetchPrices = async () => {
