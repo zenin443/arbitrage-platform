@@ -75,6 +75,8 @@ const CONFIDENCE_BADGE: Record<ConfidenceTier, string> = {
 };
 
 type GapRecord = NormalizedGap;
+type GhostGap = NormalizedGap & { closedAt: number };
+type DisplayGap = NormalizedGap & { closedAt?: number };
 
 // ── Filter config ────────────────────────────────────────────────────────────
 
@@ -98,19 +100,21 @@ const QUOTE_FILTERS: Array<{ key: string | null; label: string }> = [
 ]
 
 interface OpportunityTableProps {
-  onSelectSignal: (signal: GapRecord) => void;
+  onSelectSignal: (signal: DisplayGap) => void;
   selectedSignalId: string | null;
   onDataUpdate?: (gaps: GapRecord[]) => void;
 }
 
 export default function OpportunityTable({ onSelectSignal, selectedSignalId, onDataUpdate }: OpportunityTableProps) {
   const [gaps, setGaps] = useState<GapRecord[]>([]);
+  const [ghostCache, setGhostCache] = useState<Map<string, GhostGap>>(new Map());
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [quoteFilter, setQuoteFilter] = useState<string | null>(null);
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceTier | null>(null);
   const [maxAgeMinutes, setMaxAgeMinutes] = useState<number>(0);
   const seenIds = useRef<Set<string>>(new Set());
+  const prevGapsRef = useRef<Map<string, NormalizedGap>>(new Map());
 
   const selectedExchanges = useSettingsStore(s => s.selectedExchanges);
   const selectedCoins = useSettingsStore(s => s.selectedCoins);
@@ -135,6 +139,23 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
         }
         // Replace entire state — signals not in latest response are gone
         const deduped = Array.from(dedupMap.values());
+
+        // Detect signals that disappeared since last fetch → move to ghost cache
+        const newIdSet = new Set(deduped.map(g => g.id!));
+        const disappeared = [...prevGapsRef.current.values()].filter(g => !newIdSet.has(g.id!));
+        if (disappeared.length > 0) {
+          setGhostCache(prev => {
+            const next = new Map(prev);
+            disappeared.forEach(g => {
+              if (!next.has(g.id!)) {
+                next.set(g.id!, { ...g, closedAt: Date.now() });
+              }
+            });
+            return next;
+          });
+        }
+        prevGapsRef.current = new Map(deduped.map(g => [g.id!, g]));
+
         setGaps(deduped);
         onDataUpdate?.(deduped);
       } catch {
@@ -146,6 +167,21 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
 
     fetchGaps();
     const interval = setInterval(fetchGaps, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Evict ghost signals older than 120 s — checked every 5 s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setGhostCache(prev => {
+        const next = new Map(prev);
+        for (const [id, g] of next) {
+          if (now - g.closedAt > 120_000) next.delete(id);
+        }
+        return next.size !== prev.size ? next : prev;
+      });
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -189,6 +225,13 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
       seenIds.current.add(key);
     }
   }
+
+  // Merge ghost signals — appear after live rows, sorted newest-closed first
+  const ghostSignals: DisplayGap[] = [...ghostCache.values()]
+    .filter(g => !gaps.some(live => live.id === g.id))
+    .sort((a, b) => b.closedAt! - a.closedAt!);
+
+  const allDisplayed: DisplayGap[] = [...filteredGaps, ...ghostSignals];
 
   return (
     <div className="h-full flex flex-col bg-[#0D1117] border border-[#21262D] rounded-lg overflow-hidden">
@@ -336,6 +379,11 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                   : `${baseFiltered.length}`}{' '}
                 signal{filteredGaps.length !== 1 ? 's' : ''}
               </span>
+              {ghostSignals.length > 0 && (
+                <span className="text-[10px] font-mono text-[#D29922]/70">
+                  +{ghostSignals.length} filled
+                </span>
+              )}
               {selectedSignalId && (
                 <span className="text-[11px] font-sans text-[#484F58]">
                   · panel open →
@@ -364,7 +412,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
             </tr>
           </thead>
           <tbody>
-            {gaps.length === 0 ? (
+            {gaps.length === 0 && ghostSignals.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-4">
                   <div className="flex flex-col items-center gap-2 text-[#484F58]">
@@ -386,7 +434,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                   </div>
                 </td>
               </tr>
-            ) : filteredGaps.length === 0 ? (
+            ) : allDisplayed.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-6">
                   <div className="flex flex-col items-center gap-2 text-[#484F58]">
@@ -401,8 +449,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                 </td>
               </tr>
             ) : (
-              filteredGaps.map((gap) => {
+              allDisplayed.map((gap) => {
                 const key = gap.id;
+                const isGhost = gap.closedAt != null;
                 const isFreeTier = gap._isFreeTier;
                 const tier = computeConfidence(gap.spreadPercent, gap.durationMs, gap.confidence);
                 const netSpread = gap.netSpread;
@@ -434,15 +483,23 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                     onClick={() => onSelectSignal(gap)}
                     className={clsx(
                       "cursor-pointer transition-colors border-b border-[#21262D]/30 border-l-2",
+                      isGhost && "opacity-40",
                       isSelected
                         ? "bg-[#161B22] border-l-[#388BFD]"
                         : clsx(tierBorderColor, "hover:bg-[#161B22]/60"),
-                      isNew && !isSelected && "animate-fade-in"
+                      !isGhost && isNew && !isSelected && "animate-fade-in"
                     )}
                   >
                     {/* Symbol */}
                     <td className="px-2 py-1.5 text-[#E6EDF3] font-mono font-medium" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
-                      {gap.symbol}
+                      <span className="inline-flex items-center gap-1.5">
+                        {gap.symbol}
+                        {isGhost && (
+                          <span className="text-[9px] font-mono px-1.5 py-[1px] rounded bg-[#D29922]/15 border border-[#D29922]/30 text-[#D29922]">
+                            GAP FILLED
+                          </span>
+                        )}
+                      </span>
                     </td>
                     {/* Route — free tier: plain "BIN → BYB" string; trader+: exchange links */}
                     <td className="px-2 py-1.5" style={{ fontSize: 'var(--fs-sm, 12px)' }}>
@@ -559,7 +616,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
                     </td>
                     {/* Detected */}
                     <td className="px-2 py-1.5 text-right text-[#484F58] tabular-nums font-sans" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
-                      {gap.detectedAt ? timeAgo(gap.detectedAt) : formatTimestamp(Date.now())}
+                      {isGhost && gap.closedAt != null
+                        ? `${Math.floor((Date.now() - gap.closedAt) / 1000)}s ago`
+                        : gap.detectedAt ? timeAgo(gap.detectedAt) : formatTimestamp(Date.now())}
                     </td>
                   </tr>
                 );

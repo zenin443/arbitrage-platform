@@ -34,6 +34,8 @@ async function fetchHealthSummary(): Promise<HealthSummary | null> {
 export default function DashboardPage() {
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null);
   const [selectedSignal, setSelectedSignal] = useState<Opportunity | null>(null);
+  const [selectedSignalIsGhost, setSelectedSignalIsGhost] = useState(false);
+  const [selectedSignalClosedAt, setSelectedSignalClosedAt] = useState<number | undefined>();
   const [health, setHealth] = useState<HealthSummary | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [opportunityCount, setOpportunityCount] = useState<number | null>(null);
@@ -77,15 +79,18 @@ export default function DashboardPage() {
   }, []);
 
   // Auto-clear signal pane when the selected gap disappears from the feed
+  // Skip if the signal is already a ghost (user clicked the ghost row intentionally)
   useEffect(() => {
-    if (selectedSignal && opportunities.length > 0) {
+    if (selectedSignal && !selectedSignalIsGhost && opportunities.length > 0) {
       const stillExists = opportunities.some(o => o.id === selectedSignal.id);
       if (!stillExists) {
         setSelectedSignal(null);
         setShowSignalPanel(false);
+        setSelectedSignalIsGhost(false);
+        setSelectedSignalClosedAt(undefined);
       }
     }
-  }, [opportunities, selectedSignal]);
+  }, [opportunities, selectedSignal, selectedSignalIsGhost]);
 
   // Unique base coins that currently have at least one active signal
   const signalCoins = [...new Set(
@@ -198,10 +203,12 @@ export default function DashboardPage() {
             <ErrorBoundary name="Opportunities">
               <OpportunityTable
                 onSelectSignal={(signal) => {
-                  setSelectedSignal(signal);
+                  setSelectedSignal(signal as Opportunity);
                   setShowSignalPanel(true);
-                  // Sync CoinDetailPanel to the clicked signal's coin
                   if (signal?.symbol) setSelectedCoin(signal.symbol);
+                  const isGhost = !!(signal as any).closedAt;
+                  setSelectedSignalIsGhost(isGhost);
+                  setSelectedSignalClosedAt((signal as any).closedAt);
                 }}
                 selectedSignalId={selectedSignal ? selectedSignal.id : null}
                 onDataUpdate={handleOpportunityData}
@@ -218,7 +225,14 @@ export default function DashboardPage() {
           <ErrorBoundary name="Signal insight">
             <SignalInsightPanel
               signal={selectedSignal}
-              onClose={() => { setSelectedSignal(null); setSelectedCoin(null); }}
+              onClose={() => {
+                setSelectedSignal(null);
+                setSelectedCoin(null);
+                setSelectedSignalIsGhost(false);
+                setSelectedSignalClosedAt(undefined);
+              }}
+              isGhost={selectedSignalIsGhost}
+              ghostClosedAt={selectedSignalClosedAt}
             />
           </ErrorBoundary>
         </div>
@@ -230,7 +244,14 @@ export default function DashboardPage() {
               <ErrorBoundary name="Signal insight mobile">
                 <SignalInsightPanel
                   signal={selectedSignal}
-                  onClose={() => { setSelectedSignal(null); setShowSignalPanel(false); }}
+                  onClose={() => {
+                    setSelectedSignal(null);
+                    setShowSignalPanel(false);
+                    setSelectedSignalIsGhost(false);
+                    setSelectedSignalClosedAt(undefined);
+                  }}
+                  isGhost={selectedSignalIsGhost}
+                  ghostClosedAt={selectedSignalClosedAt}
                 />
               </ErrorBoundary>
             </div>

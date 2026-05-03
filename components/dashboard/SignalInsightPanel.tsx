@@ -36,6 +36,8 @@ interface OrderLevel {
 interface Props {
   signal: GapRecord | null;
   onClose: () => void;
+  isGhost?: boolean;
+  ghostClosedAt?: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -148,7 +150,7 @@ function RailsBadge({ status }: { status: string }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function SignalInsightPanel({ signal, onClose }: Props) {
+export default function SignalInsightPanel({ signal, onClose, isGhost, ghostClosedAt }: Props) {
   const [buyLevels, setBuyLevels] = useState<OrderLevel[]>([]);
   const [sellLevels, setSellLevels] = useState<OrderLevel[]>([]);
   const [buyPrice, setBuyPrice] = useState<number>(0);
@@ -373,6 +375,16 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
 
         </div>
       </div>
+
+      {/* Ghost banner — shown when signal has been filled */}
+      {isGhost && ghostClosedAt && (
+        <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-[#D29922]/10 border-b border-[#D29922]/30">
+          <span className="text-[#D29922] text-[11px]">✓</span>
+          <span className="text-[#D29922] text-[10px] font-mono">
+            Spread converged — gap filled {Math.floor((Date.now() - ghostClosedAt) / 1000)}s ago
+          </span>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           PRICES  ~48 px
