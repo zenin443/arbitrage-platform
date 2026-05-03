@@ -19,6 +19,10 @@ interface GapRecord {
   netSpread?: number;
   withdrawFee?: number;
   bestNetwork?: string;
+  confidence?: 'high' | 'medium' | 'low';
+  isVolatile?: boolean;
+  isThinVolume?: boolean;
+  minViableTradeUsd?: number;
 }
 
 interface OrderLevel {
@@ -271,6 +275,22 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
             </div>
           )}
 
+          {/* Volatile price warning */}
+          {signal.isVolatile && (
+            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#D29922]/10 border border-[#D29922]/30 rounded text-[10px] font-sans text-[#D29922] flex items-center gap-1.5">
+              <span>⚡</span>
+              <span>Price volatile — spike detected in last 5 min. Treat spread with caution.</span>
+            </div>
+          )}
+
+          {/* Thin volume warning */}
+          {signal.isThinVolume && (
+            <div className="mx-3 mt-2 px-2 py-1.5 bg-[#58A6FF]/10 border border-[#58A6FF]/30 rounded text-[10px] font-sans text-[#58A6FF] flex items-center gap-1.5">
+              <span>💧</span>
+              <span>Thin volume — 24h volume below $500K. Slippage risk elevated.</span>
+            </div>
+          )}
+
           {/* Buy / Sell price boxes */}
           <div className="grid grid-cols-2 gap-1.5 px-3 py-2">
             <div className="bg-[#3FB950]/5 border border-[#3FB950]/20 rounded p-2">
@@ -394,6 +414,15 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
               <span className="font-mono text-[#E6EDF3] text-right">{signal.bestNetwork || "—"}</span>
               <span className="font-sans text-[#8B949E]">Withdraw fee</span>
               <span className="font-mono text-[#E6EDF3] text-right">{(signal.withdrawFee ?? 0) > 0 ? `$${signal.withdrawFee}` : "—"}</span>
+              {signal.type === 'cross_chain' && (signal.minViableTradeUsd ?? 0) > 0 && (
+                <>
+                  <span className="font-sans text-[#8B949E]">Min viable trade</span>
+                  <span className="font-mono text-[#E6EDF3] text-right">
+                    ${(signal.minViableTradeUsd ?? 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    <span className="text-[#484F58] ml-0.5 font-sans" style={{ fontSize: '9px' }}>(bridge &lt;20% profit)</span>
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -283,6 +283,14 @@ export interface NormalizedGap {
   quoteCurrency: string;
   /** Transfer route status: 'open' = confirmed working, 'blocked' = suspended, 'unknown' = no data */
   routeStatus: 'open' | 'blocked' | 'unknown';
+  /** Signal scorer confidence rating (Sprint 1.5). undefined when unavailable (free tier). */
+  confidence?: 'high' | 'medium' | 'low';
+  /** true if coin moved >5% in 5 min. undefined when unavailable (free tier). */
+  isVolatile?: boolean;
+  /** true if 24h volume < $500K. undefined when unavailable (free tier). */
+  isThinVolume?: boolean;
+  /** Cross-chain only: min trade size where bridge cost < 20% of profit. undefined when unavailable. */
+  minViableTradeUsd?: number;
   /** true when item came from the 4-field free-tier payload. */
   _isFreeTier: boolean;
   /** Original delayed_spread string e.g. "0.25%". Empty for trader+. */
@@ -323,6 +331,10 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
       netSpread:       0,
       quoteCurrency:   deriveQuoteCurrency(symbol, raw.quote_currency),
       routeStatus:     'unknown',
+      confidence:      undefined,
+      isVolatile:      undefined,
+      isThinVolume:    undefined,
+      minViableTradeUsd: undefined,
       _isFreeTier:     true,
       _delayedSpread:  delayedSpread,
       _direction:      direction,
@@ -356,6 +368,10 @@ export function normalizeApiGap(raw: Record<string, unknown>): NormalizedGap {
     netSpread:        typeof raw.netSpread  === 'number' ? raw.netSpread : Math.max(0, spreadPercent - 0.2),
     quoteCurrency:    deriveQuoteCurrency(symbol, raw.quote_currency),
     routeStatus:      (raw.routeStatus === 'open' || raw.routeStatus === 'blocked') ? raw.routeStatus as 'open' | 'blocked' : 'unknown',
+    confidence:       raw.confidence === 'high' || raw.confidence === 'medium' || raw.confidence === 'low' ? raw.confidence as 'high' | 'medium' | 'low' : undefined,
+    isVolatile:       typeof raw.isVolatile       === 'boolean' ? raw.isVolatile       : undefined,
+    isThinVolume:     typeof raw.isThinVolume     === 'boolean' ? raw.isThinVolume     : undefined,
+    minViableTradeUsd: typeof raw.minViableTradeUsd === 'number' ? raw.minViableTradeUsd : undefined,
     _isFreeTier:      false,
     _delayedSpread:   '',
     _direction:       '',
