@@ -79,11 +79,19 @@ function normalizeCexCex(raw: Record<string, unknown>): RawGap {
  *   maxTradeableUsd = 0 (no liquidity data from futures endpoint)
  *   durationMs      = 0 (single snapshot, no history)
  */
+function deriveConfidence(spreadPercent: number, backendConfidence?: string): string | undefined {
+  if (backendConfidence === 'high' || backendConfidence === 'medium' || backendConfidence === 'low')
+    return backendConfidence;
+  if (spreadPercent > 0.5) return 'high';
+  if (spreadPercent > 0.2) return 'medium';
+  return 'low';
+}
+
 function normalizeSpotFutures(raw: Record<string, unknown>): RawGap {
-  const symbol       = s(raw.symbol);
+  const symbol        = s(raw.symbol);
   const spreadPercent = n(raw.priceDiffPercent);
   return {
-    id:              s(raw.id),
+    id:              s(raw.id) || `${symbol}|spot_futures|${s(raw.spotExchange)}|${s(raw.futuresExchange)}`,
     symbol,
     type:            'spot_futures',
     spreadPercent,
@@ -98,7 +106,7 @@ function normalizeSpotFutures(raw: Record<string, unknown>): RawGap {
     durationMs:      0,
     isActive:        true,
     quote_currency:  deriveQuote(symbol),
-    confidence:      s(raw.confidence) || undefined,
+    confidence:      deriveConfidence(spreadPercent, s(raw.confidence) || undefined),
   };
 }
 
@@ -132,7 +140,7 @@ function normalizeCexDex(raw: Record<string, unknown>): RawGap {
     durationMs:      0,
     isActive:        true,
     quote_currency:  deriveQuote(symbol),
-    confidence:      s(raw.confidence) || undefined,
+    confidence:      deriveConfidence(n(raw.netProfitPercent), s(raw.confidence) || undefined),
   };
 }
 
@@ -156,12 +164,13 @@ function normalizeTriangular(raw: Record<string, unknown>): RawGap {
   const prices = (raw.prices ?? {}) as Record<string, unknown>;
   const symbol  = s(raw.altSymbol || raw.baseSymbol);
   const spreadPercent = n(raw.profitPercent);
+  const netSpread = n(raw.netProfitPercent);
   return {
-    id:              s(raw.id),
+    id:              s(raw.id) || `${symbol}|triangular|${s(raw.exchange)}`,
     symbol,
     type:            'triangular',
     spreadPercent,
-    netSpread:       n(raw.netProfitPercent),
+    netSpread,
     buyExchange:     s(raw.exchange),
     sellExchange:    s(raw.exchange),
     buyPrice:        n(prices['step1']),
@@ -172,6 +181,7 @@ function normalizeTriangular(raw: Record<string, unknown>): RawGap {
     durationMs:      0,
     isActive:        true,
     quote_currency:  'USDT',
+    confidence:      deriveConfidence(netSpread),
   };
 }
 
@@ -198,8 +208,8 @@ function normalizeCrossChain(raw: Record<string, unknown>): RawGap {
     lastSeenAt:       s(raw.detectedAt),
     durationMs:       0,
     isActive:         true,
-    quote_currency:   deriveQuote(symbol),
-    confidence:       s(raw.confidence) || undefined,
+    quote_currency:    deriveQuote(symbol),
+    confidence:        deriveConfidence(n(raw.netProfitPercent), s(raw.confidence) || undefined),
     minViableTradeUsd: n(raw.minViableTradeUsd),
   };
 }
@@ -298,14 +308,13 @@ export async function GET(req: NextRequest) {
   try {
     const now = Date.now();
 
-    // Fetch all 8 sources in parallel; failed sources are skipped gracefully
+    // Fetch all 7 sources in parallel; failed sources are skipped gracefully
     const [
       gapsResult,
       spotFuturesResult,
       cexDexResult,
       triangularResult,
       crossChainResult,
-      stablecoinResult,
       scoredResult,
       pairsResult,
     ] = await Promise.allSettled([
@@ -314,7 +323,6 @@ export async function GET(req: NextRequest) {
       fetchJson(`${BACKEND_URL}/cex-dex`),
       fetchJson(`${BACKEND_URL}/triangular`),
       fetchJson(`${BACKEND_URL}/cross-chain`),
-      fetchJson(`${BACKEND_URL}/stablecoin`),
       fetchJson(`${BACKEND_URL}/signals/scored`),
       fetchJson(`${BACKEND_URL}/signals/pairs`),
     ]);
@@ -328,8 +336,13 @@ export async function GET(req: NextRequest) {
     }
 
     if (spotFuturesResult.status === 'fulfilled') {
-      for (const r of spotFuturesResult.value)
-        combined.push(normalizeSpotFutures(r as Record<string, unknown>));
+      for (const r of spotFuturesResult.value) {
+        const raw = r as Record<string, unknown>;
+        // Only include spot-futures with a positive net spread
+        if (n(raw.priceDiffPercent) > 0) {
+          combined.push(normalizeSpotFutures(raw));
+        }
+      }
     }
 
     if (cexDexResult.status === 'fulfilled') {
@@ -347,37 +360,20 @@ export async function GET(req: NextRequest) {
         combined.push(normalizeCrossChain(r as Record<string, unknown>));
     }
 
-    if (stablecoinResult.status === 'fulfilled') {
-      for (const r of stablecoinResult.value) {
-        const raw = r as Record<string, unknown>;
-        combined.push({
-          id:              s(raw.id),
-          symbol:          s(raw.symbol),
-          type:            'stablecoin',
-          spreadPercent:   n(raw.spreadPercent),
-          netSpread:       n(raw.netProfitPercent),
-          buyExchange:     s(raw.buyExchange),
-          sellExchange:    s(raw.sellExchange),
-          buyPrice:        n(raw.buyPrice),
-          sellPrice:       n(raw.sellPrice),
-          maxTradeableUsd: n(raw.liquidityScore) * 10_000,
-          detectedAt:      n(raw.detectedAt),
-          durationMs:      0,
-          quoteCurrency:   'USDT',
-          confidence:      s(raw.confidence) || undefined,
-          isActive:        true,
-        } as RawGap);
-      }
-    }
+    // Deduplicate by composite key: symbol+type+buyExchange+sellExchange
+    // This is more robust than id-matching since IDs may differ across sources
+    const dedupeKey = (g: RawGap) =>
+      `${s(g['symbol'])}|${s(g['type'])}|${s(g['buyExchange'])}|${s(g['sellExchange'])}`;
+    const existingKeys = new Set(combined.map(dedupeKey));
 
-    // Scored signals overlap with cex_cex/spot_futures etc. — deduplicate by id
-    const existingIds = new Set(combined.map(g => g['id'] as string));
+    // Scored signals: only add if they aren't already represented
     if (scoredResult.status === 'fulfilled') {
       for (const r of scoredResult.value) {
         const normalised = normalizeScoredGap(r as Record<string, unknown>);
-        if (!existingIds.has(normalised['id'] as string)) {
+        const key = dedupeKey(normalised);
+        if (!existingKeys.has(key)) {
           combined.push(normalised);
-          existingIds.add(normalised['id'] as string);
+          existingKeys.add(key);
         }
       }
     }
