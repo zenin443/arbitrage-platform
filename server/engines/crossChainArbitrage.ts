@@ -37,14 +37,14 @@ export interface CrossChainOpportunity {
 // Used as a fallback when the per-pair matrix has no entry.
 
 const BRIDGE_FEES_USD: Record<string, number> = {
-  ethereum:  12,   // ETH mainnet withdrawal ~$12
-  bsc:        0.5, // BSC withdrawal ~$0.50
-  polygon:    0.1, // Polygon withdrawal ~$0.10
-  arbitrum:   1.5, // Arbitrum withdrawal ~$1.50
-  optimism:   1.5, // Optimism withdrawal ~$1.50
-  solana:     0.01,// Solana withdrawal ~$0.01
-  avalanche:  0.5, // AVAX withdrawal ~$0.50
-  default:    3,   // Unknown chain fallback
+  ethereum:  12,    // ETH mainnet withdrawal ~$12
+  bsc:        0.5,  // BSC withdrawal ~$0.50
+  polygon:    0.1,  // Polygon withdrawal ~$0.10
+  arbitrum:   1.5,  // Arbitrum withdrawal ~$1.50
+  optimism:   1.5,  // Optimism withdrawal ~$1.50
+  solana:     0.01, // Solana withdrawal ~$0.01
+  avalanche:  0.5,  // AVAX withdrawal ~$0.50
+  default:    3,    // Unknown chain fallback
 }
 
 // ── Per-pair round-trip bridge cost matrix (USD) ──────────────────────────────
@@ -121,8 +121,8 @@ function getBridgeCost(fromChain: string, toChain: string): number {
 }
 
 /**
- * The minimum trade size (USD) at which the bridge cost is ≤ MAX_BRIDGE_COST_RATIO
- * of the gross profit.  Callers can surface this to help users right-size positions.
+ * Minimum trade size (USD) at which the bridge cost is ≤ MAX_BRIDGE_COST_RATIO
+ * of the gross profit.  Surfaced to callers so they can right-size positions.
  */
 function minViableTrade(bridgeCostUsd: number, priceDiffPercent: number): number {
   if (priceDiffPercent <= 0) return Infinity
@@ -131,7 +131,7 @@ function minViableTrade(bridgeCostUsd: number, priceDiffPercent: number): number
   return bridgeCostUsd / (MAX_BRIDGE_COST_RATIO * (priceDiffPercent / 100))
 }
 
-const MAX_OPPORTUNITIES = 100
+const MAX_OPPORTUNITIES      = 100
 const MAX_PRICE_DIFF_PERCENT = 5.0  // reject bad exchange data above this threshold
 const MIN_NET_SPREAD_PERCENT = 0.5  // suppress signals where bridge fee eats net profit
 const MAX_BRIDGE_COST_RATIO  = 0.20 // suppress when bridge cost > 20% of gross profit
@@ -184,7 +184,7 @@ function computeCrossChainOpportunities(): CrossChainOpportunity[] {
         const netProfitPercent = priceDiffPercent - bridgeCostPercent
 
         // Suppress if net spread (after bridge fees) is below the minimum threshold.
-        // Previously the guard used the gross spread — that let through signals where
+        // Previously the guard used the gross spread — that allowed signals where
         // bridge cost consumed the entire profit (e.g. 0.6% gross - 0.8% bridge = -0.2% net).
         if (netProfitPercent < MIN_NET_SPREAD_PERCENT) continue
 
