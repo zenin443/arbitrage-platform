@@ -76,20 +76,6 @@ export default function DashboardPage() {
     );
   }, []);
 
-  // Auto-select best signal on first load
-  useEffect(() => {
-    if (!selectedSignal && opportunities.length > 0) {
-      const best = opportunities.reduce((acc: Opportunity | null, current: Opportunity) => {
-        if (!current || !current.spreadPercent || !current.symbol) return acc;
-        return (!acc || current.spreadPercent > acc.spreadPercent) ? current : acc;
-      }, null);
-      if (best && best.spreadPercent > 0 && best.symbol) {
-        setSelectedSignal(best);
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunities]);
-
   // Auto-clear signal pane when the selected gap disappears from the feed
   useEffect(() => {
     if (selectedSignal && opportunities.length > 0) {
@@ -211,7 +197,12 @@ export default function DashboardPage() {
           <div className="flex-1 min-h-0 overflow-hidden">
             <ErrorBoundary name="Opportunities">
               <OpportunityTable
-                onSelectSignal={(signal) => { setSelectedSignal(signal); setShowSignalPanel(true); }}
+                onSelectSignal={(signal) => {
+                  setSelectedSignal(signal);
+                  setShowSignalPanel(true);
+                  // Sync CoinDetailPanel to the clicked signal's coin
+                  if (signal?.symbol) setSelectedCoin(signal.symbol);
+                }}
                 selectedSignalId={selectedSignal ? selectedSignal.id : null}
                 onDataUpdate={handleOpportunityData}
               />
@@ -227,7 +218,7 @@ export default function DashboardPage() {
           <ErrorBoundary name="Signal insight">
             <SignalInsightPanel
               signal={selectedSignal}
-              onClose={() => setSelectedSignal(null)}
+              onClose={() => { setSelectedSignal(null); setSelectedCoin(null); }}
             />
           </ErrorBoundary>
         </div>

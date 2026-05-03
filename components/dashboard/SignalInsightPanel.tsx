@@ -154,9 +154,29 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
   const [buyPrice, setBuyPrice] = useState<number>(0);
   const [sellPrice, setSellPrice] = useState<number>(0);
   const [isDexSignal, setIsDexSignal] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(PANEL_WIDTH);
   const prevSignalId = useRef<string | undefined>(undefined);
+  const dragStartX = useRef<number | null>(null);
+  const dragStartWidth = useRef<number>(PANEL_WIDTH);
   const userTradeSize = useSettingsStore(s => s.tradeSize);
   const { getRouteStatus } = useNetworkStatus();
+
+  const onDragStart = (e: React.MouseEvent) => {
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = panelWidth;
+    const onMove = (ev: MouseEvent) => {
+      const delta = dragStartX.current! - ev.clientX;
+      const next = Math.min(560, Math.max(280, dragStartWidth.current + delta));
+      setPanelWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    e.preventDefault();
+  };
 
   useEffect(() => {
     if (signal && signal.id !== prevSignalId.current) {
@@ -234,9 +254,15 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
   if (!signal || !signal.symbol) {
     return (
       <div
-        className="flex-shrink-0 h-full bg-[#0D1117] border-l border-[#21262D] flex flex-col"
-        style={{ width: `${PANEL_WIDTH}px` }}
+        className="flex-shrink-0 h-full bg-[#0D1117] border-l border-[#21262D] flex flex-col relative"
+        style={{ width: `${panelWidth}px` }}
       >
+        {/* Drag handle */}
+        <div
+          onMouseDown={onDragStart}
+          className="absolute left-0 top-0 h-full w-[4px] cursor-col-resize hover:bg-[#388BFD]/30 transition-colors z-10"
+          title="Drag to resize"
+        />
         <div className="shrink-0 px-3 py-2.5 bg-[#161B22] border-b border-[#21262D]">
           <span className="text-[10px] font-mono font-semibold tracking-widest text-[#8B949E] uppercase">
             Signal Insight
@@ -279,12 +305,13 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
       : signalSpread;
 
   // P&L
-  const tradeSize  = Math.min(userTradeSize, signal.maxTradeableUsd ?? userTradeSize);
-  const grossProfit = tradeSize * (signalSpread / 100);
-  const fees        = tradeSize * 0.002;
-  const slippage    = grossProfit * 0.05;
-  const netProfit   = grossProfit - fees - slippage;
-  const netRoi      = (netProfit / tradeSize) * 100;
+  const effectiveMax = (signal.maxTradeableUsd ?? 0) > 0 ? signal.maxTradeableUsd! : userTradeSize;
+  const tradeSize    = Math.min(userTradeSize, effectiveMax);
+  const grossProfit  = tradeSize * (signalSpread / 100);
+  const fees         = tradeSize * 0.002;
+  const slippage     = grossProfit * 0.05;
+  const netProfit    = grossProfit - fees - slippage;
+  const netRoi       = tradeSize > 0 ? (netProfit / tradeSize) * 100 : 0;
 
   // Order book — 3 asks sorted DESC (best ask = lowest = last row before divider)
   //              3 bids sorted DESC (best bid = highest = first row after divider)
@@ -301,9 +328,15 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
 
   return (
     <div
-      className="flex-shrink-0 h-full flex flex-col bg-[#0D1117] border-l border-[#21262D] overflow-hidden"
-      style={{ width: `${PANEL_WIDTH}px`, fontFamily: "'Geist Mono', 'Fira Code', 'Cascadia Code', monospace" }}
+      className="flex-shrink-0 h-full flex flex-col bg-[#0D1117] border-l border-[#21262D] overflow-hidden relative"
+      style={{ width: `${panelWidth}px`, fontFamily: "'Geist Mono', 'Fira Code', 'Cascadia Code', monospace" }}
     >
+      {/* Drag handle */}
+      <div
+        onMouseDown={onDragStart}
+        className="absolute left-0 top-0 h-full w-[4px] cursor-col-resize hover:bg-[#388BFD]/30 transition-colors z-10"
+        title="Drag to resize"
+      />
       {/* ═══════════════════════════════════════════════════════════════════
           HEADER  ~56 px
       ════════════════════════════════════════════════════════════════════ */}
@@ -414,9 +447,9 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          ORDER BOOK  flex-1 (fills remaining height)
+          ORDER BOOK  capped height, scrollable
       ════════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-h-0 flex flex-col bg-[#161B22] border-b border-[#21262D] overflow-hidden">
+      <div className="shrink-0 flex flex-col bg-[#161B22] border-b border-[#21262D] overflow-y-auto" style={{ maxHeight: "220px" }}>
 
         {/* Asks label */}
         <div className="shrink-0 flex items-center px-3 py-1">
@@ -509,14 +542,13 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
           <div className="flex-1 h-px bg-[#3FB950]/20" />
         </div>
 
-        {/* Spacer so order book fills its flex-1 area */}
-        <div className="flex-1" />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          P&L CALCULATOR  ~100 px
+          P&L CALCULATOR
       ════════════════════════════════════════════════════════════════════ */}
-      <div className="shrink-0 px-3 py-2 bg-[#0D1117] border-b border-[#21262D]">
+      <div className="shrink-0 px-3 py-2.5 bg-[#161B22] border-b border-[#21262D]">
+        <div className="text-[9px] font-mono text-[#484F58] tracking-widest uppercase mb-1.5">P&amp;L Estimate</div>
         <div className="flex justify-between items-center text-[10px] font-mono py-[2px]">
           <span className="text-[#8B949E]">Trade size</span>
           <span className="text-[#E6EDF3] tabular-nums">${tradeSize.toLocaleString()}</span>
@@ -547,7 +579,7 @@ export default function SignalInsightPanel({ signal, onClose }: Props) {
               className="text-[10px] tabular-nums"
               style={{ color: netRoi >= 0 ? "#3FB950" : "#F85149" }}
             >
-              {netRoi >= 0 ? "+" : ""}{netRoi.toFixed(3)}%
+              {isNaN(netRoi) ? "0.000" : (netRoi >= 0 ? "+" : "") + netRoi.toFixed(3)}%
             </span>
           </span>
         </div>
