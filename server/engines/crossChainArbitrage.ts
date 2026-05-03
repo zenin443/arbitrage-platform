@@ -25,13 +25,31 @@ export interface CrossChainOpportunity {
   estimatedBridgeCostPercent: number
   netProfitPercent: number
   estimatedProfit1k: number
+  /** Minimum trade size (USD) at which bridge cost stays under 20% of gross profit */
+  minViableTradeUsd: number
   liquidityUsd: number
   confidence: 'high' | 'medium' | 'low'
   detectedAt: number
 }
 
-// ── Bridge cost estimates (USD) ───────────────────────────────────────────────
-// Conservative estimates for round-trip bridge + gas
+// ── Per-chain withdrawal/bridge fee reference (USD) ───────────────────────────
+// One-way fee for withdrawing from a chain to any bridge-connected destination.
+// Used as a fallback when the per-pair matrix has no entry.
+
+const BRIDGE_FEES_USD: Record<string, number> = {
+  ethereum:  12,    // ETH mainnet withdrawal ~$12
+  bsc:        0.5,  // BSC withdrawal ~$0.50
+  polygon:    0.1,  // Polygon withdrawal ~$0.10
+  arbitrum:   1.5,  // Arbitrum withdrawal ~$1.50
+  optimism:   1.5,  // Optimism withdrawal ~$1.50
+  solana:     0.01, // Solana withdrawal ~$0.01
+  avalanche:  0.5,  // AVAX withdrawal ~$0.50
+  default:    3,    // Unknown chain fallback
+}
+
+// ── Per-pair round-trip bridge cost matrix (USD) ──────────────────────────────
+// Conservative estimates for a complete buy-on-source → bridge → sell-on-dest
+// round trip including gas on both chains.  Takes precedence over BRIDGE_FEES_USD.
 
 const BRIDGE_COSTS_USD: Record<string, Record<string, number>> = {
   ethereum: {
@@ -93,11 +111,30 @@ const BRIDGE_COSTS_USD: Record<string, Record<string, number>> = {
 }
 
 function getBridgeCost(fromChain: string, toChain: string): number {
-  return BRIDGE_COSTS_USD[fromChain]?.[toChain] ?? 20 // default $20 if unknown
+  const pairCost = BRIDGE_COSTS_USD[fromChain]?.[toChain]
+  if (pairCost !== undefined) return pairCost
+
+  // Fall back to summing per-chain withdrawal fees for unknown pairs
+  const fromFee = BRIDGE_FEES_USD[fromChain] ?? BRIDGE_FEES_USD['default']!
+  const toFee   = BRIDGE_FEES_USD[toChain]   ?? BRIDGE_FEES_USD['default']!
+  return fromFee + toFee
 }
 
-const MAX_OPPORTUNITIES = 100
-const MAX_PRICE_DIFF_PERCENT = 5.0 // reject bad exchange data above this threshold
+/**
+ * Minimum trade size (USD) at which the bridge cost is ≤ MAX_BRIDGE_COST_RATIO
+ * of the gross profit.  Surfaced to callers so they can right-size positions.
+ */
+function minViableTrade(bridgeCostUsd: number, priceDiffPercent: number): number {
+  if (priceDiffPercent <= 0) return Infinity
+  // bridgeCostUsd ≤ MAX_BRIDGE_COST_RATIO * tradeSize * (priceDiffPercent / 100)
+  // → tradeSize ≥ bridgeCostUsd / (MAX_BRIDGE_COST_RATIO * priceDiffPercent / 100)
+  return bridgeCostUsd / (MAX_BRIDGE_COST_RATIO * (priceDiffPercent / 100))
+}
+
+const MAX_OPPORTUNITIES      = 100
+const MAX_PRICE_DIFF_PERCENT = 5.0  // reject bad exchange data above this threshold
+const MIN_NET_SPREAD_PERCENT = 0.5  // suppress signals where bridge fee eats net profit
+const MAX_BRIDGE_COST_RATIO  = 0.20 // suppress when bridge cost > 20% of gross profit
 
 // ── Calculation ───────────────────────────────────────────────────────────────
 
@@ -146,12 +183,22 @@ function computeCrossChainOpportunities(): CrossChainOpportunity[] {
 
         const netProfitPercent = priceDiffPercent - bridgeCostPercent
 
+        // Suppress if net spread (after bridge fees) is below the minimum threshold.
+        // Previously the guard used the gross spread — that allowed signals where
+        // bridge cost consumed the entire profit (e.g. 0.6% gross - 0.8% bridge = -0.2% net).
+        if (netProfitPercent < MIN_NET_SPREAD_PERCENT) continue
+
+        // Suppress if the bridge fee eats more than MAX_BRIDGE_COST_RATIO of gross profit.
+        // At $1K default trade size, gross profit = tradeSizeUsd * priceDiffPercent / 100.
+        const grossProfitUsd = tradeSizeUsd * (priceDiffPercent / 100)
+        if (grossProfitUsd <= 0 || bridgeCostUsd / grossProfitUsd > MAX_BRIDGE_COST_RATIO) continue
+
         const liquidityUsd = Math.min(buy.liquidity ?? 0, sell.liquidity ?? 0)
 
-        // Only report if gross diff > 0.5% (to filter pure noise)
-        if (priceDiffPercent < 0.5) continue
-
         const estimatedProfit1k = 1000 * (netProfitPercent / 100)
+
+        // Minimum trade size at which bridge cost stays within MAX_BRIDGE_COST_RATIO
+        const minViableTradeUsd = parseFloat(minViableTrade(bridgeCostUsd, priceDiffPercent).toFixed(2))
 
         let confidence: 'high' | 'medium' | 'low' = 'low'
         if (netProfitPercent > 1.0 && liquidityUsd > 10_000) confidence = 'high'
@@ -171,6 +218,7 @@ function computeCrossChainOpportunities(): CrossChainOpportunity[] {
           estimatedBridgeCostPercent: parseFloat(bridgeCostPercent.toFixed(4)),
           netProfitPercent: parseFloat(netProfitPercent.toFixed(4)),
           estimatedProfit1k: parseFloat(estimatedProfit1k.toFixed(2)),
+          minViableTradeUsd,
           liquidityUsd,
           confidence,
           detectedAt: now,
