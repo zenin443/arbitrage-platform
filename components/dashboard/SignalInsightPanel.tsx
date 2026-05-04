@@ -109,6 +109,187 @@ function generateOrderLevels(basePrice: number, side: "buy" | "sell", maxVol: nu
   });
 }
 
+// ── Execution Guide ───────────────────────────────────────────────────────────
+
+interface ExecStep {
+  label: string;
+  detail: string;
+  status?: "ok" | "warn" | "blocked" | "info";
+}
+
+function buildSteps(signal: GapRecord, routeStatus: { status: string; reason?: string }, userTradeSize: number): ExecStep[] {
+  const buy  = exchangeLabel(signal.buyExchange);
+  const sell = exchangeLabel(signal.sellExchange);
+  const sym  = signal.symbol ?? "";
+  const coin = sym.split("/")[0] ?? sym;
+  const quote = sym.split("/")[1] ?? "USDT";
+  const net  = signal.bestNetwork ?? "";
+  const size = `$${userTradeSize.toLocaleString()} ${quote}`;
+
+  const railStep = (): ExecStep => {
+    if (routeStatus.status === "ok") {
+      return {
+        label: `Transfer via ${net || "best network"}`,
+        detail: `Withdraw ${coin} from ${buy} → deposit to ${sell}${net ? ` via ${net}` : ""}`,
+        status: "ok",
+      };
+    }
+    if (routeStatus.status === "blocked") {
+      return {
+        label: "Transfer route BLOCKED",
+        detail: routeStatus.reason ?? `Withdrawal or deposit suspended — do not execute`,
+        status: "blocked",
+      };
+    }
+    return {
+      label: `Transfer via ${net || "network"}`,
+      detail: `Verify withdrawal on ${buy} and deposit on ${sell} before executing`,
+      status: "warn",
+    };
+  };
+
+  const type = signal.type ?? "cex_cex";
+
+  if (type === "spot_futures") {
+    return [
+      { label: "Fund both venues", detail: `Ensure ${size} on ${buy} (spot) and collateral on ${sell} (futures)`, status: "info" },
+      { label: "Buy spot", detail: `Market buy ${sym} on ${buy} @ ~$${formatPx(signal.buyPrice)}`, status: "ok" },
+      { label: "Short futures", detail: `Open short perp position on ${sell} @ ~$${formatPx(signal.sellPrice)}`, status: "ok" },
+      { label: "Collect funding", detail: `Hold both legs — collect positive funding rate every 8h`, status: "info" },
+      { label: "Close positions", detail: `Close spot + futures simultaneously when basis converges`, status: "info" },
+    ];
+  }
+
+  if (type === "triangular") {
+    return [
+      { label: "Fund exchange", detail: `Ensure ${size} USDT available on ${buy}`, status: "info" },
+      { label: "Leg 1 — Entry", detail: `Buy ${coin} with ${quote} on ${buy} @ ~$${formatPx(signal.buyPrice)}`, status: "ok" },
+      { label: "Leg 2 — Cross", detail: `Swap ${coin} for intermediate asset on ${buy}`, status: "ok" },
+      { label: "Leg 3 — Exit", detail: `Sell back to ${quote} on ${buy} @ ~$${formatPx(signal.sellPrice)}`, status: "ok" },
+      { label: "Profit", detail: `Net arb profit credited to ${quote} balance on ${buy}`, status: "ok" },
+    ];
+  }
+
+  if (type === "stablecoin") {
+    return [
+      { label: "Fund buy exchange", detail: `Ensure ${size} available on ${buy}`, status: "info" },
+      { label: "Buy cheaper stable", detail: `Market buy ${coin} on ${buy} @ $${formatPx(signal.buyPrice)}`, status: "ok" },
+      { label: "Transfer", detail: `Move ${coin} from ${buy} to ${sell} — stablecoin transfers are fast`, status: routeStatus.status === "blocked" ? "blocked" : "ok" },
+      { label: "Sell at premium", detail: `Market sell ${coin} on ${sell} @ $${formatPx(signal.sellPrice)}`, status: "ok" },
+    ];
+  }
+
+  if (type === "cross_chain") {
+    return [
+      { label: "Fund source chain", detail: `Ensure ${size} on ${buy}`, status: "info" },
+      { label: "Buy on source", detail: `Buy ${coin} on ${buy} @ ~$${formatPx(signal.buyPrice)}`, status: "ok" },
+      { label: "Bridge asset", detail: `Bridge ${coin} from source → destination chain via CCTP or Wormhole`, status: routeStatus.status === "blocked" ? "blocked" : "warn" },
+      { label: "Sell on destination", detail: `Sell ${coin} on ${sell} @ ~$${formatPx(signal.sellPrice)}`, status: "ok" },
+    ];
+  }
+
+  if (type === "pairs_trading") {
+    return [
+      { label: "Fund exchange", detail: `Ensure ${size} available on ${buy}`, status: "info" },
+      { label: "Long underperformer", detail: `Buy ${coin} on ${buy} @ ~$${formatPx(signal.buyPrice)}`, status: "ok" },
+      { label: "Short outperformer", detail: `Short the correlated asset on ${sell} simultaneously`, status: "ok" },
+      { label: "Monitor z-score", detail: `Close both legs when spread mean-reverts to zero`, status: "info" },
+    ];
+  }
+
+  // Default: cex_cex
+  return [
+    { label: "Fund both exchanges", detail: `Ensure ${size} on both ${buy} and ${sell}`, status: "info" },
+    { label: "Place buy order", detail: `Market buy ${sym} on ${buy} @ ~$${formatPx(signal.buyPrice)}`, status: "ok" },
+    { label: "Place sell order", detail: `Simultaneously market sell ${sym} on ${sell} @ ~$${formatPx(signal.sellPrice)}`, status: "ok" },
+    railStep(),
+    { label: "Replenish balance", detail: `Transfer ${quote} back to ${buy} to reset for next cycle`, status: "info" },
+  ];
+}
+
+function ExecutionGuide({
+  signal,
+  routeStatus,
+  userTradeSize,
+}: {
+  signal: GapRecord;
+  routeStatus: { status: string; reason?: string };
+  userTradeSize: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const steps = buildSteps(signal, routeStatus, userTradeSize);
+  const hasBlock = steps.some(s => s.status === "blocked");
+
+  return (
+    <div className="shrink-0 border-b border-[#21262D]">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2 bg-[#0D1117] hover:bg-[#161B22] transition-colors group"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-mono font-semibold tracking-widest text-[#8B949E] group-hover:text-[#E6EDF3] transition-colors uppercase">
+            How to Execute
+          </span>
+          {hasBlock && (
+            <span className="text-[9px] font-mono text-[#F85149] bg-[#F85149]/10 border border-[#F85149]/30 rounded px-1">
+              ⚠ BLOCKED
+            </span>
+          )}
+        </div>
+        <span className="text-[#484F58] text-[10px] font-mono transition-transform duration-200" style={{ display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>
+          ▾
+        </span>
+      </button>
+
+      {/* Steps */}
+      {open && (
+        <div className="px-3 pb-3 pt-1 bg-[#0D1117]">
+          {steps.map((step, i) => (
+            <div key={i} className="flex gap-2.5 mb-2 last:mb-0">
+              {/* Step number + line */}
+              <div className="flex flex-col items-center shrink-0">
+                <div className={`w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-mono font-bold shrink-0 ${
+                  step.status === "blocked" ? "bg-[#F85149]/15 text-[#F85149] border border-[#F85149]/30" :
+                  step.status === "warn"    ? "bg-[#D29922]/15 text-[#D29922] border border-[#D29922]/30" :
+                  step.status === "ok"      ? "bg-[#3FB950]/15 text-[#3FB950] border border-[#3FB950]/30" :
+                                              "bg-[#388BFD]/15 text-[#388BFD] border border-[#388BFD]/30"
+                }`}>
+                  {i + 1}
+                </div>
+                {i < steps.length - 1 && (
+                  <div className="w-px flex-1 bg-[#21262D] mt-1 min-h-[10px]" />
+                )}
+              </div>
+              {/* Step content */}
+              <div className="flex-1 min-w-0 pb-1">
+                <div className={`text-[10px] font-mono font-semibold leading-tight mb-[2px] ${
+                  step.status === "blocked" ? "text-[#F85149]" :
+                  step.status === "warn"    ? "text-[#D29922]" :
+                  step.status === "ok"      ? "text-[#E6EDF3]" :
+                                              "text-[#8B949E]"
+                }`}>
+                  {step.label}
+                </div>
+                <div className="text-[10px] font-mono text-[#484F58] leading-snug">
+                  {step.detail}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Bottom warning */}
+          <div className="mt-2 pt-2 border-t border-[#21262D] text-[9px] font-mono text-[#484F58] leading-snug">
+            {hasBlock
+              ? "⛔ Route blocked — do not execute until rails are confirmed open."
+              : "⚡ Execute buy + sell legs simultaneously to lock in the spread."}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function ConfidenceBadge({ confidence }: { confidence?: "high" | "medium" | "low" }) {
@@ -598,9 +779,14 @@ export default function SignalInsightPanel({ signal, onClose, isGhost, ghostClos
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
+          EXECUTION GUIDE
+      ════════════════════════════════════════════════════════════════════ */}
+      <ExecutionGuide signal={signal} routeStatus={routeStatus} userTradeSize={userTradeSize} />
+
+      {/* ═══════════════════════════════════════════════════════════════════
           AD ZONE  flex-1, reserved for future placement
       ════════════════════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-h-[80px] bg-[#0D1117] mx-3 mb-3 mt-2 border border-dashed border-[#21262D]/40 rounded" />
+      <div className="flex-1 min-h-[60px] bg-[#0D1117] mx-3 mb-3 mt-2 border border-dashed border-[#21262D]/40 rounded" />
     </div>
   );
 }

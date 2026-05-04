@@ -68,6 +68,9 @@ function normalizeCexCex(raw: Record<string, unknown>): RawGap {
     durationMs:      n(raw.durationMs),
     isActive:        b(raw.isActive ?? true),
     quote_currency:  s(raw.quote_currency) || deriveQuote(symbol),
+    confidence:      (raw.confidence === 'high' || raw.confidence === 'medium' || raw.confidence === 'low')
+                       ? raw.confidence as 'high' | 'medium' | 'low'
+                       : undefined,
   };
 }
 
@@ -175,7 +178,7 @@ function normalizeTriangular(raw: Record<string, unknown>): RawGap {
     sellExchange:    s(raw.exchange),
     buyPrice:        n(prices['step1']),
     sellPrice:       n(prices['step3']),
-    maxTradeableUsd: n(raw.estimatedProfit1k) > 0 ? n(raw.estimatedProfit1k) * 1000 : 0,
+    maxTradeableUsd: n(raw.netProfitPercent) > 0 ? 10_000 : 0,
     detectedAt:      n(raw.detectedAt),
     lastSeenAt:      s(raw.detectedAt),
     durationMs:      0,
@@ -275,7 +278,7 @@ function normalizePairsSignal(raw: Record<string, unknown>): RawGap {
     sellExchange:    s(raw.exchange),
     buyPrice:        n(raw.priceB),
     sellPrice:       n(raw.priceA),
-    maxTradeableUsd: n(raw.estimatedProfit1k) > 0 ? n(raw.estimatedProfit1k) * 1000 : 0,
+    maxTradeableUsd: n(raw.netProfitPercent ?? raw.spreadPercent) > 0 ? 10_000 : 0,
     detectedAt:      n(raw.detectedAt),
     lastSeenAt:      s(raw.detectedAt),
     durationMs:      0,

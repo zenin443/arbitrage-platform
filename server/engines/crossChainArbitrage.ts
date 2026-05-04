@@ -148,7 +148,7 @@ function computeCrossChainOpportunities(): CrossChainOpportunity[] {
   // Group by symbol
   const bySymbol = new Map<string, typeof allPrices>()
   for (const p of allPrices) {
-    if (p.timestamp > 0 && p.timestamp < stale) continue // stale
+    if (p.timestamp === 0 || p.timestamp < stale) continue // stale or uninitialized
     if (p.price <= 0) continue
     const arr = bySymbol.get(p.symbol) ?? []
     arr.push(p)
@@ -205,7 +205,7 @@ function computeCrossChainOpportunities(): CrossChainOpportunity[] {
         else if (netProfitPercent > 0.3 && liquidityUsd > 1_000) confidence = 'medium'
 
         opportunities.push({
-          id: `xchain-${buy.chain}-${sell.chain}-${symbol}-${now}`,
+          id: `xchain-${buy.chain}-${sell.chain}-${symbol}`,
           symbol,
           buyChain: buy.chain,
           buyDex: buy.dexId,

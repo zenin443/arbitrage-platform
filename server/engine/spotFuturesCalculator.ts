@@ -2,6 +2,10 @@ import { tickStore } from './tickStore'
 import { futuresTickStore } from './futuresTickStore'
 import { SpotFuturesOpportunity } from '../adapters/futures/baseFutures'
 
+const SPOT_MAX_AGE_MS    = 15_000  // spot ticks older than 15s are stale
+const FUTURES_MAX_AGE_MS = 30_000  // futures marks older than 30s are stale
+const ROUND_TRIP_FEE_PERCENT = 0.2  // 0.10% taker × 2 legs, paid once per trade
+
 // Normalized symbols matched across spot and futures stores
 const TRACKED_FUTURES_SYMBOLS = [
   // Tier 1 & 2
@@ -43,17 +47,25 @@ export function calculateSpotFuturesOpportunities(): SpotFuturesOpportunity[] {
     if (!spotTicks.length || !futuresTicks.length) continue
 
     for (const spotTick of spotTicks) {
-      // Use mid-price for spot
+      // Guard: reject stale spot ticks
+      if ((spotTick.timestamp ?? 0) < Date.now() - SPOT_MAX_AGE_MS) continue
       const spotPrice = (spotTick.bid + spotTick.ask) / 2
       if (!spotPrice || isNaN(spotPrice)) continue
 
       for (const futuresTick of futuresTicks) {
+        // Guard: reject stale futures marks
+        if ((futuresTick.timestamp ?? 0) < Date.now() - FUTURES_MAX_AGE_MS) continue
         const futuresPrice = futuresTick.markPrice
         if (!futuresPrice || isNaN(futuresPrice)) continue
 
         const priceDiff = futuresPrice - spotPrice
         const priceDiffPercent = (priceDiff / spotPrice) * 100
         if (Math.abs(priceDiffPercent) > MAX_PRICE_DIFF_PERCENT) continue
+
+        // Subtract round-trip taker fees from the raw basis before annualizing
+        const priceDiffNet = Math.abs(priceDiffPercent) - ROUND_TRIP_FEE_PERCENT
+        if (priceDiffNet <= 0) continue  // fees exceed basis — not profitable
+
         const fundingRate = futuresTick.fundingRate
         const fundingRateAnnualized = fundingRate * 3 * 365 * 100
 
@@ -63,12 +75,12 @@ export function calculateSpotFuturesOpportunities(): SpotFuturesOpportunity[] {
         if (futuresPrice >= spotPrice) {
           // Contango: buy spot, short futures; collect positive funding if rate > 0
           strategy = 'long_spot_short_futures'
-          const priceDiffAnnualized = annualizePercent(Math.abs(priceDiffPercent))
+          const priceDiffAnnualized = annualizePercent(priceDiffNet)
           combinedYieldAnnualized = priceDiffAnnualized + fundingRateAnnualized
         } else {
           // Backwardation: short spot, long futures; net of funding cost
           strategy = 'short_spot_long_futures'
-          const priceDiffAnnualized = annualizePercent(Math.abs(priceDiffPercent))
+          const priceDiffAnnualized = annualizePercent(priceDiffNet)
           combinedYieldAnnualized = priceDiffAnnualized - fundingRateAnnualized
         }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ZapIcon, SettingsIcon, ShieldCheck } from 'lucide-react';
+import { ZapIcon, SettingsIcon, ShieldCheck, SlidersHorizontalIcon } from 'lucide-react';
 import NavAuthButton from '@/components/NavAuthButton';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -17,6 +17,7 @@ interface AppHeaderProps {
   showDelayedBadge?: boolean;
   /** Optional extra element between LIVE dot and nav links (e.g. clock, bot count) */
   statusSlot?: React.ReactNode;
+  onOpenConfigurator?: () => void;
 }
 
 export default function AppHeader({
@@ -24,9 +25,10 @@ export default function AppHeader({
   connectionStatus,
   showDelayedBadge = false,
   statusSlot,
+  onOpenConfigurator,
 }: AppHeaderProps) {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin' || process.env.NEXT_PUBLIC_DEV_AUDIT_MODE === 'true';
+  const isAdmin = !!user && (user.role === 'admin' || process.env.NEXT_PUBLIC_DEV_AUDIT_MODE === 'true');
 
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-3 bg-[#161B22] border-b border-[#21262D] shrink-0">
@@ -81,6 +83,13 @@ export default function AppHeader({
             Admin
           </Link>
         )}
+        <button
+          onClick={() => onOpenConfigurator?.()}
+          className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#388BFD] transition-colors"
+          title="Terminal Configurator"
+        >
+          <SlidersHorizontalIcon className="h-3.5 w-3.5" />
+        </button>
         <Link href="/settings" className="px-2 py-0.5 rounded text-[#8B949E] hover:text-[#E6EDF3] transition-colors" title="Settings">
           <SettingsIcon className="h-3.5 w-3.5" />
         </Link>

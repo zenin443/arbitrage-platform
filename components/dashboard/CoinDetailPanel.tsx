@@ -272,8 +272,8 @@ export default function CoinDetailPanel({ symbol, onSelectSignal, signalCoins }:
 
         <div className="border-t border-[#21262D] mx-3" />
 
-        {/* Active gaps */}
-        <div className="px-3 pt-3 pb-2 flex-1">
+        {/* Active gaps — capped at 4 visible, rest scrollable */}
+        <div className="px-3 pt-3 pb-2 shrink-0">
           <div className="text-[11px] font-sans text-[#8B949E] mb-2">
             Active gaps ({gaps.length})
           </div>
@@ -283,38 +283,43 @@ export default function CoinDetailPanel({ symbol, onSelectSignal, signalCoins }:
               No active gaps for {coinName}
             </div>
           ) : (
-            gaps.map((gap, i) => (
-              <div
-                key={gap.id ?? i}
-                onClick={() => onSelectSignal(gap)}
-                className="bg-[#0D1117] border border-[#21262D] rounded p-2 mb-1.5 cursor-pointer hover:border-[#388BFD]/50 transition-colors"
-              >
-                <div className="flex justify-between text-[10px] font-mono">
-                  <span className="text-[#E6EDF3]">
-                    <span className="text-[#388BFD]">{shortEx(gap.buyExchange)}</span>
-                    {" → "}
-                    <span className="text-[#F85149]">{shortEx(gap.sellExchange)}</span>
-                  </span>
-                  <span className="text-[#3FB950]">
+            <div className="cdp-scroll overflow-y-auto" style={{ maxHeight: "248px" }}>
+              {gaps.map((gap, i) => (
+                <div
+                  key={gap.id ?? i}
+                  onClick={() => onSelectSignal(gap)}
+                  className="bg-[#0D1117] border border-[#21262D] rounded p-2 mb-1.5 cursor-pointer hover:border-[#388BFD]/50 transition-colors"
+                >
+                  <div className="flex justify-between text-[10px] font-mono">
+                    <span className="text-[#E6EDF3]">
+                      <span className="text-[#388BFD]">{shortEx(gap.buyExchange)}</span>
+                      {" → "}
+                      <span className="text-[#F85149]">{shortEx(gap.sellExchange)}</span>
+                    </span>
+                    <span className="text-[#3FB950]">
+                      {gap._isFreeTier
+                        ? (gap.spreadPercent > 0 ? `~${gap.spreadPercent.toFixed(3)}` : '—')
+                        : (gap.spreadPercent?.toFixed(3) ?? '—')}%
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-[#8B949E] font-sans mt-0.5">
+                    {gap.type || '—'} ·{" "}
                     {gap._isFreeTier
-                      ? (gap.spreadPercent > 0 ? `~${gap.spreadPercent.toFixed(3)}` : '—')
-                      : (gap.spreadPercent?.toFixed(3) ?? '—')}%
-                  </span>
+                      ? <span title="Upgrade for profit data">$— est. profit</span>
+                      : `$${((gap.maxTradeableUsd * gap.spreadPercent) / 100).toFixed(2)}`}{" "}
+                    ·{" "}
+                    {gap._isFreeTier || !gap.detectedAt
+                      ? '—'
+                      : timeAgoShort(gap.detectedAt)}
+                  </div>
                 </div>
-                <div className="text-[11px] text-[#8B949E] font-sans mt-0.5">
-                  {gap.type || '—'} ·{" "}
-                  {gap._isFreeTier
-                    ? <span title="Upgrade for profit data">$— est. profit</span>
-                    : `$${((gap.maxTradeableUsd * gap.spreadPercent) / 100).toFixed(2)}`}{" "}
-                  ·{" "}
-                  {gap._isFreeTier || !gap.detectedAt
-                    ? '—'
-                    : timeAgoShort(gap.detectedAt)}
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
+
+        {/* Ad zone — reserved space below gaps */}
+        <div className="flex-1 min-h-[60px] mx-3 mb-3 mt-1 border border-dashed border-[#21262D]/40 rounded bg-[#0D1117]" />
 
       </div>
     </>

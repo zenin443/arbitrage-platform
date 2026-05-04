@@ -27,7 +27,7 @@ export interface ArbitrageOpportunity {
 }
 
 const TRADE_SIZE_USD = 1000
-const MIN_NET_SPREAD_PCT = 0.05
+const MIN_NET_SPREAD_PCT = 0.15  // raised from 0.05 — filters sub-threshold noise
 // Spreads above this threshold are data errors, not real opportunities
 const MAX_REASONABLE_SPREAD = 5.0
 
@@ -122,7 +122,7 @@ export function calculateSpread(
   if (grossSpread <= 0) return null
   if (grossSpread > MAX_REASONABLE_SPREAD) return null
 
-  // Reject if prices differ by more than 10x (data corruption, not arbitrage)
+  // Reject if prices differ by more than 10% (data corruption / tick skew)
   const priceRatio = Math.max(buyTick.ask, sellTick.bid) / Math.min(buyTick.ask, sellTick.bid)
   if (priceRatio > 1.1) return null
 
@@ -207,7 +207,7 @@ export function calculateSpread(
   if (routeStatus === 'blocked') return null
 
   return {
-    id: `${buyTick.exchangeId}-${sellTick.exchangeId}-${buyTick.symbol}-${Date.now()}`,
+    id: `${buyTick.exchangeId}-${sellTick.exchangeId}-${buyTick.symbol}`,
     symbol: buyTick.symbol,
     buyExchange: buyTick.exchangeId,
     sellExchange: sellTick.exchangeId,

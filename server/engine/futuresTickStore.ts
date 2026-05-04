@@ -3,6 +3,10 @@ import { FuturesTick } from '../adapters/futures/baseFutures'
 export class FuturesTickStore {
   private store = new Map<string, FuturesTick>()
 
+  constructor() {
+    setInterval(() => this.pruneStale(60_000), 30_000)
+  }
+
   private key(exchangeId: string, symbol: string): string {
     return `${exchangeId}:${symbol}`
   }
@@ -34,6 +38,18 @@ export class FuturesTickStore {
       bySymbol[tick.symbol] = (bySymbol[tick.symbol] ?? 0) + 1
     }
     return { total: this.store.size, byExchange, bySymbol }
+  }
+
+  pruneStale(maxAgeMs: number): number {
+    const cutoff = Date.now() - maxAgeMs
+    let removed = 0
+    for (const [key, tick] of this.store) {
+      if ((tick.timestamp ?? 0) < cutoff) {
+        this.store.delete(key)
+        removed++
+      }
+    }
+    return removed
   }
 }
 

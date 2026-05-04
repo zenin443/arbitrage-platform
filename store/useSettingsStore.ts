@@ -28,6 +28,7 @@ type QuietHours = {
 type SettingsState = {
   selectedExchanges: string[];
   selectedCoins: string[];
+  selectedTypes: string[];
   minNetSpread: number;
   alertFrequency: AlertFrequency;
   tradeSize: number;
@@ -36,11 +37,13 @@ type SettingsState = {
   opportunityTypes: OpportunityTypes;
   quietHours: QuietHours;
   showFilledSignals: boolean;
+  minTradeSize: number;
 
   setSelectedExchanges: (exchanges: string[]) => void;
   toggleExchange: (exchange: string) => boolean;
   setSelectedCoins: (coins: string[]) => void;
   toggleCoin: (coin: string) => void;
+  setSelectedTypes: (types: string[]) => void;
   setMinNetSpread: (value: number) => void;
   setAlertFrequency: (freq: AlertFrequency) => void;
   setTradeSize: (size: number) => void;
@@ -49,6 +52,7 @@ type SettingsState = {
   setOpportunityTypes: (types: Partial<OpportunityTypes>) => void;
   setQuietHours: (hours: Partial<QuietHours>) => void;
   setShowFilledSignals: (v: boolean) => void;
+  setMinTradeSize: (v: number) => void;
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -56,7 +60,8 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       selectedExchanges: [],
       selectedCoins: [],
-      minNetSpread: 0.05,
+      selectedTypes: [],
+      minNetSpread: 0.001,
       alertFrequency: "realtime",
       tradeSize: 1000,
       baseCurrency: "USDT",
@@ -70,6 +75,7 @@ export const useSettingsStore = create<SettingsState>()(
       },
       quietHours: { enabled: false, start: "23:00", end: "07:00" },
       showFilledSignals: false,
+      minTradeSize: 100,
 
       setSelectedExchanges: (selectedExchanges) => set({ selectedExchanges }),
 
@@ -99,6 +105,8 @@ export const useSettingsStore = create<SettingsState>()(
             : [...state.selectedCoins, coin],
         })),
 
+      setSelectedTypes: (selectedTypes) => set({ selectedTypes }),
+
       setMinNetSpread: (minNetSpread) =>
         set({ minNetSpread: parseFloat(minNetSpread.toFixed(8)) }),
 
@@ -125,20 +133,31 @@ export const useSettingsStore = create<SettingsState>()(
         })),
 
       setShowFilledSignals: (showFilledSignals) => set({ showFilledSignals }),
+
+      setMinTradeSize: (minTradeSize) => set({ minTradeSize }),
     }),
     {
       name: "arbitrage-settings",
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 6,
       migrate: (persisted: unknown, fromVersion: number) => {
         const state = persisted as Record<string, unknown>;
-        // v1→v2: reset exchange/coin filters to "show all" (empty = no filter)
         if (fromVersion < 2) {
           return { ...state, selectedExchanges: [], selectedCoins: [], showFilledSignals: false };
         }
-        // v2→v3: add showFilledSignals with default off
         if (fromVersion < 3) {
           return { ...state, showFilledSignals: false };
+        }
+        if (fromVersion < 4) {
+          return { ...state, selectedTypes: [] };
+        }
+        if (fromVersion < 5) {
+          // Reset minNetSpread — old sessions stored raw slider values (0–5) instead of
+          // the divided form (0–0.05), causing the filter to block all signals.
+          return { ...state, minNetSpread: 0.001 };
+        }
+        if (fromVersion < 6) {
+          return { ...state, minTradeSize: 100 };
         }
         return persisted as SettingsState;
       },

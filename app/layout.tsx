@@ -5,6 +5,8 @@ import localFont from "next/font/local";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import Footer from "@/components/Footer";
+import RiskBanner from "@/components/RiskBanner";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -50,6 +52,8 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${ibmPlexSans.variable} ${ibmPlexMono.variable} antialiased bg-[#0D1117] text-[#E6EDF3]`}
       >
         <Providers>{children}</Providers>
+        <Footer />
+        <RiskBanner />
       </body>
     </html>
   );

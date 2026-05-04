@@ -862,29 +862,12 @@ async function start(): Promise<void> {
   fundingRateTracker.registerAdapters(futuresAdapters)
   fundingRateTracker.start()
 
-  // 7. DEX adapters
-  console.log('[DEX] Starting 3 DEX adapters (non-blocking)')
-  const dexAdapters = [
-    new JupiterAdapter(),
-    new UniswapAdapter(),
-    new HyperliquidAdapter(),
-  ]
-
-  for (const adapter of dexAdapters) {
-    console.log(`[DEX] Launching ${adapter.dexId}...`)
-    const connectWithTimeout = Promise.race([
-      adapter.connect((price) => { dexTickStore.upsert(price) }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Connection timeout after 10s')), 10000)
-      ),
-    ])
-    connectWithTimeout
-      .then(() => console.log(`[DEX] ${adapter.dexId} connected`))
-      .catch((err: Error) => console.error(`[DEX] ${adapter.dexId} failed:`, err.message))
-  }
+  // 7. DEX adapters — DISABLED (WBTC wrapped-asset false signals; re-enable when on-chain data verified)
+  const dexAdapters: { dexId: string }[] = []
+  console.log('[DEX] All DEX adapters disabled — CEX-only mode')
 
   const totalExchanges = tier1.length + tier2.length + tier3.length
-  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot active (${tier1.length} tier1 WS + ${tier2.length} tier2 CCXT + ${tier3.length} tier3 native) + ${futuresAdapters.length} futures + ${dexAdapters.length} DEX exchanges [7 tier3 disabled: bad data]`)
+  console.log(`[PriceServer] Startup complete — ${totalExchanges} spot active (${tier1.length} tier1 WS + ${tier2.length} tier2 CCXT + ${tier3.length} tier3 native) + ${futuresAdapters.length} futures + 0 DEX [disabled]`)
 
   // 8. New listing scanner
   startNewListingScanner()

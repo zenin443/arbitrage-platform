@@ -1,5 +1,5 @@
 {
-  "minSpreadPercent": 0,
+  "minSpreadPercent": 0.2,
   "alertFrequency": "realtime",
   "enabledTypes": {
     "cexCex": true,

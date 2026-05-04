@@ -116,6 +116,44 @@ body {
   scrollbar-color: #30363D #0D1117;
 }
 
+/* ── Terminal Configurator — custom scrollbar ──────────────────────── */
+.tc-scroll::-webkit-scrollbar { width: 4px; }
+.tc-scroll::-webkit-scrollbar-track { background: #0D1117; }
+.tc-scroll::-webkit-scrollbar-thumb { background: #30363D; border-radius: 2px; }
+.tc-scroll::-webkit-scrollbar-thumb:hover { background: #484F58; }
+.tc-scroll { scrollbar-width: thin; scrollbar-color: #30363D #0D1117; }
+
+/* ── Terminal Configurator — range slider ──────────────────────────── */
+.tc-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: #21262D;
+  border-radius: 2px;
+  outline: none;
+}
+.tc-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #388BFD;
+  cursor: pointer;
+  border: 2px solid #0D1117;
+  box-shadow: 0 0 0 1px #388BFD;
+  transition: box-shadow 0.15s;
+}
+.tc-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 3px rgba(56,139,253,0.25); }
+.tc-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #388BFD;
+  cursor: pointer;
+  border: 2px solid #0D1117;
+}
+
 /* Magnus AI card animations */
 @keyframes scanLine {
   0% { transform: translateY(0); opacity: 1; }

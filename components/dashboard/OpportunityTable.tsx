@@ -84,7 +84,6 @@ const TYPE_FILTERS: Array<{ key: string | null; label: string }> = [
   { key: null,            label: 'All' },
   { key: 'cex_cex',       label: 'CEX-CEX' },
   { key: 'spot_futures',  label: 'Spot-F' },
-  { key: 'dex_cex',       label: 'DEX-CEX' },
   { key: 'triangular',    label: 'Tri' },
   { key: 'cross_chain',   label: 'X-Chain' },
   { key: 'stablecoin',    label: 'Stable' },
@@ -110,6 +109,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
   const [ghostCache, setGhostCache] = useState<Map<string, GhostGap>>(new Map());
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [colTip, setColTip] = useState<{ text: string; x: number; y: number; align: "left" | "right" } | null>(null);
   const [quoteFilter, setQuoteFilter] = useState<string | null>(null);
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceTier | null>(null);
   const [maxAgeMinutes, setMaxAgeMinutes] = useState<number>(0);
@@ -118,7 +118,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
 
   const selectedExchanges = useSettingsStore(s => s.selectedExchanges);
   const selectedCoins = useSettingsStore(s => s.selectedCoins);
+  const selectedTypes = useSettingsStore(s => s.selectedTypes);
   const minNetSpread = useSettingsStore(s => s.minNetSpread);
+  const minTradeSize = useSettingsStore(s => s.minTradeSize);
   const showFilledSignals = useSettingsStore(s => s.showFilledSignals);
   const setShowFilledSignals = useSettingsStore(s => s.setShowFilledSignals);
   const { getRouteStatus } = useNetworkStatus();
@@ -128,7 +130,9 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
       try {
         const res = await fetch("/api/signals/unified");
         const raw = await res.json();
-        const normalized = normalizeApiGapList(Array.isArray(raw) ? raw : []);
+        const allNormalized = normalizeApiGapList(Array.isArray(raw) ? raw : []);
+        // Strip DEX-CEX signals — DEX adapters are disabled, these are stale/false
+        const normalized = allNormalized.filter(g => g.type !== 'dex_cex');
 
         // Deduplicate by composite key — keep highest spread when duplicated
         const dedupMap = new Map<string, GapRecord>();
@@ -189,7 +193,7 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
 
   const now = Date.now();
 
-  // Base filter — everything except type filter applied
+  // Base filter — everything except the local type-pill filter applied
   // Used for badge counts so clicking a type shows exactly what the badge says
   const baseFiltered = gaps.filter(g => {
     const quoteOk      = quoteFilter === null || g.quoteCurrency === quoteFilter;
@@ -203,9 +207,12 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
     const baseCoin     = g.symbol?.split("/")[0] ?? "";
     const coinOk       = selectedCoins.length === 0 || selectedCoins.includes(baseCoin);
     const spreadOk     = !g._isFreeTier && g.netSpread != null
-                         ? g.netSpread >= minNetSpread
+                         ? g.netSpread >= minNetSpread * 100
                          : true;
-    return quoteOk && ageOk && confidenceOk && exchangeOk && coinOk && spreadOk;
+    // Store-level type filter (from Terminal Configurator) — additional layer on top of local pill
+    const typeOk       = selectedTypes.length === 0 || selectedTypes.includes(g.type ?? '');
+    const sizeOk       = g.maxTradeableUsd == null || g.maxTradeableUsd >= minTradeSize;
+    return quoteOk && ageOk && confidenceOk && exchangeOk && coinOk && spreadOk && typeOk && sizeOk;
   });
 
   // Final filtered — add type filter on top of base
@@ -421,16 +428,33 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
         <table className="min-w-[800px] w-full text-xs font-mono">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[#161B22] border-b border-[#21262D]" style={{ fontSize: 'var(--fs-xs, 11px)' }}>
-              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Symbol</th>
-              <th className="px-2 py-1.5 text-left font-medium text-[#8B949E] uppercase tracking-wider">Route</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Spread</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Net %</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Est. profit</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Liquidity</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Type</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Confidence</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Rails</th>
-              <th className="px-2 py-1.5 text-right font-medium text-[#8B949E] uppercase tracking-wider">Detected</th>
+              {([
+                { label: "Symbol",      align: "left",  tip: "Trading pair being monitored (e.g. BTC/USDT). Base coin / quote currency." },
+                { label: "Route",       align: "left",  tip: "BUY exchange → SELL exchange. Green = buy leg, orange = sell leg." },
+                { label: "Spread",      align: "right", tip: "Gross price difference between the two exchanges, before fees or slippage." },
+                { label: "Net %",       align: "right", tip: "Spread after deducting taker fees (~0.1% each leg) and estimated withdrawal fee. This is your actual edge." },
+                { label: "Est. Profit", align: "right", tip: "Net profit in USD at your configured trade size. Accounts for fees and slippage." },
+                { label: "Liquidity",   align: "right", tip: "Available order-book depth. Low liquidity = higher slippage risk on large orders." },
+                { label: "Type",        align: "right", tip: "Signal strategy: CEX-CEX (spot arb), Spot-F (spot vs futures), Tri (triangular), X-Chain (cross-chain), Stable (stablecoin), Pairs (stat arb)." },
+                { label: "Confidence",  align: "right", tip: "Signal quality score. High = strong spread + sustained duration + sufficient volume. Low = thin or volatile." },
+                { label: "Rails",       align: "right", tip: "Transfer route status between the two exchanges. OPEN = withdrawal/deposit confirmed active. BLOCKED = do not execute." },
+                { label: "Detected",    align: "right", tip: "Time since this arbitrage gap was first detected by the engine." },
+              ] as { label: string; align: "left" | "right"; tip: string }[]).map(({ label, align, tip }) => (
+                <th
+                  key={label}
+                  className={`px-2 py-1.5 font-medium text-[#8B949E] uppercase tracking-wider ${align === "right" ? "text-right" : "text-left"}`}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setColTip({ text: tip, x: align === "right" ? rect.right : rect.left, y: rect.bottom + 6, align });
+                  }}
+                  onMouseLeave={() => setColTip(null)}
+                >
+                  <span className="inline-flex items-center gap-0.5 cursor-default select-none">
+                    {label}
+                    <span className="text-[#484F58] text-[8px] ml-0.5">?</span>
+                  </span>
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -661,6 +685,19 @@ export default function OpportunityTable({ onSelectSignal, selectedSignalId, onD
           >
             Upgrade for full access →
           </a>
+        </div>
+      )}
+
+      {/* Column header tooltip — rendered at fixed position to escape overflow-auto clipping */}
+      {colTip && (
+        <div
+          className="pointer-events-none fixed z-[9999] w-[210px] bg-[#1C2128] border border-[#30363D] rounded shadow-xl px-2.5 py-2 text-[10px] font-mono text-[#C9D1D9] leading-snug"
+          style={{
+            top: colTip.y,
+            ...(colTip.align === "right" ? { right: window.innerWidth - colTip.x } : { left: colTip.x }),
+          }}
+        >
+          {colTip.text}
         </div>
       )}
     </div>

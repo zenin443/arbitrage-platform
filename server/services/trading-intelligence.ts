@@ -6,6 +6,7 @@ import { getTriangularRoutes } from '../engines/triangularArbitrage'
 import { getCrossChainOpportunities } from '../engines/crossChainArbitrage'
 import { getCachedDepthAnalysis, DepthAnalysis } from './orderbook-fetcher'
 import { scoredGap } from '../engine/signalScorer'
+import { applyQualityGate } from './signalQualityGate'
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ export interface TradingStats {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const MAX_GAP_HISTORY = 10_000      // increased from 5000 for better analytics
+const MAX_GAP_HISTORY = 2_000
 const EVAL_INTERVAL_MS = 2000
 const DEFAULT_TAKER_FEE = 0.001    // fallback only
 const MAX_PROFITABLE_CAP = 50_000
@@ -172,7 +173,7 @@ function enrichProfitSim(base: ProfitSim, depth: DepthAnalysis): ProfitSim {
     at5k: at5kPoint !== undefined ? parseFloat(at5kPoint.netProfit.toFixed(4)) : base.at5k,
     at10k: at10kPoint !== undefined ? parseFloat(at10kPoint.netProfit.toFixed(4)) : base.at10k,
     breakEvenSpread: base.breakEvenSpread,
-    isProfitable: depth.profitableSize > 0,
+    isProfitable: depth.profitCurve.some(p => p.netProfit > 0),
     maxProfitableSize: depth.profitableSize,
   }
 }
@@ -732,7 +733,9 @@ export function getProfitableGaps(): GapRecord[] {
       return b.spreadPercent - a.spreadPercent
     })
 
-  return sorted.map(gap => {
+  const gated = applyQualityGate(sorted)
+
+  return gated.map(gap => {
     try {
       const scored = scoredGap(gap, 1000)
       return {

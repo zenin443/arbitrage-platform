@@ -273,8 +273,30 @@ async function fetchOrderBook(exchange: string, symbol: string): Promise<OrderBo
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
 const CACHE_TTL_MS = 10_000
+const DEPTH_CACHE_TTL_MS = 30_000
+const MAX_OB_CACHE = 300
+const MAX_DEPTH_CACHE = 150
 const obCache = new Map<string, OrderBookSnapshot>()
-const depthCache = new Map<string, DepthAnalysis>()
+const depthCache = new Map<string, DepthAnalysis & { _cachedAt: number }>()
+
+// Evict expired + oversized cache entries every 15s
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, snap] of obCache) {
+    if (now - snap.timestamp > CACHE_TTL_MS * 3) obCache.delete(key)
+  }
+  if (obCache.size > MAX_OB_CACHE) {
+    const sorted = [...obCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp)
+    sorted.slice(0, obCache.size - MAX_OB_CACHE).forEach(([k]) => obCache.delete(k))
+  }
+  for (const [key, entry] of depthCache) {
+    if (now - entry._cachedAt > DEPTH_CACHE_TTL_MS) depthCache.delete(key)
+  }
+  if (depthCache.size > MAX_DEPTH_CACHE) {
+    const sorted = [...depthCache.entries()].sort((a, b) => a[1]._cachedAt - b[1]._cachedAt)
+    sorted.slice(0, depthCache.size - MAX_DEPTH_CACHE).forEach(([k]) => depthCache.delete(k))
+  }
+}, 15_000)
 
 function cacheKey(exchange: string, symbol: string): string {
   return `${exchange}-${symbol}`
@@ -532,7 +554,7 @@ export async function fetchAndAnalyzeDepth(gap: GapRecord): Promise<DepthAnalysi
   obCache.set(cacheKey(gap.sellExchange, gap.symbol), sellBook)
 
   const analysis = analyzeDepth(buyBook, sellBook)
-  depthCache.set(depthKey(gap.symbol, gap.buyExchange, gap.sellExchange), analysis)
+  depthCache.set(depthKey(gap.symbol, gap.buyExchange, gap.sellExchange), { ...analysis, _cachedAt: Date.now() })
   return analysis
 }
 
@@ -541,7 +563,15 @@ export function getCachedDepthAnalysis(
   buyEx: string,
   sellEx: string
 ): DepthAnalysis | null {
-  return depthCache.get(depthKey(symbol, buyEx, sellEx)) ?? null
+  const entry = depthCache.get(depthKey(symbol, buyEx, sellEx))
+  if (!entry) return null
+  if (Date.now() - entry._cachedAt > DEPTH_CACHE_TTL_MS) {
+    depthCache.delete(depthKey(symbol, buyEx, sellEx))
+    return null
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { _cachedAt, ...analysis } = entry
+  return analysis
 }
 
 // ── On-demand raw book fetch (used by /orderbook HTTP endpoint) ───────────────
@@ -637,7 +667,7 @@ async function runPollCycle(): Promise<void> {
     if (!needBuy && !needSell) {
       // Both cached — re-run analysis with cached books
       const analysis = analyzeDepth(buyHit!, sellHit!)
-      depthCache.set(depthKey(gap.symbol, gap.buyExchange, gap.sellExchange), analysis)
+      depthCache.set(depthKey(gap.symbol, gap.buyExchange, gap.sellExchange), { ...analysis, _cachedAt: Date.now() })
       continue
     }
 
@@ -663,7 +693,7 @@ async function runPollCycle(): Promise<void> {
     const freshSell = obCache.get(sellKey)
     if (freshBuy && freshSell && freshBuy.asks.length > 0 && freshSell.bids.length > 0) {
       const analysis = analyzeDepth(freshBuy, freshSell)
-      depthCache.set(depthKey(gap.symbol, gap.buyExchange, gap.sellExchange), analysis)
+      depthCache.set(depthKey(gap.symbol, gap.buyExchange, gap.sellExchange), { ...analysis, _cachedAt: Date.now() })
     }
   }
 }

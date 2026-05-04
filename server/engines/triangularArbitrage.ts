@@ -102,8 +102,8 @@ const CROSS_PAIRS = [
   { alt: 'LINK', intermediate: 'ETH' },
 ]
 
-// Expanded to 5 active exchanges
-const ACTIVE_EXCHANGES = ['binance', 'bybit', 'okx', 'kucoin', 'gateio']
+// kucoin and gateio excluded — no cross-pair REST fetchers implemented for these exchanges
+const ACTIVE_EXCHANGES = ['binance', 'bybit', 'okx']
 
 // Exchange-specific symbol formatting
 function formatSymbol(alt: string, intermediate: string, exchange: string): string {
@@ -251,7 +251,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
 
         if (netProfitPercent > MIN_NET_PROFIT_PERCENT && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
           routes.push({
-            id: `tri-${exchange}-fwd-${alt}-${now}`,
+            id: `tri-${exchange}-fwd-${alt}-${intermediate}`,
             exchange,
             path: `USDT → ${intermediate} → ${alt} → USDT`,
             baseSymbol: `${intermediate}/USDT`,
@@ -288,7 +288,7 @@ function computeTriangularRoutes(): TriangularRoute[] {
 
         if (netProfitPercent > MIN_NET_PROFIT_PERCENT && netProfitPercent <= MAX_NET_PROFIT_PERCENT) {
           routes.push({
-            id: `tri-${exchange}-rev-${alt}-${now}`,
+            id: `tri-${exchange}-rev-${alt}-${intermediate}`,
             exchange,
             path: `USDT → ${alt} → ${intermediate} → USDT`,
             baseSymbol: `${intermediate}/USDT`,

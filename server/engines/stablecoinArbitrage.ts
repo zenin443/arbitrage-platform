@@ -158,9 +158,12 @@ function computeStablecoinOpportunities(): StablecoinOpportunity[] {
         const netProfitPercent = parseFloat((spreadPercent - minFeePercent).toFixed(6))
         const estimatedProfit1k = parseFloat((1000 * (netProfitPercent / 100)).toFixed(4))
 
+        // Guard: suppress signals where fees exceed the spread
+        if (netProfitPercent <= 0) continue
+
         // Liquidity: use minimum available depth across both legs (in USD)
-        const buyDepthUsd  = buy.bidSize  * buyPrices.effectiveBuy
-        const sellDepthUsd = sell.askSize * sellPrices.effectiveSell
+        const buyDepthUsd  = (buy.askSize ?? 0)  * buyPrices.effectiveBuy
+        const sellDepthUsd = (sell.bidSize ?? 0) * sellPrices.effectiveSell
         const liquidityScore = Math.min(1, Math.min(buyDepthUsd, sellDepthUsd) / 10_000)
 
         let confidence: 'high' | 'medium' | 'low'

@@ -56,14 +56,22 @@ export class BybitAdapter extends BaseExchangeAdapter {
     this.ws.on('open', () => {
       this.log('WebSocket connected')
       this.backoffMs = 2000
-      // Bybit V5 rejects subscribe messages with more than 10 args.
-      // Batch all tickers into chunks of SUBSCRIBE_CHUNK and send separately.
-      const allArgs = SYMBOLS.map(s => `tickers.${s.replace('/', '')}`)
+      // Bybit V5 spot only supports USDT and USDC quoted pairs.
+      // BTC/ETH cross-pairs and stable pairs are not listed on Bybit spot — including
+      // them causes Bybit to silently reject the entire subscription batch.
+      // Filter to only USDT and USDC symbols before subscribing.
+      const supportedSymbols = SYMBOLS.filter(s => s.endsWith('/USDT') || s.endsWith('/USDC'))
+      const allArgs = supportedSymbols.map(s => `tickers.${s.replace('/', '')}`)
       const chunk = BybitAdapter.SUBSCRIBE_CHUNK
-      for (let i = 0; i < allArgs.length; i += chunk) {
-        this.ws?.send(JSON.stringify({ op: 'subscribe', args: allArgs.slice(i, i + chunk) }))
+      const batches = Math.ceil(allArgs.length / chunk)
+      const sendBatch = (batchIndex: number) => {
+        if (batchIndex >= batches) return
+        if (this.ws?.readyState !== WebSocket.OPEN) return
+        this.ws.send(JSON.stringify({ op: 'subscribe', args: allArgs.slice(batchIndex * chunk, (batchIndex + 1) * chunk) }))
+        setTimeout(() => sendBatch(batchIndex + 1), 200)
       }
-      this.log(`Subscribed to ${allArgs.length} tickers in ${Math.ceil(allArgs.length / chunk)} batches`)
+      sendBatch(0)
+      this.log(`Subscribing to ${allArgs.length} USDT/USDC tickers in ${batches} batches (200ms apart)`)
       this.pingTimer = setInterval(() => {
         if (this.ws?.readyState === WebSocket.OPEN) {
           this.ws.send(JSON.stringify({ op: 'ping' }))

@@ -10,6 +10,7 @@ import CoinDetailPanel from "@/components/dashboard/CoinDetailPanel";
 import OpportunityTable from "@/components/dashboard/OpportunityTable";
 import SignalInsightPanel from "@/components/dashboard/SignalInsightPanel";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
+import TerminalConfigurator from "@/components/dashboard/TerminalConfigurator";
 import { formatPercent, formatNumber } from "@/lib/formatters";
 import { NormalizedGap } from "@/lib/response-transformer";
 import { useSettingsStore } from "@/store/useSettingsStore";
@@ -43,6 +44,7 @@ export default function DashboardPage() {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
   const [now, setNow] = useState('');
   const [showSignalPanel, setShowSignalPanel] = useState(false);
+  const [configuratorOpen, setConfiguratorOpen] = useState(false);
   const tradeSize = useSettingsStore(s => s.tradeSize);
 
   useEffect(() => {
@@ -170,6 +172,7 @@ export default function DashboardPage() {
         activePage="/dashboard"
         connectionStatus={connectionStatus}
         statusSlot={now ? <span className="text-[#484F58] text-[11px] font-mono mr-2">{now}</span> : null}
+        onOpenConfigurator={() => setConfiguratorOpen(true)}
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -271,6 +274,8 @@ export default function DashboardPage() {
       )}
 
       <MobileNav activePage="/dashboard" />
+
+      <TerminalConfigurator isOpen={configuratorOpen} onClose={() => setConfiguratorOpen(false)} />
     </div>
   );
 }
